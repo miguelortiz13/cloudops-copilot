@@ -107,7 +107,7 @@ flowchart LR
     OK -->|tag v*| APPROVAL[aprobación manual] --> PROD[apply en prod] --> SMOKE2[smoke test prod]
 ```
 
-- **Sin secretos en GitHub**: una identidad de despliegue con credencial federada para `repo:miguelortiz13/cloudops-copilot:environment:prod`.
+- **Sin secretos en GitHub**: una identidad de despliegue con credencial federada para `repo:miguelortiz13@89714460/cloudops-copilot@1406664105:environment:prod` (formato inmutable del claim `sub` de GitHub).
 - **Plan en el PR**: el revisor ve qué cambia en la infraestructura antes de aprobar.
 - **Reversión**: Container Apps conserva revisiones; volver atrás es reactivar la anterior (o reetiquetar la imagen).
 - **Migraciones de base de datos** como paso explícito antes de activar la nueva revisión.
