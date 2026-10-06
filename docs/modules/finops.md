@@ -1,8 +1,27 @@
-# FinOps
+# Costos (FinOps)
+
+El módulo tiene dos pestañas, en este orden a propósito: primero **cuánto se gasta y en qué**, después **cómo ahorrar**. Una oportunidad de 3 USD solo se puede juzgar sabiendo si la cuenta es de 30 o de 30.000.
+
+## Visión general de costos
+
+Código: [`services/cost_overview_service.py`](../../backend/app/services/cost_overview_service.py), endpoint `GET /api/finops/costs`, vista [`CostsView.tsx`](../../frontend/src/modules/finops/CostsView.tsx).
+
+| Bloque | Qué muestra | Fuente |
+|---|---|---|
+| Cifra principal | Gasto de los últimos 30 días y variación frente a los 30 anteriores | Serie diaria |
+| Mes en curso | Facturado desde el día 1 y proyección lineal de cierre (promedio de los últimos 7 días) | Serie diaria |
+| Evolución diaria | 60 días en columnas: el periodo actual en acento y el anterior en gris como contexto; vista de tabla equivalente | Serie diaria |
+| Distribución | Por servicio, grupo de recursos, suscripción o región | Gasto por recurso |
+| Atribución por etiqueta | Showback por cada tag de `SHOWBACK_TAGS` y porcentaje sin etiquetar | Gasto por recurso + tags |
+| Recursos con mayor gasto | Los 25 más costosos con su peso sobre el total; los ya eliminados que facturaron en la ventana se marcan | Gasto por recurso + inventario |
+
+No lanza consultas nuevas por recurso: reutiliza la caché de `CostService` (gasto por recurso a 30 días y serie diaria), que la precarga mantiene caliente. Los cargos que no pertenecen a ningún recurso (soporte, Marketplace, reservas) se declaran aparte en lugar de esconderse. Todas las cifras son facturación real; las suscripciones sin cobertura se nombran y quedan fuera del total, sin rellenar con estimaciones.
+
+## Optimización y ahorro
 
 Código: [`services/finops_service.py`](../../backend/app/services/finops_service.py), [`services/cost_service.py`](../../backend/app/services/cost_service.py), [`services/metrics_service.py`](../../backend/app/services/metrics_service.py), [`services/pricing.py`](../../backend/app/services/pricing.py).
 
-## Qué ofrece
+### Qué ofrece
 
 | Capacidad | Fuente |
 |---|---|
@@ -14,7 +33,7 @@ Código: [`services/finops_service.py`](../../backend/app/services/finops_servic
 | Right-sizing con CPU promedio real a 30 días | Azure Monitor |
 | Puntos ciegos: recursos sin tags para asignación de costos | Resource Graph |
 
-## Procedencia de las cifras
+### Procedencia de las cifras
 
 El reporte nunca presenta una estimación como factura:
 
@@ -25,11 +44,11 @@ El reporte nunca presenta una estimación como factura:
 
 En el panel se ve como una banda de "Cobertura parcial — N de M suscripciones" con la lista de las que quedaron fuera.
 
-## Permisos
+### Permisos
 
 Para consultas de costo con alcance de suscripción, `Reader` basta. `Cost Management Reader` solo hace falta para alcances superiores (management group, billing account) o si la organización restringe la visibilidad de cargos. Las suscripciones que responden `403` se recuerdan `COST_DENIAL_TTL_SECONDS` (1 h): al expirar se vuelven a probar, así que **otorgar el rol se detecta sin redesplegar**.
 
-## El límite de tasa es la restricción real
+### El límite de tasa es la restricción real
 
 El reporte necesita del orden de dos consultas a Cost Management por suscripción. Con ~30 suscripciones son ~60 llamadas contra una API que responde `429` con facilidad. Tres medidas lo resuelven:
 

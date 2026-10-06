@@ -2,6 +2,30 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [2.3.0] — 2026-10-06
+
+### Cambiado
+- **Rediseño completo del panel**: sistema de diseño con tokens (modo claro y oscuro), tipografía Inter, superficies sobrias con bordes finos; sin glassmorphism ni emojis en la interfaz.
+- El frontend pasó de un `App.tsx` de 3.500 líneas con 453 estilos en línea a módulos por sección, componentes reutilizables y contratos tipados (`no-explicit-any` vuelve a ser error).
+- **Costos primero, ahorro después**: el módulo de FinOps abre con la visión global del gasto y deja la optimización en una segunda pestaña.
+- Navegación por hash con una URL por vista (`#/finops/ahorro`) y una página de **Resumen** ejecutivo como portada.
+- Seguridad muestra la lista unificada de hallazgos priorizados, incluidas las reglas de SQL y HTTPS que el panel anterior no mostraba.
+- Recursos sin uso unificados en una tabla con costo y origen de la cifra (facturado o estimado).
+- La consola de agentes se sintoniza con la sección activa.
+
+### Añadido
+- `GET /api/finops/costs` (`CostOverviewService`): totales, comparación de periodos, mes en curso, proyección, serie diaria, desgloses y ranking.
+- Respuestas del motor de reglas para los agentes de costos y seguridad (sin Gemini respondían con las reglas de inventario).
+- Capturas en `docs/assets`.
+
+### Corregido
+- La exposición de SecOps sin scope explícito no consultaba costos y mostraba "sin gasto facturado".
+- Textos de anomalías sin tildes.
+- Efectos de React que devolvían la Promise de `scrollIntoView` en Chromium reciente y tumbaban la consola de agentes.
+
+### Eliminado
+- Respuestas simuladas del chat y datos de demostración en el panel cuando el API no responde: ahora se muestra el error.
+
 ## [2.2.0] — 2026-10-06
 
 Primera versión probada y desplegada sobre un tenant real.

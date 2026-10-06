@@ -698,6 +698,21 @@ class AzureInventoryAgent:
             ],
         }
 
+    def _responder_con_reglas(
+        self, question: str, agent_type: str, subscriptions: Optional[List[str]]
+    ) -> Dict[str, Any]:
+        """Motor de reglas por agente: costos y seguridad responden con sus servicios."""
+        from app.agents import rule_answers
+
+        try:
+            if agent_type == "finops":
+                return rule_answers.respuesta_finops(self, question, subscriptions)
+            if agent_type == "secops":
+                return rule_answers.respuesta_secops(self, subscriptions)
+        except Exception as exc:
+            print(f"[Agente] Respuesta por reglas de {agent_type} fallo: {exc}")
+        return self.ask_rule_based(question)
+
     def ask_rule_based(self, question: str) -> Dict[str, Any]:
         """Offline and rule-based fallback answering engine using direct KQL queries."""
         if not self.azure_connected:
@@ -1106,7 +1121,7 @@ class AzureInventoryAgent:
     def ask(self, question: str, agent_type: str = "inventory", subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Processes the natural language query using Gemini (RAG) or Fallback search."""
         if not HAS_GEMINI:
-            return self.ask_rule_based(question)
+            return self._responder_con_reglas(question, agent_type, subscriptions)
             
         try:
             # ──────────────────────────────────────────────
@@ -1494,7 +1509,7 @@ class AzureInventoryAgent:
 
         except Exception as e:
             print(f"Error calling Gemini API: {e}. Falling back to rule-based.")
-            return self.ask_rule_based(question)
+            return self._responder_con_reglas(question, agent_type, subscriptions)
 
     # get_finops_insights() se elimino al migrar el reporte a FinOpsService.
     # Aquella version calculaba el gasto como "numero de recursos x 15.50 USD",

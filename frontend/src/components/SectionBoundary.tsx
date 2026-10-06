@@ -44,16 +44,12 @@ export class SectionBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="state state-error" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="state-icon" aria-hidden="true">⚠️</span>
-          <strong>No se pudo dibujar la sección «{this.props.name}».</strong>
+      <div className="card">
+        <div className="empty">
+          <strong>No se pudo mostrar la sección «{this.props.name}»</strong>
+          <span>El resto de la plataforma sigue funcionando. Detalle técnico: <code>{this.state.error.message}</code></span>
+          <button className="btn btn-sm" onClick={this.reintentar}>Reintentar</button>
         </div>
-        <div style={{ color: 'var(--text-secondary)' }}>
-          El resto de la plataforma sigue funcionando. Detalle técnico:{' '}
-          <code style={{ fontSize: '0.75rem' }}>{this.state.error.message}</code>
-        </div>
-        <button className="btn btn-secondary" onClick={this.reintentar}>Reintentar</button>
       </div>
     );
   }

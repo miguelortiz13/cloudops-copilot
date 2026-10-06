@@ -35,6 +35,7 @@ curl -s -X POST localhost:8000/api/inventory/resources \
 
 | Método | Ruta | Descripción |
 |---|---|---|
+| `GET` | `/api/finops/costs` | Visión global: totales de 30 días vs. los 30 anteriores, mes en curso, proyección, serie diaria de 60 días, desgloses por suscripción, grupo, servicio, región y tags, y ranking de recursos |
 | `GET` | `/api/finops/report` | Reporte completo: huérfanos, showback, anomalías, presupuestos, right-sizing, cobertura de costo |
 | `GET` | `/api/finops/warm-status` | Estado de la precarga de costos en segundo plano |
 | `GET` | `/api/finops/details` | *Heredado.* Conteos básicos de huérfanos |

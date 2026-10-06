@@ -1,0 +1,135 @@
+/*
+ * Tokens de diseño de CloudOps Copilot.
+ *
+ * Todo color, espacio y radio del panel sale de aquí. Los componentes nunca
+ * llevan valores sueltos: así el modo oscuro es una redefinición de tokens y no
+ * una segunda hoja de estilos.
+ *
+ * Paleta de datos: slots 1-3 de la paleta categórica de referencia, validada
+ * con el script de dataviz en ambos modos (CVD ΔE ≥ 9.2, visión normal ≥ 26.5).
+ * Los colores de estado están reservados: nunca identifican una serie.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Superficies */
+  --bg-page: #f6f7f9;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-subtle: #f2f4f7;
+  --bg-hover: #f2f4f7;
+  --bg-selected: #eef4fc;
+  --bg-inverse: #101828;
+
+  /* Tinta */
+  --text-primary: #101828;
+  --text-secondary: #475467;
+  --text-muted: #6b7280;
+  --text-on-accent: #ffffff;
+  --text-success: #067a3f;
+  --text-danger: #b42318;
+
+  /* Bordes y gráficos */
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+  --grid: #eaecf0;
+  --axis: #d0d5dd;
+
+  /* Acento y series (slot 1 = acento) */
+  --accent: #2a78d6;
+  --accent-hover: #256abf;
+  --accent-soft: #eef4fc;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-muted: #c9ced6;
+
+  /* Estado (reservado) */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* Forma */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.16);
+  --focus-ring: 0 0 0 3px rgba(42, 120, 214, 0.25);
+
+  /* Tipografía */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --topbar-height: 56px;
+  --content-max: 1440px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg-page: #0c0d0f;
+    --bg-surface: #141518;
+    --bg-raised: #1b1d21;
+    --bg-subtle: #1b1d21;
+    --bg-hover: #202227;
+    --bg-selected: #172234;
+    --bg-inverse: #f2f4f7;
+    --text-primary: #f2f4f7;
+    --text-secondary: #a8adb7;
+    --text-muted: #80868f;
+    --text-success: #3ccb7f;
+    --text-danger: #f97066;
+    --border: #25282d;
+    --border-strong: #33373d;
+    --grid: #22252a;
+    --axis: #383c42;
+    --accent: #3987e5;
+    --accent-hover: #5598e7;
+    --accent-soft: #172234;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-muted: #3a3e45;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+    --focus-ring: 0 0 0 3px rgba(57, 135, 229, 0.35);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-page: #0c0d0f;
+  --bg-surface: #141518;
+  --bg-raised: #1b1d21;
+  --bg-subtle: #1b1d21;
+  --bg-hover: #202227;
+  --bg-selected: #172234;
+  --bg-inverse: #f2f4f7;
+  --text-primary: #f2f4f7;
+  --text-secondary: #a8adb7;
+  --text-muted: #80868f;
+  --text-success: #3ccb7f;
+  --text-danger: #f97066;
+  --border: #25282d;
+  --border-strong: #33373d;
+  --grid: #22252a;
+  --axis: #383c42;
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
+  --accent-soft: #172234;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-muted: #3a3e45;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --focus-ring: 0 0 0 3px rgba(57, 135, 229, 0.35);
+}

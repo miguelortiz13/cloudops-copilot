@@ -30,6 +30,7 @@ probar POST /api/inventory/tag-compliance  '{"subscriptionIds":[]}'
 probar POST /api/inventory/resources       '{"subscriptionIds":[],"pageSize":10}'
 probar POST /api/iac/terraform-coverage    '{"subscriptionIds":[]}'
 probar GET  /api/secops/report
+probar GET  /api/finops/costs
 probar GET  /api/finops/report
 probar POST /api/chat                      '{"message":"resumen del inventario","agent_type":"inventory"}'
 

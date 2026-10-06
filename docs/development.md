@@ -82,4 +82,19 @@ Solo configuración: `MANDATORY_TAGS` en `.env` y `mandatory_tags` en Terraform.
 
 ## Frontend
 
-El panel vive casi entero en `src/App.tsx` (~3.500 líneas). Las respuestas del API están tipadas como `any` en varios puntos; ESLint lo reporta como advertencia. Dividirlo por módulo y tipar los contratos es la primera tarea del [roadmap](roadmap.md) del frontend: hazlo módulo por módulo, sin cambiar comportamiento.
+```
+frontend/src/
+├── App.tsx                 sesión de Entra ID, layout y enrutamiento por hash (#/finops/ahorro)
+├── styles/tokens.css       tokens de diseño: colores, radios, sombras; modo claro y oscuro
+├── styles/app.css          layout y componentes, escritos contra los tokens
+├── lib/                    cliente del API con caché (useApi), tipos de los contratos, formato es-CO, markdown
+├── state/                  contexto global: alcance de suscripciones, tema, avisos, consola de agentes
+├── components/             ui (tarjetas, KPIs, tablas, drawer, modal), charts (SVG), layout, nav
+└── modules/<sección>/      una página por sección: overview, inventory, finops, secops, iac, iso, reports
+```
+
+- **Sin valores sueltos de color**: todo sale de `tokens.css`. El modo oscuro redefine tokens; no hay una segunda hoja de estilos.
+- **Contratos tipados** en `lib/types.ts`. `no-explicit-any` es error en ESLint.
+- **Gráficos** propios en SVG (`components/charts.tsx`), siguiendo reglas fijas: columnas de 24 px como máximo con extremo redondeado de 4 px, separación de 2 px, cuadrícula de línea fina, tooltip y vista de tabla equivalente. La paleta de datos (slots 1-3) está validada para daltonismo en ambos modos.
+- **Estado de carga**: `useApi` muestra lo último cargado mientras refresca (opacidad reducida), sin vaciar la pantalla.
+- **Colores de estado reservados** (bueno, aviso, serio, crítico) y siempre con texto: una severidad nunca se comunica solo con color.

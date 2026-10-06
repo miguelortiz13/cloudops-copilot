@@ -216,19 +216,19 @@ class FinOpsService:
         # las demas no estan siendo vigiladas.
         scope_note = (
             f" Cobertura: {n_cov} de {n_cov + n_unc} suscripciones; las restantes "
-            f"no exponen datos de costo y no entran en este analisis."
+            f"no exponen datos de costo y no entran en este análisis."
             if n_unc else ""
         )
 
         if daily.get("status") not in ("success", "partial"):
             return [
                 {
-                    "title": "Sin datos de facturacion disponibles",
+                    "title": "Sin datos de facturación disponibles",
                     "severity": "Info",
                     "description": (
                         "No se pudo consultar la serie diaria de Cost Management "
-                        f"(estado: {daily.get('status')}). La deteccion de anomalias "
-                        "requiere el rol Cost Management Reader sobre la suscripcion."
+                        f"(estado: {daily.get('status')}). La detección de anomalías "
+                        "requiere el rol Cost Management Reader sobre la suscripción."
                     ),
                     "recomm_action": "Asignar el rol Cost Management Reader al Service Principal.",
                 }
@@ -238,13 +238,13 @@ class FinOpsService:
         if len(series) < 14:
             return [
                 {
-                    "title": "Historico insuficiente para comparar",
+                    "title": "Histórico insuficiente para comparar",
                     "severity": "Info",
                     "description": (
-                        f"Solo hay {len(series)} dias de datos de costo consolidados; "
+                        f"Solo hay {len(series)} días de datos de costo consolidados; "
                         "se necesitan al menos 14 para comparar tendencias."
                     ),
-                    "recomm_action": "Reintentar cuando Azure consolide mas dias de uso.",
+                    "recomm_action": "Reintentar cuando Azure consolide más días de uso.",
                 }
             ]
 
@@ -264,9 +264,9 @@ class FinOpsService:
                         "title": "Incremento sostenido del gasto diario",
                         "severity": "Critical" if delta_pct >= 50 else "Warning",
                         "description": (
-                            f"El gasto medio de los ultimos 7 dias es de "
-                            f"{recent_avg:,.2f} USD/dia, un {delta_pct:,.1f}% por encima "
-                            f"del promedio de los 23 dias previos ({baseline_avg:,.2f} USD/dia)."
+                            f"El gasto medio de los últimos 7 días es de "
+                            f"{recent_avg:,.2f} USD/día, un {delta_pct:,.1f}% por encima "
+                            f"del promedio de los 23 días previos ({baseline_avg:,.2f} USD/día)."
                             f"{scope_note}"
                         ),
                         "recomm_action": (
@@ -278,12 +278,12 @@ class FinOpsService:
             elif delta_pct <= -20:
                 anomalies.append(
                     {
-                        "title": "Reduccion significativa del gasto diario",
+                        "title": "Reducción significativa del gasto diario",
                         "severity": "Normal",
                         "description": (
-                            f"El gasto medio de los ultimos 7 dias bajo a "
-                            f"{recent_avg:,.2f} USD/dia, un {abs(delta_pct):,.1f}% menos que "
-                            f"el promedio previo ({baseline_avg:,.2f} USD/dia)."
+                            f"El gasto medio de los últimos 7 días bajo a "
+                            f"{recent_avg:,.2f} USD/día, un {abs(delta_pct):,.1f}% menos que "
+                            f"el promedio previo ({baseline_avg:,.2f} USD/día)."
                         ),
                         "recomm_action": "Confirmar que la baja corresponde a optimizaciones y no a apagones.",
                         "delta_percentage": round(delta_pct, 1),
@@ -300,7 +300,7 @@ class FinOpsService:
                     "title": f"Pico de gasto el {date}",
                     "severity": "Warning",
                     "description": (
-                        f"Ese dia se facturaron {value:,.2f} USD, mas del doble del "
+                        f"Ese día se facturaron {value:,.2f} USD, más del doble del "
                         f"promedio diario del periodo ({period_avg:,.2f} USD)."
                     ),
                     "recomm_action": "Identificar el servicio responsable en Cost Analysis para esa fecha.",
@@ -314,7 +314,7 @@ class FinOpsService:
                     "severity": "Normal",
                     "description": (
                         f"El gasto diario se mantiene estable alrededor de "
-                        f"{period_avg:,.2f} USD/dia en los ultimos 30 dias.{scope_note}"
+                        f"{period_avg:,.2f} USD/día en los ultimos 30 dias.{scope_note}"
                     ),
                     "recomm_action": "Continuar monitoreo rutinario.",
                 }
