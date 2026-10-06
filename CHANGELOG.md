@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [2.2.0] — 2026-10-06
+
+Primera versión probada y desplegada sobre un tenant real.
+
+### Cambiado
+- **Despliegue en Container Apps de consumo** (escala a cero) en lugar de App Service B1: costo fijo de ~13 USD/mes a ~0.
+- **Identidad administrada** asignada por el usuario en lugar de client secrets: Reader en las suscripciones observadas, Storage Blob Data Reader en las cuentas de estados y AcrPull.
+- **Entra ID gestionado por Terraform**: app registrations del API y del panel, preautorización y acceso restringido a usuarios asignados. El despliegue siempre activa `AUTH_ENABLED`.
+- Esquema de tags por defecto `Environment` / `Project` / `ManagedBy`; showback por `Project` / `Environment`.
+- `TFSTATE_ACCOUNT` acepta varias cuentas (`cuenta[/contenedor]`, separadas por comas); una cuenta inaccesible no invalida las demás.
+- Los campos de tags del inventario y del CSV se derivan de `MANDATORY_TAGS` (`tagValues`).
+- `deploy.sh` construye la imagen con Docker, aplica Terraform, compila el panel con la configuración de Entra ID y verifica el API.
+
+### Añadido
+- `scripts/smoke-test.sh` / `make smoke`: recorre el API desplegado con un token real y comprueba que sin token responda 401.
+- `tests/conftest.py`: las pruebas no dependen del `.env` local ni de credenciales.
+- Soporte de `AZURE_MANAGED_IDENTITY_CLIENT_ID` y `AZURE_CLI_TIMEOUT_SECONDS`.
+
+### Corregido
+- `/api/inventory/health` informaba `azureConnected: true` sin haber obtenido nunca un token; ahora la conexión se confirma al arrancar.
+- La cobertura de Terraform contaba subrecursos, role assignments y budgets como recursos "obsoletos": 37 falsos positivos de 57 en un proyecto real.
+- `ManagedBy=Manual` contaba como evidencia de IaC.
+- El filtro `missingTags` en KQL devolvía todo el inventario para una tag no obligatoria y distinguía mayúsculas; ahora coincide con el camino en memoria (verificado con la prueba de integración).
+- El chat interpretaba "dueño **de** X" buscando un recurso llamado `de`.
+- Las tags faltantes se mostraban como `Managedby` en lugar de `ManagedBy`.
+
+### Eliminado
+- App Service y aprovisionamiento automático del bot de Teams (queda como paso manual opcional).
+
 ## [2.1.0] — 2026-10-05
 
 Primera versión como proyecto independiente **CloudOps Copilot**.

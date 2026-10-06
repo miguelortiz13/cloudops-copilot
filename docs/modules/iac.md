@@ -16,6 +16,8 @@ Que un recurso aparezca en un estado prueba que está gestionado y lo saca de lo
 
 El cruce revela además recursos que un estado sigue gestionando y que **ya no existen en Azure**: alguien los borró sin pasar por Terraform, y el próximo `plan` intentará recrearlos.
 
+Solo cuentan los **recursos de primer nivel** (`/subscriptions/…/resourceGroups/…/providers/<ns>/<tipo>/<nombre>`). Un estado también gestiona subrecursos (contenedores y tablas de storage), recursos de extensión (role assignments), budgets y el propio grupo, que no están en la tabla `resources` de Resource Graph. Antes se contaban como obsoletos: en un proyecto real, 37 de 57 ids aparecían como borrados y ninguno lo estaba (`governance.es_recurso_inventariable`).
+
 ### Seguridad
 
 De cada estado solo se extraen `id` y `type`; el resto (llaves, cadenas de conexión) se descarta sin registrarse ni cachearse. Basta `Storage Blob Data Reader` sobre la cuenta.
@@ -23,7 +25,8 @@ De cada estado solo se extraen `id` y `type`; el resto (llaves, cadenas de conex
 ### Activarlo
 
 ```env
-TFSTATE_ACCOUNT=<cuenta con los estados de tu organización>
+# Varias cuentas separadas por comas; opcionalmente cuenta/contenedor
+TFSTATE_ACCOUNT=sttfproyectoa,sttfproyectob/estados
 TFSTATE_CONTAINER=tfstate
 TFSTATE_EXCLUDE_PREFIXES=sandbox/,pruebas/
 ```

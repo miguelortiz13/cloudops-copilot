@@ -8,7 +8,7 @@ TF := infra/terraform
 PY := $(BACKEND)/.venv/bin/python
 
 .PHONY: help setup setup-backend setup-frontend dev test test-integration lint build \
-        docker-up docker-down tf-fmt tf-validate deploy destroy clean
+        docker-up docker-down tf-fmt tf-validate smoke deploy destroy clean
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -49,6 +49,9 @@ tf-fmt: ## Formatea el codigo Terraform
 
 tf-validate: ## Valida Terraform sin backend remoto
 	terraform -chdir=$(TF) init -backend=false -input=false >/dev/null && terraform -chdir=$(TF) validate
+
+smoke: ## Prueba de humo del API desplegado (token de Azure CLI)
+	./scripts/smoke-test.sh
 
 deploy: ## Despliega infraestructura y aplicacion en Azure
 	./scripts/deploy.sh

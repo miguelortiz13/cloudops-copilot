@@ -1,49 +1,56 @@
 # Política de tags de referencia
 
-Esta es la política que CloudOps Copilot evalúa por defecto. Es una plantilla: adáptala a tu organización y refleja el resultado en `MANDATORY_TAGS` y `SHOWBACK_TAGS` (ver [configuration.md](../configuration.md)).
-
-## Objetivo
-
-Que todo recurso de Azure responda, solo con sus tags, a cuatro preguntas: **¿de quién es?**, **¿para qué sirve?**, **¿a quién se le cobra?** y **¿en qué ambiente vive?**
+Esta es la política que CloudOps Copilot evalúa por defecto. Es corta a propósito: tres tags que cualquier proyecto puede mantener desde el primer día, y que responden las preguntas que importan al operar. Si tu organización necesita más dimensiones, agrégalas en `MANDATORY_TAGS` y `SHOWBACK_TAGS` (ver [configuration.md](../configuration.md)).
 
 ## Tags obligatorias
 
-| Tag | Pregunta que responde | Ejemplos de valor |
+| Tag | Pregunta que responde | Valores |
 |---|---|---|
-| `Customer` | ¿A qué cliente (interno o externo) se atribuye el costo? | `Acme`, `Interno` |
-| `Tenant` | ¿Qué unidad de negocio o tenant lógico lo consume? | `AcmeRetail`, `Shared` |
-| `Platform` | ¿Sobre qué plataforma técnica corre? | `CorePlatform`, `DataPlatform` |
-| `Product` | ¿Qué producto o servicio soporta? | `Checkout`, `Billing`, `DevOps` |
-| `Suite` | ¿A qué línea o conjunto funcional pertenece? | `Commerce`, `Analytics`, `Shared` |
-| `Environment` | ¿En qué ambiente vive? | `Prod`, `QA`, `Dev`, `Sandbox` |
+| `Environment` | ¿En qué ambiente vive? ¿Puedo apagarlo? | `prod`, `qa`, `dev`, `sandbox`, `shared` |
+| `Project` | ¿A qué proyecto pertenece y a quién se le atribuye el costo? | Nombre corto del proyecto: `sechub`, `cloudops`, `devops-sre-lab` |
+| `ManagedBy` | ¿Cómo se creó y dónde se cambia? | `Terraform`, `Bicep`, `Script`, `Manual` |
 
-Un recurso es **conforme** cuando tiene las seis con un valor útil. No cuentan como valor: vacío, `n/a`, `na`, `tbd`, `none`, `null`, `por confirmar`, `sin definir`.
+Un recurso es **conforme** cuando tiene las tres con un valor útil. No cuentan como valor: vacío, `n/a`, `na`, `tbd`, `none`, `null`, `por confirmar`, `sin definir`.
+
+### `ManagedBy` y la evidencia de IaC
+
+`ManagedBy` con un valor de herramienta (`Terraform`, `Bicep`, `Pulumi`...) cuenta como **evidencia débil** de IaC. Los valores `Manual`, `Portal`, `ClickOps` y `None` declaran lo contrario y **no** cuentan como IaC, aunque la clave exista.
+
+La evidencia fuerte es que el recurso aparezca en un estado de Terraform: configura las cuentas de estados en `TFSTATE_ACCOUNT` y la plataforma lo comprobará (ver [IaC](../modules/iac.md)). Una tag puede mentir; un estado, no.
 
 ## Tags recomendadas
 
 | Tag | Uso en la plataforma |
 |---|---|
-| `Owner` (o `OwnerTech`, `Team`, `CreatedBy`) | Identifica al **custodio**. Un recurso sin custodio es una de las cuatro señales de Shadow IT |
-| `provisioning_method` / `ManagedBy` = `terraform` | **Evidencia débil** de IaC. La evidencia fuerte es aparecer en un estado de Terraform |
-| `CostCenter` | Útil como dimensión adicional de showback (`SHOWBACK_TAGS`) |
+| `Owner` | Identifica al **custodio**. Un recurso sin custodio es una de las cuatro señales de Shadow IT |
+| `CostCenter` | Dimensión adicional de showback (agrégala a `SHOWBACK_TAGS`) |
+| `component` | Útil para distinguir piezas de un mismo proyecto (`bootstrap`, `api`, `data`) |
 
-Claves de custodio reconocidas: `owner`, `responsable`, `team`, `squad`, `contact`, `custodio`, `ownertech`, `ownerfunc`, `author`, `createdby` (sin distinguir mayúsculas). Se configuran en `services/governance.py`.
+Claves de custodio reconocidas: `owner`, `responsable`, `team`, `squad`, `contact`, `custodio`, `ownertech`, `ownerfunc`, `author`, `createdby`. No distinguen mayúsculas y se configuran en `services/governance.py`.
 
 ## Reglas de valor
 
-1. **Valores de una lista cerrada** por tag, publicada y versionada (por ejemplo, en este repositorio). Los valores libres degradan el showback.
-2. **PascalCase sin espacios** (`DataPlatform`, no `data platform`).
-3. `Environment` usa exactamente `Prod`, `QA`, `Dev`, `Sandbox` o `UAT`; la plataforma los normaliza para distinguir producción de no producción.
-4. Los recursos derivados (nodos de AKS, grupos `MC_*`, recursos gestionados por Databricks) **no** necesitan tags manuales: la plataforma los excluye de Shadow IT.
+1. **Un vocabulario cerrado por tag.** Los valores libres degradan el showback: `sechub`, `SecHub` y `sec-hub` son tres proyectos para la factura.
+2. **`Environment` en minúsculas** y con los valores de la tabla. La plataforma los normaliza para separar producción de no producción.
+3. **`Project` igual al prefijo de nombres del proyecto**, para que tags y nombres cuenten la misma historia.
+4. Los recursos derivados (nodos de AKS, grupos `MC_*`, `NetworkWatcherRG`, recursos de Databricks) no necesitan tags manuales: la plataforma los excluye de Shadow IT.
 
 ## Aplicación
 
 | Mecanismo | Rol |
 |---|---|
-| **Terraform** | Fuente principal: un bloque `tags` común (`locals`) en cada stack. El generador de IaC de la plataforma ya lo incluye |
-| **Azure Policy** | *Audit* primero; *Deny* para `Environment` y `Owner` cuando la adopción supere el umbral acordado; *Modify* para heredar tags del grupo de recursos |
-| **CloudOps Copilot** | Medición continua: matriz de cumplimiento, evolución histórica y lista de no conformes con su custodio |
+| **Terraform** | Fuente principal: un `locals { tags = {...} }` común en cada stack. La infraestructura de CloudOps Copilot lo hace así, y el generador de IaC incluye el bloque |
+| **Azure Policy** | *Audit* primero; *Deny* para `Environment` y `Project` cuando todos los proyectos cumplan; *Modify* para heredar tags del grupo de recursos |
+| **CloudOps Copilot** | Medición continua: matriz de cumplimiento, evolución histórica y lista de no conformes |
 
-## Excepciones
+## Ejemplo en Terraform
 
-Se registran con fecha de vencimiento y responsable. Un recurso exceptuado sigue apareciendo como no conforme: la excepción documenta la decisión, no oculta la métrica.
+```hcl
+locals {
+  tags = {
+    Environment = var.environment
+    Project     = "cloudops"
+    ManagedBy   = "Terraform"
+  }
+}
+```

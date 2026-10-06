@@ -4,10 +4,12 @@ Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desp
 
 ## 1. Producción segura
 
-- [ ] `AUTH_ENABLED=true` por defecto en Terraform y documentar el registro de las dos App Registrations con un script (`az ad app create`).
-- [ ] Secretos en **Key Vault** con referencias `@Microsoft.KeyVault(...)` en los app settings, e identidad administrada del App Service en lugar de client secret.
+- [x] `AUTH_ENABLED=true` en el despliegue y app registrations gestionadas por Terraform, con acceso solo para usuarios asignados.
+- [x] Identidad administrada en lugar de client secrets.
+- [ ] Clave de Gemini desde Key Vault (referencia de secreto de Container Apps).
 - [ ] Autenticación de Terraform y despliegue por **OIDC** desde GitHub Actions (workflow de CD con `environment` protegido).
 - [ ] Autorización por rol (lector / operador) además de autenticación: el agente SRE y el pipeline solo para operadores.
+- [ ] Volver a aprovisionar el bot de Teams con la arquitectura de Container Apps (registro con credencial federada, sin secreto).
 - [ ] Límite de tasa en `/api/chat` y `/api/k8s/chat`.
 
 ## 2. Calidad del backend

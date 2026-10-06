@@ -50,7 +50,7 @@ AZURE_SUBSCRIPTION_ID=<suscripción por defecto>
 GEMINI_API_KEY=            # opcional
 ```
 
-Si tu organización usa otro esquema de tags, defínelo en `MANDATORY_TAGS`. Referencia completa en [configuration.md](configuration.md).
+El esquema de tags por defecto es `Environment`, `Project`, `ManagedBy`; si usas otro, defínelo en `MANDATORY_TAGS`. Referencia completa en [configuration.md](configuration.md).
 
 ## 4. Ejecutar
 
@@ -83,7 +83,7 @@ curl -s localhost:8000/api/inventory/health | python3 -m json.tool
 ## 6. Pruebas
 
 ```bash
-make test               # 84 pruebas unitarias, sin red
+make test               # pruebas unitarias, sin red ni .env local
 make lint               # ruff + eslint
 make test-integration   # compara KQL vs memoria contra tu tenant (requiere credenciales)
 ```

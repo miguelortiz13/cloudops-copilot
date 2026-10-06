@@ -11,8 +11,8 @@ flowchart TB
 
     subgraph Azure_plataforma[Recursos de la plataforma · infra/terraform]
       SWA[Static Web App]
-      APP[App Service Linux<br/>FastAPI]
-      BOT[Azure Bot Service]
+      APP[Container App<br/>FastAPI · 0-1 réplicas]
+      BOT[Azure Bot Service<br/>opcional]
       FS[(File Share<br/>DATA_DIR)]
     end
 
@@ -41,7 +41,7 @@ flowchart TB
 | Servicios | Azure SDK + REST | Consultas KQL, costos, métricas, estados de Terraform, AKS |
 | Agentes | Gemini + motor de reglas | Respuestas en lenguaje natural sobre el contexto del tenant |
 | Pipeline | Scripts Python + bash | Exportación semanal del inventario a un Excel maestro con snapshots |
-| Infraestructura | Terraform (azurerm 3.x) | App Service, Static Web App, Bot, almacenamiento |
+| Infraestructura | Terraform (azurerm 3.x, azuread) | Container Apps, Static Web App, identidad administrada, Entra ID, almacenamiento |
 
 ## Backend por capas
 

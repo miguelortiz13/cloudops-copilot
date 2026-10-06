@@ -10,8 +10,8 @@ El punto de entrada es [`app/core/config.py`](../backend/app/core/config.py). Al
 |---|---|---|
 | `APP_NAME` | `CloudOps Copilot` | Nombre visible en la API y en el panel |
 | `ORG_NAME` | `tu organización` | Nombre con el que se presentan los agentes en el chat |
-| `MANDATORY_TAGS` | `Customer,Tenant,Platform,Product,Suite,Environment` | Tags obligatorias. Cambian el KPI de cumplimiento, la matriz de tags, la regla de Shadow IT, las consultas del chat y las plantillas de Terraform. Ver [política de tags](governance/tagging-policy.md) |
-| `SHOWBACK_TAGS` | `Customer,Product,Suite,Environment` | Dimensiones de atribución de gasto en FinOps |
+| `MANDATORY_TAGS` | `Environment,Project,ManagedBy` | Tags obligatorias. Cambian el KPI de cumplimiento, la matriz de tags, la regla de Shadow IT, las consultas del chat y las plantillas de Terraform. Ver [política de tags](governance/tagging-policy.md) |
+| `SHOWBACK_TAGS` | `Project,Environment` | Dimensiones de atribución de gasto en FinOps |
 | `FRONTEND_URL` | `http://localhost:5173` | URL pública del panel; enlaces en tarjetas de Teams y origen CORS por defecto |
 | `ALLOWED_ORIGINS` | `FRONTEND_URL` + `localhost:5173` | Orígenes CORS, separados por comas. Nunca `*` |
 | `DATA_DIR` | `backend/data` | Directorio persistente (caché de costos, histórico, Excel, snapshots). `EXCEL_STORAGE_DIR` se acepta como alias heredado |
@@ -27,7 +27,14 @@ El punto de entrada es [`app/core/config.py`](../backend/app/core/config.py). Al
 | `AZURE_SUBSCRIPTION_ID` | Suscripción por defecto |
 | `AZURE_ALLOWED_SUBSCRIPTIONS` | Lista blanca de suscripciones (ids separados por comas). Vacío = todas las visibles |
 
-Sin Service Principal, el agente intenta `DefaultAzureCredential` (por ejemplo, la sesión de `az login`). **Cuidado en local:** si tu `az login` apunta a un tenant real, la plataforma lo consultará.
+Sin Service Principal, el agente usa `DefaultAzureCredential`: la **identidad administrada** en Azure (`AZURE_MANAGED_IDENTITY_CLIENT_ID` si es asignada por el usuario) o la sesión de `az login` en local. La conexión se confirma pidiendo un token al arrancar; si falla, `/api/inventory/health` lo refleja.
+
+| Variable | Defecto | Descripción |
+|---|---|---|
+| `AZURE_MANAGED_IDENTITY_CLIENT_ID` | vacío | Client id de la identidad administrada asignada por el usuario |
+| `AZURE_CLI_TIMEOUT_SECONDS` | `30` | Espera máxima a `az` al pedir un token (en WSL tarda ~8 s) |
+
+ **Cuidado en local:** si tu `az login` apunta a un tenant real, la plataforma lo consultará.
 
 ## Motor cognitivo
 
@@ -80,8 +87,8 @@ Sin Service Principal, el agente intenta `DefaultAzureCredential` (por ejemplo, 
 
 | Variable | Defecto | Descripción |
 |---|---|---|
-| `TFSTATE_ACCOUNT` | vacío | Cuenta con los estados a escanear. **Vacía = módulo desactivado** |
-| `TFSTATE_CONTAINER` | `tfstate` | Contenedor de los estados |
+| `TFSTATE_ACCOUNT` | vacío | Cuentas con estados a escanear, separadas por comas, opcionalmente `cuenta/contenedor`. **Vacía = módulo desactivado**. Una cuenta inaccesible no invalida las demás |
+| `TFSTATE_CONTAINER` | `tfstate` | Contenedor por defecto de las cuentas sin contenedor explícito |
 | `TFSTATE_ENABLED` | `true` | Interruptor general |
 | `TFSTATE_EXCLUDE_PREFIXES` | vacío | Prefijos de blob a ignorar |
 | `TFSTATE_CACHE_TTL_SECONDS` | `21600` | Vigencia del índice de ids gestionados |
