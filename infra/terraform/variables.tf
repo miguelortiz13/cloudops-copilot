@@ -139,3 +139,12 @@ variable "gemini_model" {
   type        = string
   default     = "gemini-3.5-flash"
 }
+
+# ---------------------------------------------------------------------------
+# Despliegue continuo
+# ---------------------------------------------------------------------------
+variable "github_repository" {
+  description = "Repositorio de GitHub (propietario/nombre) autorizado a desplegar."
+  type        = string
+  default     = "miguelortiz13/cloudops-copilot"
+}

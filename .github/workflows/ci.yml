@@ -72,10 +72,38 @@ jobs:
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.3 \
             detect --source /repo --redact --verbose --no-banner
 
-  docker:
-    name: Docker build
+  dependencies:
+    name: Vulnerabilidades en dependencias
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t cloudops-api ./backend
-      - run: docker build -t cloudops-web ./frontend
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: pip-audit (backend)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (frontend)
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm audit --audit-level=high
+
+  docker:
+    name: Docker build + Trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t cloudops-api:ci ./backend
+      - run: docker build -t cloudops-web:ci ./frontend
+      # Falla con vulnerabilidades altas o críticas que ya tengan corrección:
+      # las que no tienen parche no son accionables y solo generarían ruido.
+      - name: Trivy (imagen del API)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.74.0 image --quiet --exit-code 1 \
+            --severity HIGH,CRITICAL --ignore-unfixed cloudops-api:ci

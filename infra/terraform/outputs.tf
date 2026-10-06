@@ -43,3 +43,8 @@ output "identity_principal_id" {
   description = "Principal de la identidad administrada de la plataforma."
   value       = azurerm_user_assigned_identity.api.principal_id
 }
+
+output "deploy_client_id" {
+  description = "Client id de la identidad de despliegue (secreto AZURE_CLIENT_ID del ambiente de GitHub)."
+  value       = azurerm_user_assigned_identity.deploy.client_id
+}

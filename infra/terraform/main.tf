@@ -268,6 +268,12 @@ resource "azurerm_container_app" "api" {
     }
   }
 
+  # La imagen la actualiza el despliegue continuo (az containerapp update).
+  # Sin esto, cada `terraform apply` volvería a la imagen de terraform.tfvars.
+  lifecycle {
+    ignore_changes = [template[0].container[0].image]
+  }
+
   depends_on = [azurerm_role_assignment.acr_pull]
 }
 
