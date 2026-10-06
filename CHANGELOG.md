@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [2.4.2] — 2026-10-06
+
+### Cambiado
+- ESLint 10, `@eslint/js` 10, `globals` 17 y TypeScript 6.0. TypeScript 7 queda en espera hasta que typescript-eslint lo soporte (Dependabot lo ignora).
+- Mínimos del backend: azure-identity 1.26, azure-mgmt-containerservice 41.7, azure-mgmt-resourcegraph 8.0.1, ruff 0.16.10.
+
+### Eliminado
+- `kubernetes`: no se usaba; el agente de Kubernetes opera AKS con run-command.
+
 ## [2.4.1] — 2026-10-06
 
 ### Cambiado
