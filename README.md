@@ -106,7 +106,8 @@ Empieza por el [índice de documentación](docs/README.md). Lo más consultado:
 - [Despliegue en Azure](docs/deployment.md): permisos, Terraform y publicación.
 - [API](docs/api.md): catálogo de endpoints.
 - [Seguridad](docs/security.md): modelo de amenazas y controles.
-- [Roadmap](docs/roadmap.md): lo que falta para llevarlo a producción.
+- [Plan de evolución](docs/plan/README.md): arquitectura objetivo, AWS y multinube, mejoras por módulo y hoja de ruta.
+- [Roadmap](docs/roadmap.md): tareas pendientes.
 
 ## Comandos útiles
 

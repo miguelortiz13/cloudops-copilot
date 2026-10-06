@@ -1,5 +1,7 @@
 # Documentación de CloudOps Copilot
 
+> **[Plan de evolución](plan/README.md)**: diagnóstico, arquitectura objetivo, multinube (AWS primero), mejoras por módulo, infraestructura y hoja de ruta por fases.
+
 ## Para empezar
 
 | Documento | Para qué |
