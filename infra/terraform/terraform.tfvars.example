@@ -1,0 +1,28 @@
+# Copiar a terraform.tfvars (ignorado por git) y completar.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+name_prefix = "cloudops"
+environment = "dev"
+location    = "eastus2"
+
+org_name       = "Acme Corp"
+mandatory_tags = ["Customer", "Tenant", "Platform", "Product", "Suite", "Environment"]
+
+# Registro de aplicacion del bot / API (Entra ID).
+bot_app_id       = "00000000-0000-0000-0000-000000000000"
+bot_app_password = "definir-en-tfvars-o-TF_VAR_bot_app_password"
+
+# Service Principal con rol Reader sobre el tenant (opcional).
+reader_client_id     = ""
+reader_client_secret = ""
+
+gemini_api_key = ""
+
+# Modulos opcionales
+enable_teams_bot        = true
+tfstate_account_to_scan = ""
+k8s_cluster_name        = ""
+k8s_resource_group      = ""
+k8s_subscription_id     = ""

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.15/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.15",
+  "version": "2.1.0",
+  "id": "${BOT_APP_ID}",
+  "packageName": "dev.cloudops.copilot",
+  "developer": {
+    "name": "${DEVELOPER_NAME}",
+    "websiteUrl": "${DEVELOPER_URL}",
+    "privacyUrl": "${DEVELOPER_URL}/privacy",
+    "termsOfUseUrl": "${DEVELOPER_URL}/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "CloudOps Copilot",
+    "full": "CloudOps Copilot — agente de operaciones cloud"
+  },
+  "description": {
+    "short": "Consulta de inventario de recursos Azure en lenguaje natural.",
+    "full": "Agente que consulta en tiempo real el inventario de Azure y ayuda al equipo de plataforma a auditar tags, encontrar custodios, priorizar hallazgos de seguridad y rastrear la adopción de Terraform."
+  },
+  "accentColor": "#4B53BC",
+  "bots": [
+    {
+      "botId": "${BOT_APP_ID}",
+      "scopes": [
+        "personal",
+        "team",
+        "groupchat"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupchat"
+          ],
+          "commands": [
+            {
+              "title": "resumen",
+              "description": "Ver resumen global del estado del inventario."
+            },
+            {
+              "title": "dueno",
+              "description": "Consultar quién es el dueño de un recurso por su nombre."
+            },
+            {
+              "title": "tags-gaps",
+              "description": "Listar recursos que incumplen las políticas de tagging."
+            },
+            {
+              "title": "drift-terraform",
+              "description": "Mostrar recursos creados de forma manual sin Terraform."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "${BACKEND_HOST}"
+  ]
+}

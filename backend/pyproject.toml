@@ -1,0 +1,23 @@
+[project]
+name = "cloudops-copilot-backend"
+version = "2.1.0"
+description = "API de CloudOps Copilot: inventario, FinOps, SecOps e IaC sobre Azure."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests/unit"]
+markers = [
+    "integration: requiere credenciales reales de Azure (se ejecuta con `make test-integration`)",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv", "pipelines"]
+
+[tool.ruff.lint]
+# Base conservadora: errores reales (pyflakes) y sintaxis. El codigo heredado
+# usa `from x import *` en los routers; se ira retirando por modulo.
+select = ["E9", "F63", "F7", "F82", "F401", "F811", "F841"]
+ignore = ["F403", "F405"]

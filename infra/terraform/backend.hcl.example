@@ -1,0 +1,11 @@
+# Copiar a backend.hcl (ignorado por git) y usar con:
+#   terraform init -backend-config=backend.hcl
+#
+# Cuenta de almacenamiento donde vive el estado de ESTA plataforma. Crearla una
+# vez con scripts/bootstrap-state.sh o reutilizar la de tu organizacion.
+subscription_id      = "00000000-0000-0000-0000-000000000000"
+resource_group_name  = "rg-tfstate"
+storage_account_name = "sttfstatecloudops"
+container_name       = "tfstate"
+key                  = "cloudops-copilot/dev.terraform.tfstate"
+use_azuread_auth     = true

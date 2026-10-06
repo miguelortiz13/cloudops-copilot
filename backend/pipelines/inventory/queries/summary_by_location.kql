@@ -1,0 +1,3 @@
+Resources
+| summarize total=count() by location
+| order by total desc

@@ -1,0 +1,5 @@
+Resources
+| extend tag_owner = tostring(tags['owner'])
+| where isempty(tag_owner)
+| project name, type, resourceGroup, subscriptionId, location, id
+| order by type asc, name asc

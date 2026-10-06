@@ -1,0 +1,28 @@
+# Entorno local completo: API en :8000 y panel en :8080.
+#   cp backend/.env.example backend/.env   # y completar credenciales
+#   docker compose up --build
+services:
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      DATA_DIR: /data
+      FRONTEND_URL: http://localhost:8080
+      ALLOWED_ORIGINS: http://localhost:8080
+    ports:
+      - "8000:8000"
+    volumes:
+      - cloudops-data:/data
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  cloudops-data:

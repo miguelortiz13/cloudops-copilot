@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"],
+  /* ChatPanel.tsx no lo usa ningun componente y depende de `react-markdown`,
+     que no esta en package.json: su unico efecto hoy es romper `tsc -b` y con
+     ello el build de produccion. Se excluye en vez de borrarlo porque el
+     archivo no esta versionado; si va a reemplazar los cuatro chats duplicados
+     de App.tsx, instalar la dependencia y quitarlo de esta lista. */
+  "exclude": ["src/components/ChatPanel.tsx"]
+}

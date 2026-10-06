@@ -1,0 +1,47 @@
+# --- Secretos y configuracion local (NUNCA versionar) ---
+.env
+.env.*
+!.env.example
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+infra/terraform/backend.hcl
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Datos generados en ejecucion (inventario real del tenant) ---
+backend/data/
+*.xlsx
+*.csv
+
+# --- Node ---
+node_modules/
+dist/
+.eslintcache
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# --- Artefactos ---
+*.zip
+*.log
+
+# --- IDE / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*:Zone.Identifier

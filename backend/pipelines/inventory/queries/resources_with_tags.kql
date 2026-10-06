@@ -1,0 +1,9 @@
+Resources
+| extend tag_platform = tostring(tags['Platform'])
+| extend tag_suite = tostring(tags['Suite'])
+| extend tag_tenant = tostring(tags['Tenant'])
+| extend tag_environment = tostring(tags['Environment'])
+| extend tag_product = tostring(tags['Product'])
+| extend tag_customer = tostring(tags['Customer'])
+| project name, type, resourceGroup, subscriptionId, location, id, tag_platform, tag_environment, tag_tenant, tag_suite, tag_customer, tag_product, tags
+| order by type asc, name asc

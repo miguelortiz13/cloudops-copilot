@@ -1,0 +1,5 @@
+Resources
+| extend tag_environment = tostring(tags['environment'])
+| where isempty(tag_environment)
+| project name, type, resourceGroup, subscriptionId, location, id
+| order by type asc, name asc
