@@ -26,7 +26,7 @@ Rutas siempre públicas:
 
 El panel obtiene el token con MSAL ([`frontend/src/auth.ts`](../frontend/src/auth.ts)) y lo adjunta a cada llamada mediante `apiFetch`. MSAL se carga de forma dinámica y solo cuando la autenticación está configurada.
 
-> **Por defecto `AUTH_ENABLED=false`** para facilitar el desarrollo local. En cualquier despliegue accesible desde internet, actívalo. El backend lo advierte en el log de arranque.
+> En local `AUTH_ENABLED=false` facilita el desarrollo. **El despliegue de Terraform siempre lo activa**, y además restringe el inicio de sesión a los usuarios asignados en las dos app registrations (`app_role_assignment_required`): una cuenta del tenant sin asignación no obtiene token ni en el panel ni desde la CLI.
 
 ### Registro de aplicaciones en Entra ID
 
@@ -66,13 +66,13 @@ Un estado contiene los atributos completos de cada recurso, incluidas llaves de 
 ## Gestión de secretos
 
 - Local: `backend/.env` (ignorado por git).
-- Azure: *app settings* del App Service, alimentados desde variables `sensitive` de Terraform.
+- Azure: **no hay secretos de Azure**. El API usa una identidad administrada asignada por el usuario (Reader, Storage Blob Data Reader, AcrPull). El único secreto opcional es la clave de Gemini, guardada como *secret* de la Container App.
 - Mejora pendiente: referencias a Key Vault en lugar de valores en app settings (ver [roadmap](roadmap.md)).
 - CI: [gitleaks](https://github.com/gitleaks/gitleaks) analiza cada push y PR.
 
 ## Endurecimiento de la infraestructura
 
-- App Service con `https_only = true` y FTPS desactivado.
+- Container App con ingress HTTPS y sin acceso de administración expuesto.
 - Storage con TLS 1.2 mínimo y sin acceso público a blobs.
 - Contenedor del backend con usuario sin privilegios (`uid 10001`).
 - nginx del panel con `X-Content-Type-Options`, `X-Frame-Options` y `Referrer-Policy`.

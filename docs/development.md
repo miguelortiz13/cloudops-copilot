@@ -29,6 +29,8 @@ Los routers obtienen los servicios con `get_services()` de `app/core/container.p
 
 ## Pruebas
 
+`tests/conftest.py` aísla las pruebas: no leen tu `backend/.env`, no ven credenciales de Azure y fijan el esquema de tags que usan sus fixtures. Cada archivo lo importa también, así que funcionan igual con pytest o ejecutados como script.
+
 ```bash
 make test               # backend/tests/unit — sin red, sin credenciales
 make test-integration   # backend/tests/integration — contra un tenant real

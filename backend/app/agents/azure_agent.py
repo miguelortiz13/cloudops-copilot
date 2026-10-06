@@ -109,37 +109,48 @@ class AzureInventoryAgent:
             self._cost = CostService(self)
         return self._cost
 
+    # Scope de ARM: si se obtiene un token para el, la identidad funciona.
+    _ARM_SCOPE = "https://management.azure.com/.default"
+
     def connect_azure(self):
-        """Authenticates with Azure Resource Graph SDK."""
+        """
+        Autentica contra Azure y confirma que la identidad obtiene un token.
+
+        Orden de preferencia:
+        1. Service Principal explicito (AZURE_READER_* o AZURE_CLIENT_*).
+        2. DefaultAzureCredential: identidad administrada en Azure (sin
+           secretos) o la sesion de `az login` en desarrollo.
+
+        Antes se marcaba la conexion como activa solo por construir el objeto
+        de credenciales, sin pedir un token: el health check decia "ok" aunque
+        cada consulta fallara despues. Ahora se pide uno al conectar.
+        """
         tenant_id = os.getenv("AZURE_TENANT_ID")
         client_id = os.getenv("AZURE_READER_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID")
         client_secret = os.getenv("AZURE_READER_CLIENT_SECRET") or os.getenv("AZURE_CLIENT_SECRET")
-        
-        # Check if Service Principal keys are provided
-        if tenant_id and client_id and client_secret and "PEGA_AQUI" not in client_secret and "PEGA_AQUI" not in tenant_id:
-            try:
-                print("Authenticating with Azure Service Principal credentials...")
+
+        try:
+            if tenant_id and client_id and client_secret:
+                print("Autenticando con Service Principal...")
                 self.azure_credentials = ClientSecretCredential(
-                    tenant_id=tenant_id,
-                    client_id=client_id,
-                    client_secret=client_secret
+                    tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
                 )
-                self.rg_client = ResourceGraphClient(self.azure_credentials)
-                self.azure_connected = True
-                print("✅ Connected to Azure Cloud SDK successfully (Real-Time Mode).")
-            except Exception as e:
-                print(f"❌ Error authenticating with Azure SP: {e}")
-                self.azure_connected = False
-        else:
-            try:
-                print("Attempting Azure connection using DefaultAzureCredential...")
-                self.azure_credentials = DefaultAzureCredential()
-                self.rg_client = ResourceGraphClient(self.azure_credentials)
-                self.azure_connected = True
-                print("✅ Connected to Azure via DefaultAzureCredential.")
-            except Exception as e:
-                print(f"⚠️ Azure Cloud connection is offline/unauthenticated: {e}")
-                self.azure_connected = False
+            else:
+                print("Autenticando con DefaultAzureCredential (identidad administrada o az login)...")
+                # `az` puede tardar varios segundos en emitir un token (en WSL,
+                # ~8 s); el limite por defecto de 10 s lo deja al borde.
+                self.azure_credentials = DefaultAzureCredential(
+                    process_timeout=int(os.getenv("AZURE_CLI_TIMEOUT_SECONDS", "30")),
+                    managed_identity_client_id=os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID") or None,
+                )
+            self.azure_credentials.get_token(self._ARM_SCOPE)
+            self.rg_client = ResourceGraphClient(self.azure_credentials)
+            self.azure_connected = True
+            print("✅ Conectado a Azure.")
+        except Exception as e:
+            print(f"⚠️ Sin conexion autenticada con Azure: {str(e).splitlines()[0]}")
+            self.azure_connected = False
+            self.rg_client = None
 
     def query_azure_resource_graph(self, query: str, bypass_cache: bool = False, subscriptions: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Queries Azure Resource Graph in real-time using KQL, using cache if appropriate."""
@@ -482,10 +493,9 @@ class AzureInventoryAgent:
             for r in raw_results:
                 tags_dict = r.get('tags', {}) or {}
                 
-                # Check the 6 mandatory tags case-insensitively
+                # Tags obligatorias (config.MANDATORY_TAGS), sin distinguir mayúsculas
                 tags_lower = {k.lower(): v for k, v in tags_dict.items() if v}
-                mandatory = ['customer', 'tenant', 'platform', 'product', 'suite', 'environment']
-                missing_tags = [t.capitalize() for t in mandatory if t not in tags_lower]
+                missing_tags = [t for t in config.MANDATORY_TAGS if t.lower() not in tags_lower]
                 
                 owner = tags_dict.get('owner', tags_dict.get('Owner', tags_dict.get('OWNER', '')))
                 env = tags_dict.get('environment', tags_dict.get('Environment', tags_dict.get('ENVIRONMENT', '')))
@@ -708,7 +718,9 @@ class AzureInventoryAgent:
             }
 
         # 1. Ask about a specific resource name
-        resource_match = re.search(r'(?:dueño|owner|quien es el dueño|quién es el dueño|detalles de|dónde está|donde esta|recurso)\s+([a-zA-Z0-9\-_]+)', question_lower)
+        # El conector opcional (de/del/of) evita capturarlo como nombre del recurso:
+        # "¿quién es el dueño de kv-x?" debe buscar `kv-x`, no `de`.
+        resource_match = re.search(r'(?:dueño|owner|detalles|dónde está|donde esta|recurso)(?:\s+(?:de|del|of))?\s+([a-zA-Z0-9\-_.]+)', question_lower)
         if resource_match:
             resource_name = resource_match.group(1)
             kql = f"resources | where name =~ '{resource_name}' | project name, type, resourceGroup, subscriptionId, location, tags"
@@ -814,8 +826,7 @@ class AzureInventoryAgent:
                 for r in raw_gaps:
                     tags = r.get('tags', {}) or {}
                     tags_lower = {k.lower(): v for k, v in tags.items() if v}
-                    mandatory = ['customer', 'tenant', 'platform', 'product', 'suite', 'environment']
-                    missing = [t.capitalize() for t in mandatory if t not in tags_lower]
+                    missing = [t for t in config.MANDATORY_TAGS if t.lower() not in tags_lower]
                     md_resp += f"- `{r['name']}` ({r['type'].split('/')[-1]}) | RG: `{r['resourceGroup']}` | Faltan: {', '.join(missing)}\n"
             else:
                 md_resp += "🎉 ¡Excelente! Todos los recursos analizados cumplen con las políticas de las " + str(len(config.MANDATORY_TAGS)) + " etiquetas obligatorias."
@@ -1199,8 +1210,7 @@ class AzureInventoryAgent:
                     tags_dict = self._tags_como_dict(r.get("tags"))
 
                     tags_lower = {k.lower(): v for k, v in tags_dict.items() if v}
-                    mandatory = ['customer', 'tenant', 'platform', 'product', 'suite', 'environment']
-                    missing_tags = [t.capitalize() for t in mandatory if t not in tags_lower]
+                    missing_tags = [t for t in config.MANDATORY_TAGS if t.lower() not in tags_lower]
                     tag_comp = "Cumple" if not missing_tags else f"Faltan: {', '.join(missing_tags)}"
 
                 # Extract key pricing metrics to keep context window clean

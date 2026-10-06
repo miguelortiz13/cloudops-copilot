@@ -15,7 +15,7 @@
 - **¿Qué está codificado?** Cobertura real de Terraform leída de los estados, y generación de HCL para importar lo que falta.
 - **¿Qué le pasa al clúster?** Diagnóstico de AKS con un agente SRE.
 
-Todo con una identidad de **solo lectura** sobre el tenant: la plataforma observa y recomienda; los cambios los aprueba y aplica una persona.
+Todo con una identidad administrada de **solo lectura** sobre el tenant: la plataforma observa y recomienda; los cambios los aprueba y aplica una persona. Se despliega en Azure por centavos al mes: Container Apps con escala a cero, Static Web App gratuita y Entra ID ([despliegue](docs/deployment.md)).
 
 ---
 
@@ -25,7 +25,7 @@ Todo con una identidad de **solo lectura** sobre el tenant: la plataforma observ
 flowchart LR
     U[Equipo de plataforma] --> W[Panel React<br/>Static Web App]
     T[Microsoft Teams] --> B[Azure Bot Service]
-    W -->|REST + Entra ID| A[API FastAPI<br/>App Service]
+    W -->|REST + Entra ID| A[API FastAPI<br/>Container Apps]
     B -->|JWT Bot Framework| A
 
     subgraph API[Backend]
@@ -104,7 +104,8 @@ Empieza por el [índice de documentación](docs/README.md). Lo más consultado:
 
 ```bash
 make help            # lista de objetivos
-make test            # 84 pruebas unitarias, sin tocar Azure
+make test            # pruebas unitarias, sin tocar Azure
+./scripts/smoke-test.sh  # prueba de humo del API desplegado
 make lint            # ruff + eslint
 make tf-validate     # terraform validate sin backend remoto
 make deploy          # infraestructura + backend + frontend en Azure

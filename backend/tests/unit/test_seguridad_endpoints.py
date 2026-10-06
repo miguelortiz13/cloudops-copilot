@@ -25,6 +25,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import conftest  # noqa: E402,F401  (aisla las pruebas del .env local)
 
 os.environ.setdefault("MICROSOFT_APP_ID", "00000000-0000-0000-0000-000000000001")
 os.environ.setdefault("AZURE_TENANT_ID", "00000000-0000-0000-0000-000000000002")

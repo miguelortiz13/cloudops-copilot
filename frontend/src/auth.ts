@@ -45,7 +45,8 @@ async function getInstance(): Promise<PublicClientApplication> {
       auth: {
         clientId: CLIENT_ID as string,
         authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-        redirectUri: window.location.origin,
+        // Con barra final: es la forma que Entra ID acepta como redirect URI.
+        redirectUri: `${window.location.origin}/`,
       },
       cache: {
         // sessionStorage mantiene la sesión acotada a la pestaña, que es lo

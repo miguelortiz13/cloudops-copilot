@@ -31,18 +31,18 @@ sequenceDiagram
 
 ### 1. Registro de aplicación
 
-En Entra ID > App registrations, crea un registro **single tenant**. Guarda el *Application (client) ID* y crea un *client secret*. Son `bot_app_id` y `bot_app_password` en Terraform, y `MICROSOFT_APP_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` en el backend.
+En Entra ID > App registrations, crea un registro **single tenant**. Guarda el *Application (client) ID* y crea un *client secret*. Son `MICROSOFT_APP_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` en el backend.
 
 ### 2. Azure Bot
 
-Con `enable_teams_bot = true` (valor por defecto), Terraform crea el Azure Bot `SingleTenant`, apunta su endpoint a `https://<api>/api/teams/webhook` y activa el canal de Teams. No hay pasos manuales en el portal.
+La arquitectura actual (Container Apps) **no aprovisiona el bot**: es opcional y está en el [roadmap](../roadmap.md). Para activarlo a mano, crea un Azure Bot `SingleTenant` (SKU F0, gratuito) con el App Id del paso 1, define su *messaging endpoint* como `https://<fqdn del API>/api/teams/webhook` y activa el canal de Teams. Agrega `MICROSOFT_APP_ID`, `AZURE_CLIENT_ID` y `AZURE_CLIENT_SECRET` a la Container App.
 
 ### 3. Paquete de la app
 
 ```bash
 cd integrations/teams-bot
 BOT_APP_ID=<app id> \
-BACKEND_HOST=app-cloudops-dev.azurewebsites.net \
+BACKEND_HOST=ca-cloudops-dev-api.<entorno>.eastus2.azurecontainerapps.io \
 DEVELOPER_NAME="Tu nombre" \
 DEVELOPER_URL=https://tu-sitio.dev \
 ./package.sh

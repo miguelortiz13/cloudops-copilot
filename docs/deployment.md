@@ -1,58 +1,74 @@
 # Despliegue en Azure
 
+La plataforma se despliega con un diseño de **costo cercano a cero**: el API escala a cero réplicas cuando nadie lo usa, el panel es una Static Web App gratuita y no hay ningún secreto de Azure en la configuración, porque la identidad es administrada.
+
 ## Recursos que se crean
 
-`infra/terraform` despliega la plataforma en un grupo de recursos propio. Los nombres se derivan de `name_prefix` y `environment` (por defecto `cloudops` y `dev`):
+`infra/terraform` crea todo en `rg-<prefijo>-<ambiente>` (por defecto `rg-cloudops-dev`):
 
-| Recurso | Nombre | Notas |
-|---|---|---|
-| Resource Group | `rg-cloudops-dev` | |
-| App Service Plan Linux | `asp-cloudops-dev` | SKU `B1` por defecto |
-| Linux Web App (API) | `app-cloudops-dev` | Python 3.12, HTTPS obligatorio, FTPS desactivado |
-| Storage Account + File Share | `stcloudopsdevdata` / `cloudops-data` | Montado en `/home/site/data` como `DATA_DIR` |
-| Static Web App (panel) | `stapp-cloudops-dev` | SKU Free |
-| Azure Bot + canal Teams | `bot-cloudops-dev` | Opcional (`enable_teams_bot`) |
+| Recurso | Nombre | Notas | Costo |
+|---|---|---|---|
+| Container Apps Environment | `cae-cloudops-dev` | Consumo, sin Log Analytics | $0 |
+| Container App (API) | `ca-cloudops-dev-api` | 0,5 vCPU / 1 GiB, **0 a 1 réplicas** | $0 dentro del cupo gratuito mensual |
+| Identidad administrada | `id-cloudops-dev` | Reader, Storage Blob Data Reader, AcrPull | $0 |
+| Storage Account + File Share | `stcloudopsdevdata` / `cloudops-data` (1 GB) | Montado en `/data` (`DATA_DIR`) | centavos |
+| Static Web App (panel) | `stapp-cloudops-dev` | SKU Free | $0 |
+| App registrations (Entra ID) | `CloudOps Copilot API (dev)` y `CloudOps Copilot (dev)` | Acceso solo para usuarios asignados | $0 |
+
+Fuera del grupo:
+
+- **Estado de Terraform**: `rg-cloudops-tfstate`, creado por `scripts/bootstrap-state.sh`. Cuesta centavos al mes.
+- **Registro de contenedores**: se reutiliza un ACR existente (`container_registry_id`). La imagen se construye con Docker local, así que no se pagan ACR Tasks.
 
 ```mermaid
 flowchart LR
-    subgraph rg[rg-cloudops-dev]
-      SWA[stapp-cloudops-dev] -->|CORS| API[app-cloudops-dev]
-      API --- PLAN[asp-cloudops-dev]
-      API -->|mount /home/site/data| SHARE[(stcloudopsdevdata<br/>cloudops-data)]
-      BOT[bot-cloudops-dev] -->|/api/teams/webhook| API
-    end
-    STATE[(Cuenta de estado<br/>backend.hcl)] -.terraform state.- rg
+    U[Usuario] -->|login MSAL| ENTRA[Entra ID]
+    U --> SWA[stapp-cloudops-dev<br/>Static Web App Free]
+    SWA -->|token access_as_user| CA[ca-cloudops-dev-api<br/>Container App 0-1 réplicas]
+    CA -->|monta /data| FS[(stcloudopsdevdata<br/>File Share)]
+    CA -. identidad administrada .-> ID[id-cloudops-dev]
+    ID -->|Reader| SUBS[(Suscripciones observadas)]
+    ID -->|Storage Blob Data Reader| TFS[(Cuentas de estados)]
+    ID -->|AcrPull| ACR[(ACR existente)]
 ```
+
+## Por qué Container Apps
+
+| Opción | Costo fijo mensual | Notas |
+|---|---|---|
+| App Service B1 | ~13 USD | Siempre encendido |
+| App Service F1 | 0 | 60 min de CPU al día, sin montar Azure Files |
+| Functions Flex Consumption | ~0 | Requiere adaptar FastAPI y no admite hilos en segundo plano |
+| **Container Apps (consumo)** | **0** | Escala a cero, monta Azure Files, imagen Docker estándar |
+
+El costo de escalar a cero es el **arranque en frío**: la primera petición tras un rato sin uso tarda unos segundos en levantar el contenedor. La caché de costos persistida en `/data` evita que cada arranque consuma la cuota de Cost Management.
 
 ## Permisos
 
-### Identidad que despliega (tú o el pipeline)
+### Quien despliega
 
-- `Contributor` sobre la suscripción de destino (o sobre un RG pre-creado).
-- `Storage Blob Data Contributor` sobre la cuenta del estado de Terraform.
-- Permiso para crear App Registrations si vas a crear el bot desde cero.
+- `Owner` (o `Contributor` + `User Access Administrator`) sobre la suscripción de despliegue y sobre las suscripciones observadas, porque Terraform crea asignaciones de rol.
+- Permiso para crear app registrations en Entra ID; un usuario normal lo tiene por defecto.
 
-### Identidad de la plataforma (en tiempo de ejecución)
+### La plataforma (identidad administrada `id-<base>`)
 
-| Rol | Alcance | Necesario para |
+| Rol | Alcance | Para |
 |---|---|---|
-| `Reader` | Suscripciones o management group observados | Inventario, SecOps, IaC, ISO y costos con alcance de suscripción |
-| `Cost Management Reader` | Opcional | Costos en alcances superiores, o si la organización restringe la visibilidad de cargos |
-| `Monitoring Reader` | Opcional | CPU real de VMs para right-sizing (con `Reader` suele bastar) |
-| `Storage Blob Data Reader` | Cuenta de estados de Terraform | Cobertura real de IaC (`TFSTATE_ACCOUNT`) |
-| `Azure Kubernetes Service Cluster User Role` + permiso de Run Command | Clúster AKS | Agente SRE |
+| `Reader` | Cada suscripción de `observed_subscription_ids` | Inventario, SecOps, IaC y costos con alcance de suscripción |
+| `Storage Blob Data Reader` | Cada cuenta de `tfstate_sources` | Cobertura real de IaC |
+| `AcrPull` | El ACR de `container_registry_id` | Descargar la imagen del API |
 
-> Verificado en la práctica: para consultas de costo con alcance de suscripción, `Reader` es suficiente. La plataforma no lo asume: detecta la cobertura real en ejecución y la reporta.
+Ningún rol permite escribir en los recursos observados.
 
 ## Paso a paso
 
-### 1. Estado de Terraform (una sola vez)
+### 1. Preparar la suscripción (una sola vez)
 
 ```bash
 SUBSCRIPTION_ID=<id> ./scripts/bootstrap-state.sh
 ```
 
-Crea `rg-tfstate`, una cuenta de almacenamiento y el contenedor `tfstate`, te asigna permisos de datos y escribe `infra/terraform/backend.hcl`. Si tu organización ya tiene una cuenta de estado, copia `backend.hcl.example` y complétalo.
+Registra los proveedores (`Microsoft.App`, `Microsoft.Web`...), crea la cuenta del estado, te asigna permisos de datos sobre ella y escribe `infra/terraform/backend.hcl`.
 
 ### 2. Variables
 
@@ -60,35 +76,52 @@ Crea `rg-tfstate`, una cuenta de almacenamiento y el contenedor `tfstate`, te as
 cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
 ```
 
-Completa suscripción, tenant, organización y credenciales. Los secretos también pueden pasarse como `TF_VAR_bot_app_password`, `TF_VAR_gemini_api_key`, etc., para no escribirlos en disco.
+Completa:
+
+- la suscripción de despliegue;
+- el ACR;
+- las suscripciones a observar;
+- las cuentas de estados de Terraform (incluida la de la propia plataforma, para que se reconozca como gestionada);
+- tu nombre en `org_name`.
+
+La clave de Gemini, si la usas, mejor como variable de entorno: `export TF_VAR_gemini_api_key=...`.
 
 ### 3. Desplegar
 
 ```bash
-make deploy                 # o ./scripts/deploy.sh
-AUTO_APPROVE=1 make deploy  # sin confirmación interactiva (CI)
+make deploy                                   # pide confirmar el plan
+AUTO_APPROVE=1 make deploy                    # sin confirmación
+VITE_USER_DISPLAY_NAME="Tu nombre" make deploy
 ```
 
-El script:
+`scripts/deploy.sh` hace cuatro pasos:
 
-1. `terraform init` + `apply` con `backend.hcl`.
-2. Lee los outputs (`api_app_name`, `api_url`, `static_web_app_api_key`...).
-3. Empaqueta `backend/app`, `backend/pipelines` y `requirements.txt`, y **aborta si falta algún paquete** (un paquete ausente en el zip produce un 500 silencioso en App Service).
-4. Publica el backend con `az webapp deploy`.
-5. Compila el panel con `VITE_API_URL` apuntando al API y lo publica en la Static Web App.
-
-El primer arranque del App Service tarda varios minutos: instala dependencias durante el despliegue. `WEBSITES_CONTAINER_START_TIME_LIMIT=1800` evita que se marque como fallido.
+1. Construye la imagen del API con Docker y la sube al ACR, etiquetada con el commit actual (`-dirty` si hay cambios sin commitear).
+2. `terraform apply` con esa imagen.
+3. Compila el panel con la URL del API y la configuración de Entra ID, tomadas de los outputs de Terraform.
+4. Publica el panel y espera a que el API responda.
 
 ### 4. Verificar
 
 ```bash
-terraform -chdir=infra/terraform output
-curl -s "$(terraform -chdir=infra/terraform output -raw api_url)/api/inventory/health"
+./scripts/smoke-test.sh
 ```
 
-### 5. Teams (opcional)
+Obtiene un token con tu sesión de Azure CLI, que está preautorizada en el API (`allow_azure_cli`), recorre los módulos principales y comprueba que una petición sin token reciba `401`.
 
-Ver [integrations/teams.md](integrations/teams.md).
+Después abre la URL del panel (`terraform -chdir=infra/terraform output frontend_url`) e inicia sesión con tu cuenta.
+
+### Logs
+
+Sin Log Analytics, los logs se leen en vivo:
+
+```bash
+az containerapp logs show -g rg-cloudops-dev -n ca-cloudops-dev-api --follow
+```
+
+## Dar acceso a otra persona
+
+Agrega su object id a `allowed_user_object_ids` y vuelve a aplicar. Sin asignación, Entra ID rechaza el inicio de sesión, tanto en el panel como desde la CLI.
 
 ## Destruir
 
@@ -96,12 +129,8 @@ Ver [integrations/teams.md](integrations/teams.md).
 make destroy    # pide escribir "destruir"
 ```
 
-**Elimina también la cuenta de datos** (caché de costos, histórico de KPIs, Excel y snapshots). Descarga lo que quieras conservar antes. El estado de Terraform no se toca.
+Borra el grupo de recursos (incluidos los datos persistidos), las app registrations y las asignaciones de rol. Se conservan el estado de Terraform y la imagen en el ACR.
 
-## Costo aproximado
+## Microsoft Teams
 
-Con los valores por defecto, el costo fijo es el del App Service Plan `B1` (~13 USD/mes en `eastus2`) más almacenamiento marginal. Static Web App y Bot Service usan SKU gratuitos. Los precios cambian; verifica en la calculadora de Azure.
-
-## Despliegue en contenedores
-
-`backend/Dockerfile` y `frontend/Dockerfile` permiten desplegar en Azure Container Apps, AKS u otra plataforma. Monta un volumen persistente en `/data` para el backend y compila el frontend con `--build-arg VITE_API_URL=<url del API>`.
+El bot no se aprovisiona por defecto en esta arquitectura. Ver [integrations/teams.md](integrations/teams.md).

@@ -1,28 +1,27 @@
 # Copiar a terraform.tfvars (ignorado por git) y completar.
 
 subscription_id = "00000000-0000-0000-0000-000000000000"
-tenant_id       = "00000000-0000-0000-0000-000000000000"
+location        = "eastus2"
+name_prefix     = "cloudops"
+environment     = "dev"
 
-name_prefix = "cloudops"
-environment = "dev"
-location    = "eastus2"
+# Registro de contenedores con la imagen del API (puede ser uno existente).
+container_registry_id           = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ContainerRegistry/registries/<acr>"
+container_registry_login_server = "<acr>.azurecr.io"
 
-org_name       = "Acme Corp"
-mandatory_tags = ["Customer", "Tenant", "Platform", "Product", "Suite", "Environment"]
+# Suscripciones que la plataforma observa (recibe Reader en cada una).
+observed_subscription_ids = [
+  "00000000-0000-0000-0000-000000000000",
+]
 
-# Registro de aplicacion del bot / API (Entra ID).
-bot_app_id       = "00000000-0000-0000-0000-000000000000"
-bot_app_password = "definir-en-tfvars-o-TF_VAR_bot_app_password"
+# Cuentas con estados de Terraform (opcional): cobertura real de IaC.
+tfstate_sources = [
+  # { storage_account_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<cuenta>", container = "tfstate" },
+]
 
-# Service Principal con rol Reader sobre el tenant (opcional).
-reader_client_id     = ""
-reader_client_secret = ""
+org_name       = "Tu nombre u organización"
+mandatory_tags = ["Environment", "Project", "ManagedBy"]
+showback_tags  = ["Project", "Environment"]
 
-gemini_api_key = ""
-
-# Modulos opcionales
-enable_teams_bot        = true
-tfstate_account_to_scan = ""
-k8s_cluster_name        = ""
-k8s_resource_group      = ""
-k8s_subscription_id     = ""
+# Motor cognitivo (opcional). Mejor como variable de entorno: TF_VAR_gemini_api_key
+# gemini_api_key = ""

@@ -20,6 +20,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import conftest  # noqa: E402,F401  (aisla las pruebas del .env local)
 
 from app.services.inventory_service import InventoryService  # noqa: E402
 
@@ -108,6 +110,14 @@ def test_el_custodio_reconoce_las_claves_que_usa_la_organizacion():
         )
         assert gob["hasOwnerCandidate"] is True, clave
 
+def test_una_clave_de_iac_con_valor_manual_no_cuenta_como_iac():
+    """`ManagedBy=Manual` declara lo contrario de IaC aunque la clave sea de IaC."""
+    from app.services import governance
+    assert not governance.tiene_evidencia_iac({"managedby": "manual"})
+    assert not governance.tiene_evidencia_iac({"managedby": "portal"})
+    assert governance.tiene_evidencia_iac({"managedby": "terraformorcli"})
+    assert governance.tiene_evidencia_iac({"managedby": "terraform"})
+
 
 if __name__ == "__main__":
     pruebas = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
@@ -126,3 +136,4 @@ if __name__ == "__main__":
     print()
     print(f"{len(pruebas) - fallos}/{len(pruebas)} pruebas pasaron")
     sys.exit(1 if fallos else 0)
+

@@ -260,11 +260,8 @@ class InventoryService:
             "managedBy": raw.get("managedBy"),
             "tags": tags_clean,
             "environment": tags_lower.get("environment"),
-            "customer": tags_lower.get("customer"),
-            "tenant": tags_lower.get("tenant"),
-            "platform": tags_lower.get("platform"),
-            "product": tags_lower.get("product"),
-            "suite": tags_lower.get("suite"),
+            # Valor de cada tag obligatoria del esquema configurado.
+            "tagValues": {t: tags_lower.get(t.lower()) for t in MANDATORY_TAGS},
             "mandatoryTags": tag_result,
             "governance": governance
         }
@@ -497,11 +494,19 @@ class InventoryService:
             joined = ", ".join(f"'{self._kql_literal(str(e).lower())}'" for e in environments)
             clauses.append(f"| where envVal in ({joined})")
 
-        missing_tags = [t for t in (filters.get("missingTags") or []) if t in MANDATORY_TAGS]
-        if missing_tags:
-            # "le falta al menos una de estas tags"
-            joined = " or ".join(f"not(ok{tag})" for tag in missing_tags)
-            clauses.append(f"| where {joined}")
+        pedidas = filters.get("missingTags") or []
+        if pedidas:
+            # "le falta al menos una de estas tags", sin distinguir mayusculas,
+            # igual que el camino en memoria. Una tag que no es obligatoria no
+            # puede "faltarle" a nadie: si ninguna de las pedidas lo es, el
+            # resultado es vacio, no el inventario completo.
+            por_nombre = {t.lower(): t for t in MANDATORY_TAGS}
+            missing_tags = [por_nombre[t.lower()] for t in pedidas if t.lower() in por_nombre]
+            if missing_tags:
+                joined = " or ".join(f"not(ok{tag})" for tag in missing_tags)
+                clauses.append(f"| where {joined}")
+            else:
+                clauses.append("| where false")
 
         if filters.get("onlyNonCompliant"):
             clauses.append("| where not(isCompliant)")
@@ -615,7 +620,9 @@ class InventoryService:
             )}
 
         en_scope = {s.lower() for s in subs}
-        ids = datos["managed_ids"]
+        # Solo los ids que el inventario puede contener: los subrecursos y los
+        # recursos de extension del estado no son ni cobertura ni obsoletos.
+        ids = {i for i in datos["managed_ids"] if governance.es_recurso_inventariable(i)}
         # Un estado puede gestionar recursos de suscripciones que no se estan
         # consultando; solo cuentan los del scope.
         del_scope = [i for i in ids if cost_module.subscription_of(i) in en_scope]
@@ -640,10 +647,15 @@ class InventoryService:
             # proximo plan lo va a intentar recrear.
             "stale_ids": len(del_scope) - len(existentes),
             "states": datos["states"],
+            # Cuentas que no se pudieron listar (normalmente, falta el rol
+            # Storage Blob Data Reader). La cifra no las incluye.
+            "sources_failed": datos.get("sources_failed", []),
             "message": (
                 f"Calculado sobre {datos['states_read']} estado(s) de Terraform en "
-                f"{datos['account']}/{datos['container']}. Un equipo que guarde su estado "
-                "en otra cuenta aparecerá como no gestionado."
+                f"{datos['account']}. Un equipo que guarde su estado en otra cuenta "
+                "aparecerá como no gestionado."
+                + (f" {len(datos['sources_failed'])} cuenta(s) no se pudieron leer."
+                   if datos.get("sources_failed") else "")
             ),
         }
 
@@ -1163,8 +1175,8 @@ class InventoryService:
         
         headers = [
             "subscriptionName", "subscriptionId", "resourceGroup", "name", "type",
-            "location", "environment", "customer", "tenant", "platform", "product",
-            "suite", "missingTags", "compliancePercentage", "isShadowItCandidate",
+            "location", "environment", *MANDATORY_TAGS,
+            "missingTags", "compliancePercentage", "isShadowItCandidate",
             "shadowItReason", "id"
         ]
         
@@ -1183,11 +1195,7 @@ class InventoryService:
                 self._csv_escape(r.get("type", "")),
                 self._csv_escape(r.get("location", "")),
                 self._csv_escape(r.get("environment") or ""),
-                self._csv_escape(r.get("customer") or ""),
-                self._csv_escape(r.get("tenant") or ""),
-                self._csv_escape(r.get("platform") or ""),
-                self._csv_escape(r.get("product") or ""),
-                self._csv_escape(r.get("suite") or ""),
+                *(self._csv_escape((r.get("tagValues") or {}).get(t) or "") for t in MANDATORY_TAGS),
                 self._csv_escape(missing),
                 compliance,
                 is_shadow,
