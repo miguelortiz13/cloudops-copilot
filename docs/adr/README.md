@@ -9,3 +9,6 @@ Registro de decisiones (ADR) con su contexto y consecuencias. Formato: [Michael 
 | [0003](0003-cache-de-costos-persistente.md) | Precarga y caché persistente de costos | Aceptada |
 | [0004](0004-el-estado-exonera-pero-no-acusa.md) | Los estados de Terraform exoneran, pero no acusan | Aceptada |
 | [0005](0005-kpis-agregados-en-resource-graph.md) | KPIs agregados en Resource Graph | Aceptada |
+| [0006](0006-abstraccion-de-proveedores.md) | Abstracción de proveedores de nube | Propuesta |
+| [0007](0007-almacen-de-datos-y-recolectores.md) | Almacén de datos y recolectores programados | Propuesta |
+| [0008](0008-focus-como-modelo-de-costos.md) | FOCUS como modelo de costos | Propuesta |

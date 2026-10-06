@@ -1,5 +1,7 @@
 # Roadmap
 
+> Este es el registro de tareas pendientes. El análisis completo —arquitectura objetivo, multinube y fases con criterios de salida— está en el **[plan de evolución](plan/README.md)**.
+
 Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desplegable por terceros. Ordenado por prioridad dentro de cada bloque.
 
 ## 1. Producción segura
