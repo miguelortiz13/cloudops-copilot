@@ -26,6 +26,21 @@ def get_finops_details():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/api/finops/costs")
+def get_cost_overview(subscriptions: Optional[str] = None):
+    """
+    Vista global de costos: totales, tendencia diaria, desgloses y ranking.
+
+    Es la entrada del modulo de FinOps: cuanto se gasta y en que, antes que el
+    ahorro. Solo facturacion real; las suscripciones sin cobertura se declaran.
+    """
+    try:
+        subs_list = subscriptions.split(",") if subscriptions else None
+        return get_services()[10].build(subs_list)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/api/finops/report")
 def get_finops_report(subscriptions: Optional[str] = None):
     """
