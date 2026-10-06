@@ -50,7 +50,7 @@ jobs:
             echo "tags=${IMAGE}:${{ github.sha }},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
             echo "ref=${IMAGE}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
