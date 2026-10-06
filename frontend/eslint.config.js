@@ -19,10 +19,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Deuda conocida: las respuestas del API se tipan como `any` en App.tsx.
-      // Queda como advertencia hasta separar el componente por modulos
-      // (ver docs/roadmap.md); cualquier otro error rompe la CI.
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // Los contratos del API estan tipados en src/lib/types.ts: un `any` nuevo
+      // rompe la CI.
+      '@typescript-eslint/no-explicit-any': 'error',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

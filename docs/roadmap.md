@@ -31,10 +31,13 @@ Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desp
 
 ## 4. Frontend
 
-- [ ] Dividir `App.tsx` por módulo (inventario, FinOps, SecOps, IaC, Kubernetes, chat).
-- [ ] Tipar las respuestas del API (generar tipos desde el OpenAPI) y volver `no-explicit-any` a error.
-- [ ] Pruebas de componentes (Vitest + Testing Library).
-- [ ] Modo claro y accesibilidad (contraste, navegación por teclado).
+- [x] Rediseño completo por módulos, con sistema de diseño en tokens.
+- [x] Contratos del API tipados; `no-explicit-any` como error.
+- [x] Modo claro y oscuro.
+- [ ] Generar `lib/types.ts` desde el OpenAPI en lugar de mantenerlo a mano.
+- [ ] Pruebas de componentes (Vitest + Testing Library) y capturas de regresión visual con Playwright.
+- [ ] Revisión de accesibilidad con lector de pantalla y navegación completa por teclado.
+- [ ] Filtro de rango de fechas en Costos (7 / 30 / 90 días).
 
 ## 5. Producto
 

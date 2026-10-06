@@ -19,6 +19,14 @@ Todo con una identidad administrada de **solo lectura** sobre el tenant: la plat
 
 ---
 
+## Capturas
+
+| Resumen (modo oscuro) | Costos: visión general |
+|---|---|
+| ![Resumen](docs/assets/resumen-oscuro.png) | ![Costos](docs/assets/costos-claro.png) |
+| **Seguridad** | **Optimización y ahorro** |
+| ![Seguridad](docs/assets/seguridad-claro.png) | ![Ahorro](docs/assets/ahorro-claro.png) |
+
 ## Arquitectura en una imagen
 
 ```mermaid
@@ -63,7 +71,7 @@ Sin credenciales de Azure la plataforma arranca igual y responde en modo degrada
 | Módulo | Qué resuelve | Documento |
 |---|---|---|
 | Inventario y gobernanza | KPIs agregados en Resource Graph, matriz de tags, Shadow IT con regla de cuatro señales, histórico diario | [inventory-governance.md](docs/modules/inventory-governance.md) |
-| FinOps | Huérfanos, showback por tag, anomalías, presupuestos y right-sizing sobre gasto facturado | [finops.md](docs/modules/finops.md) |
+| Costos (FinOps) | Primero la visión global: gasto de 30 días, tendencia diaria, proyección y desgloses por servicio, grupo, suscripción, región y tag. Después, ahorro: recursos sin uso, right-sizing, reservas, presupuestos y anomalías | [finops.md](docs/modules/finops.md) |
 | SecOps | NSG, storage, Key Vault, SQL, HTTPS; exposición priorizada por severidad × gasto | [secops.md](docs/modules/secops.md) |
 | IaC | Cobertura real desde los estados de Terraform y generador de HCL con `import {}` | [iac.md](docs/modules/iac.md) |
 | Agentes de IA | Chat de inventario, FinOps y SecOps con contexto acotado y reglas compartidas | [ai-agents.md](docs/modules/ai-agents.md) |
@@ -83,7 +91,7 @@ cloudops-copilot/
 │   │   └── schemas/          modelos Pydantic
 │   ├── pipelines/inventory/  pipeline semanal de inventario a Excel
 │   └── tests/                unitarias (sin Azure) e integración (tenant real)
-├── frontend/                 panel React + TypeScript + Vite
+├── frontend/                 panel React + TypeScript + Vite (módulos, sistema de diseño, gráficos SVG)
 ├── infra/terraform/          infraestructura de la plataforma en Azure
 ├── integrations/teams-bot/   manifiesto de la app de Teams
 ├── scripts/                  dev, bootstrap del estado, deploy y destroy

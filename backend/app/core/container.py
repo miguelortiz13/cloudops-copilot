@@ -16,6 +16,7 @@ import time
 from datetime import datetime, timezone
 
 from app.core import config
+from app.services.cost_overview_service import CostOverviewService
 from app.services.cost_service import CostService
 from app.services.finops_service import FinOpsService
 from app.services.history_service import HistoryService
@@ -37,7 +38,8 @@ def get_services():
     Devuelve la tupla de servicios, creandolos la primera vez.
 
     El orden es parte del contrato con los routers:
-    (agent, inventory, history, cost, metrics, finops, secops, k8s, risk, tfstate)
+    (agent, inventory, history, cost, metrics, finops, secops, k8s, risk, tfstate,
+     cost_overview)
     """
     global _services
     if _services is not None:
@@ -62,12 +64,13 @@ def get_services():
         secops = SecOpsService(agent)
         risk = RiskService(secops, cost)
         k8s = K8sService(agent)
+        cost_overview = CostOverviewService(agent, cost)
         # El chat responde con los mismos servicios que alimentan el panel:
         # asi comparte su cache —incluida la precarga de costos— y, sobre
         # todo, las mismas reglas de dominio.
         agent.attach_services(secops=secops, finops=finops, cost=cost, risk=risk)
         _services = (agent, inventory, history, cost, metrics,
-                     finops, secops, k8s, risk, tfstate)
+                     finops, secops, k8s, risk, tfstate, cost_overview)
         print("Agent initialization complete!")
         return _services
 

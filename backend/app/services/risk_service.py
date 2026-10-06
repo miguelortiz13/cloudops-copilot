@@ -60,6 +60,14 @@ class RiskService:
         reporte = self.secops.build_report(subs)
         hallazgos = list(reporte.get("findings") or [])
 
+        # Sin scope explicito ("todas las suscripciones") el costo se busca en las
+        # suscripciones de los propios hallazgos. Antes se omitia la consulta y
+        # la exposicion decia "sin gasto facturado" aunque FinOps lo tuviera.
+        if not subs:
+            subs = sorted({
+                cost_module.subscription_of(h.get("id")) for h in hallazgos
+            } - {""})
+
         datos_costo: Dict[str, Any] = {}
         try:
             if subs:

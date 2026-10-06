@@ -162,6 +162,19 @@ def test_sin_datos_de_costo_el_orden_sigue_siendo_por_severidad():
     assert rep["totals"]["monthly_usd_at_risk"] == 0.0
     assert "solo por severidad" in rep["coverage"]["message"]
 
+def test_sin_scope_explicito_busca_el_costo_de_las_suscripciones_de_los_hallazgos():
+    """El panel pide "todas las suscripciones" sin listarlas; el costo debe llegar igual."""
+    pedidas = []
+
+    class CostQueAnota(CostFalso):
+        def costs_for(self, subs, allow_query=True):
+            pedidas.append(sorted(subs))
+            return super().costs_for(subs, allow_query)
+
+    r = RiskService(SecOpsFalso(), CostQueAnota()).build_report([])
+    assert pedidas == [sorted([SUB_MEDIDA, SUB_SIN_COSTO])]
+    assert r["totals"]["monthly_usd_at_risk"] > 0
+
 
 if __name__ == "__main__":
     pruebas = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
