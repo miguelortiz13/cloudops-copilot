@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [2.4.1] — 2026-10-06
+
+### Cambiado
+- React 19 en el panel. `useApi` y el generador de IaC derivan el estado de carga en lugar de fijarlo dentro de efectos (reglas nuevas de `eslint-plugin-react-hooks` 7).
+- Terraform con azurerm 5.8 y azuread 3.10: `azurerm_federated_identity_credential` usa `user_assigned_identity_id`, `azurerm_storage_share` usa `storage_account_id` y el registro de proveedores pasa a `resource_provider_registrations = "none"`. Sin recursos recreados.
+- La Container App conserva 5 revisiones inactivas (antes 100) y la cuenta de datos desactiva la replicación entre tenants (nuevo valor por defecto del proveedor).
+- Acciones de GitHub en versiones con Node 24: checkout 7, setup-node 7, setup-python 7, docker/login-action 4, docker/build-push-action 7, azure/login 3, setup-terraform 4. Dependabot las agrupa en un solo PR.
+- PyJWT ≥ 2.15.1, pytest ≥ 9.1.1, httpx ≥ 0.28.1; MSAL, lucide-react y typescript-eslint en sus últimas menores.
+
+### Eliminado
+- `pandas` y `azure-mgmt-resource`: no se usaban y pesaban en la imagen del API.
+
 ## [2.4.0] — 2026-10-06
 
 ### Añadido

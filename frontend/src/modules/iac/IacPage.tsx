@@ -39,18 +39,23 @@ function Generator({ resource, onClose }: { resource: InventoryResource; onClose
   const [env, setEnv] = useState<Env>(guessEnv(resource));
   const [domain, setDomain] = useState<Domain>(guessDomain(resource));
   const [file, setFile] = useState<IacFile>('main_tf');
-  const [result, setResult] = useState<IacResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // La generación depende de (recurso, ambiente, dominio). Mientras llega la
+  // nueva se sigue mostrando la anterior.
+  const params = `${resource.id}|${env}|${domain}`;
+  const [generated, setGenerated] = useState<{ params: string; result: IacResult | null; error: string | null } | null>(null);
+  const busy = generated?.params !== params;
+  const result = generated?.result ?? null;
+  const error = busy ? null : generated.error;
 
   useEffect(() => {
-    setBusy(true);
-    setError(null);
+    let vigente = true;
     post<IacResult>('/api/iac/generate', { resource_id: resource.id, environment: env, domain })
-      .then(setResult)
-      .catch((e) => setError(e.message))
-      .finally(() => setBusy(false));
-  }, [resource.id, env, domain]);
+      .then((r) => vigente && setGenerated({ params, result: r, error: null }))
+      .catch((e) => vigente && setGenerated((prev) => ({ params, result: prev?.result ?? null, error: e.message })));
+    return () => {
+      vigente = false;
+    };
+  }, [params, resource.id, env, domain]);
 
   const code = result?.[file] ?? '';
   const folder = `stacks/${resource.subscriptionName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/${env}/${domain}/`;

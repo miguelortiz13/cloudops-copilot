@@ -1,6 +1,6 @@
 [project]
 name = "cloudops-copilot-backend"
-version = "2.4.0"
+version = "2.4.1"
 description = "API de CloudOps Copilot: inventario, FinOps, SecOps e IaC sobre Azure."
 requires-python = ">=3.11"
 

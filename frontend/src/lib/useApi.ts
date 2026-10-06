@@ -19,33 +19,28 @@ export interface ApiState<T> {
 }
 
 export function useApi<T>(key: string | null, fetcher: () => Promise<T>): ApiState<T> {
-  const [data, setData] = useState<T | null>(() => (key ? (cache.get(key) as T) ?? null : null));
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  // Última respuesta recibida. `data` sobrevive al cambio de clave para no
+  // vaciar la pantalla mientras llega la nueva.
+  const [result, setResult] = useState<{ key: string; nonce: number; data: T | null; error: string | null } | null>(null);
   const [nonce, setNonce] = useState(0);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   useEffect(() => {
     if (!key) return;
     let vigente = true;
-    const cached = cache.get(key) as T | undefined;
-    if (cached !== undefined) setData(cached);
-    setPending(true);
-    setError(null);
     fetcherRef
       .current()
       .then((value) => {
         if (!vigente) return;
         cache.set(key, value);
-        setData(value);
+        setResult({ key, nonce, data: value, error: null });
       })
       .catch((e: unknown) => {
         if (!vigente) return;
-        setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (vigente) setPending(false);
+        setResult((prev) => ({ key, nonce, data: prev?.data ?? null, error: e instanceof Error ? e.message : String(e) }));
       });
     return () => {
       vigente = false;
@@ -54,5 +49,9 @@ export function useApi<T>(key: string | null, fetcher: () => Promise<T>): ApiSta
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  const current = key !== null && result?.key === key && result.nonce === nonce;
+  const pending = key !== null && !current;
+  const data = (key ? (cache.get(key) as T | undefined) : undefined) ?? result?.data ?? null;
+  const error = current ? result.error : null;
   return { data, error, loading: pending && data === null, refreshing: pending && data !== null, reload };
 }

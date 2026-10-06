@@ -36,12 +36,12 @@ flowchart TB
 
 | Componente | Tecnología | Responsabilidad |
 |---|---|---|
-| Panel | React 18, TypeScript, Vite, MSAL | Vistas de inventario, FinOps, SecOps, IaC, ISO, Kubernetes y chat |
+| Panel | React 19, TypeScript, Vite, MSAL | Vistas de inventario, FinOps, SecOps, IaC, ISO, Kubernetes y chat |
 | API | FastAPI, Python 3.12 | Endpoints REST, autenticación, orquestación de servicios |
 | Servicios | Azure SDK + REST | Consultas KQL, costos, métricas, estados de Terraform, AKS |
 | Agentes | Gemini + motor de reglas | Respuestas en lenguaje natural sobre el contexto del tenant |
 | Pipeline | Scripts Python + bash | Exportación semanal del inventario a un Excel maestro con snapshots |
-| Infraestructura | Terraform (azurerm 3.x, azuread) | Container Apps, Static Web App, identidad administrada, Entra ID, almacenamiento |
+| Infraestructura | Terraform (azurerm 5.x, azuread 3.x) | Container Apps, Static Web App, identidad administrada, Entra ID, almacenamiento |
 
 ## Backend por capas
 

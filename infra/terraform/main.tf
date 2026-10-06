@@ -8,11 +8,11 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.110"
+      version = "~> 5.8"
     }
     azuread = {
       source  = "hashicorp/azuread"
-      version = "~> 2.53"
+      version = "~> 3.10"
     }
     random = {
       source  = "hashicorp/random"
@@ -26,7 +26,7 @@ provider "azurerm" {
   subscription_id = var.subscription_id
   # Los proveedores de recursos se registran aparte (scripts/bootstrap-state.sh):
   # registrar todos en cada plan exige permisos amplios y no aporta nada aqui.
-  skip_provider_registration = true
+  resource_provider_registrations = "none"
 }
 
 provider "azuread" {}
@@ -105,9 +105,9 @@ resource "azurerm_storage_account" "data" {
 }
 
 resource "azurerm_storage_share" "data" {
-  name                 = "cloudops-data"
-  storage_account_name = azurerm_storage_account.data.name
-  quota                = 1
+  name               = "cloudops-data"
+  storage_account_id = azurerm_storage_account.data.id
+  quota              = 1
 }
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,9 @@ resource "azurerm_container_app" "api" {
   resource_group_name          = azurerm_resource_group.rg.name
   container_app_environment_id = azurerm_container_app_environment.env.id
   revision_mode                = "Single"
-  tags                         = local.tags
+  # Cada merge a main crea una revisión; basta con unas pocas para volver atrás.
+  max_inactive_revisions = 5
+  tags                   = local.tags
 
   identity {
     type         = "UserAssigned"
@@ -274,4 +276,10 @@ resource "azurerm_static_web_app" "web" {
   sku_tier            = "Free"
   sku_size            = "Free"
   tags                = local.tags
+
+  # Azure registra el repositorio al publicar con el token de despliegue (CD);
+  # Terraform no administra ese vínculo.
+  lifecycle {
+    ignore_changes = [repository_url, repository_branch]
+  }
 }

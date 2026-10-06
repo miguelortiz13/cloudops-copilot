@@ -45,7 +45,7 @@ def _bool(nombre: str, por_defecto: bool) -> bool:
 # Identidad de la plataforma
 # ---------------------------------------------------------------------------
 APP_NAME = os.getenv("APP_NAME", "CloudOps Copilot")
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.4.1"
 # Nombre con el que se presentan los agentes ("Agente FinOps de <ORG_NAME>").
 ORG_NAME = os.getenv("ORG_NAME", "tu organización")
 

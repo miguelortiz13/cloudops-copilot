@@ -64,7 +64,7 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
 
 // ------------------------------------------------------------------ Topbar
 
-function useClickOutside(ref: React.RefObject<HTMLElement>, onOutside: () => void) {
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, onOutside: () => void) {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onOutside();
@@ -303,7 +303,9 @@ export function AgentDock() {
     }
   };
 
+  // Otra vista pidió preguntar algo al agente: se trata como un evento externo.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (pendingQuestion) send(pendingQuestion.agent, pendingQuestion.text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingQuestion?.id]);
