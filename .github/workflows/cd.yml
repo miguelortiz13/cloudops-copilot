@@ -40,7 +40,7 @@ jobs:
     outputs:
       ref: ${{ steps.tag.outputs.ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: tag
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -75,7 +75,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: azure/login@v2
         with:
