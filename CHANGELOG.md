@@ -2,6 +2,22 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [2.4.0] — 2026-10-06
+
+### Añadido
+- **Despliegue continuo** ([`cd.yml`](.github/workflows/cd.yml)): cada merge a `main` publica la imagen del API en GitHub Container Registry, actualiza la Container App, publica el panel y corre una prueba de humo. Azure se autentica por OIDC con una identidad administrada limitada al grupo de recursos (`infra/terraform/cicd.tf`); no hay secretos de larga vida.
+- Escaneo de la cadena de suministro en CI: `pip-audit`, `npm audit` y Trivy sobre la imagen.
+- Dependabot semanal para pip, npm, GitHub Actions, Docker y Terraform.
+- Cabeceras de seguridad del panel en Static Web Apps: CSP, HSTS, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`.
+
+### Cambiado
+- La imagen del API vive en GHCR (pública) y ya no depende del ACR de otro proyecto; se eliminan el bloque `registry` y la asignación `AcrPull`.
+- `scripts/deploy.sh` ya no construye imágenes: aplica Terraform, actualiza la imagen desde GHCR y publica el panel.
+
+### Seguridad
+- FastAPI 0.142, Starlette 1.7 y Pydantic 2.13: corrigen 16 vulnerabilidades conocidas en dependencias del API.
+- Vite 8: `npm audit` sin hallazgos.
+
 ## [2.3.0] — 2026-10-06
 
 ### Cambiado

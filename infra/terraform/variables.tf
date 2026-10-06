@@ -42,21 +42,12 @@ variable "tags" {
 }
 
 # ---------------------------------------------------------------------------
-# Imagen del API
+# Imagen del API (pública en GitHub Container Registry)
 # ---------------------------------------------------------------------------
-variable "container_registry_id" {
-  description = "Id de ARM del Azure Container Registry con la imagen del API."
-  type        = string
-}
-
-variable "container_registry_login_server" {
-  description = "Servidor del registro (p. ej. miregistro.azurecr.io)."
-  type        = string
-}
-
 variable "api_image" {
-  description = "Imagen completa del API (registro/repositorio:tag). La define scripts/deploy.sh."
+  description = "Imagen del API al crear la Container App. Después la actualiza el despliegue continuo."
   type        = string
+  default     = "ghcr.io/miguelortiz13/cloudops-copilot-api:latest"
 }
 
 # ---------------------------------------------------------------------------

@@ -25,15 +25,15 @@ gantt
 
 **Objetivo:** dejar lo actual cerrado, seguro y desplegándose solo.
 
-| Entregable | Detalle |
-|---|---|
-| Merge de PRs #1, #2 y el de este plan | `main` refleja lo desplegado |
-| Verificación del inicio de sesión en el panel | Primer uso real de Entra ID en el navegador |
-| Remediación de los hallazgos abiertos del laboratorio | Vía Terraform del proyecto correspondiente, para que la plataforma los vea cerrarse |
-| Imagen en GitHub Container Registry | Elimina la dependencia del ACR de otro proyecto |
-| Despliegue continuo con GitHub Actions + OIDC a `dev` | Plan comentado en PRs, apply al hacer merge, smoke test |
-| Escaneo de dependencias e imagen en CI | Dependabot, `pip-audit`, `npm audit`, Trivy |
-| Cabeceras de seguridad en el panel | `staticwebapp.config.json` |
+| Entregable | Detalle | Estado |
+|---|---|---|
+| Merge de PRs #1, #2 y el de este plan | `main` refleja lo desplegado | Hecho (#1, #2, #3) |
+| Verificación del inicio de sesión en el panel | Primer uso real de Entra ID en el navegador | Pendiente del usuario |
+| Remediación de los hallazgos abiertos del laboratorio | Vía Terraform del proyecto correspondiente, para que la plataforma los vea cerrarse | Propuesta lista; pendiente de decisión (otro repositorio, en producción) |
+| Imagen en GitHub Container Registry | Elimina la dependencia del ACR de otro proyecto | Hecho (v2.4.0) |
+| Despliegue continuo con GitHub Actions + OIDC a `dev` | Build y publicación de la imagen, despliegue del API y del panel al hacer merge, smoke test | Hecho (v2.4.0). La infraestructura sigue aplicándose a mano con Terraform; el plan comentado en PRs pasa a la fase 1 |
+| Escaneo de dependencias e imagen en CI | Dependabot, `pip-audit`, `npm audit`, Trivy | Hecho (v2.4.0) |
+| Cabeceras de seguridad en el panel | `staticwebapp.config.json` | Hecho (v2.4.0) |
 
 **Criterios de salida:** un merge a `main` despliega solo y pasa el smoke test; ningún secreto en GitHub; el panel abre con inicio de sesión.
 

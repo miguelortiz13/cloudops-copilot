@@ -89,12 +89,6 @@ resource "azurerm_role_assignment" "tfstate_reader" {
   principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
 
-# Descarga de la imagen del API desde el registro.
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = var.container_registry_id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_user_assigned_identity.api.principal_id
-}
 
 # ---------------------------------------------------------------------------
 # Almacenamiento persistente (cache de costos, historico de KPIs, Excel)
@@ -147,11 +141,6 @@ resource "azurerm_container_app" "api" {
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.api.id]
-  }
-
-  registry {
-    server   = var.container_registry_login_server
-    identity = azurerm_user_assigned_identity.api.id
   }
 
   ingress {
@@ -273,8 +262,6 @@ resource "azurerm_container_app" "api" {
   lifecycle {
     ignore_changes = [template[0].container[0].image]
   }
-
-  depends_on = [azurerm_role_assignment.acr_pull]
 }
 
 # ---------------------------------------------------------------------------

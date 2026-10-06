@@ -5,10 +5,6 @@ location        = "eastus2"
 name_prefix     = "cloudops"
 environment     = "dev"
 
-# Registro de contenedores con la imagen del API (puede ser uno existente).
-container_registry_id           = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ContainerRegistry/registries/<acr>"
-container_registry_login_server = "<acr>.azurecr.io"
-
 # Suscripciones que la plataforma observa (recibe Reader en cada una).
 observed_subscription_ids = [
   "00000000-0000-0000-0000-000000000000",

@@ -58,7 +58,7 @@ make lint          # ruff (backend) + eslint (frontend)
 make tf-validate   # terraform validate
 ```
 
-La CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) ejecuta en cada push y PR: ruff y pytest, eslint y build del panel, `terraform fmt -check` y `validate`, gitleaks y el build de ambas imágenes Docker.
+La CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) ejecuta en cada push y PR: ruff y pytest, eslint y build del panel, `terraform fmt -check` y `validate`, gitleaks, `pip-audit` y `npm audit`, y el build de ambas imágenes con escaneo de Trivy. El despliegue continuo está en [`cd.yml`](../.github/workflows/cd.yml) (ver [despliegue](deployment.md#3-desplegar)), y Dependabot propone actualizaciones cada semana.
 
 ## Recetas
 

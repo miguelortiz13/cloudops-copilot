@@ -1,6 +1,7 @@
 # CloudOps Copilot
 
 [![CI](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/ci.yml)
+[![CD](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/cd.yml/badge.svg)](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/cd.yml)
 ![Azure](https://img.shields.io/badge/Cloud-Azure-0089D6?logo=microsoftazure&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
