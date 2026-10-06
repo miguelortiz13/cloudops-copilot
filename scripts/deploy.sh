@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Despliegue completo en Azure:
-#   1. imagen del API (docker build + push al ACR)
-#   2. infraestructura (terraform apply)
+# Despliegue manual en Azure (el habitual es el workflow CD de GitHub Actions):
+#   1. infraestructura (terraform apply)
+#   2. imagen del API: la que construyó la CI en GitHub Container Registry
 #   3. panel (build con la configuracion de Entra ID + Static Web App)
 #
-# Requisitos: az login, terraform >= 1.5, docker, node 20+.
+# La imagen se elige con API_IMAGE (por defecto, la ultima de main).
+# Requisitos: az login, terraform >= 1.5, node 20+.
 # Configuracion: infra/terraform/terraform.tfvars y infra/terraform/backend.hcl
 set -euo pipefail
 
@@ -14,31 +15,28 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
 step() { echo -e "\n${YELLOW}$1${NC}"; }
 fail() { echo -e "${RED}$1${NC}"; exit 1; }
-tfvar() { sed -nE "s/^$1[[:space:]]*=[[:space:]]*\"([^\"]*)\".*/\1/p" "$TF_DIR/terraform.tfvars" | head -1; }
 
-for cmd in az terraform docker npm; do
+for cmd in az terraform npm; do
   command -v "$cmd" >/dev/null || fail "Falta '$cmd' en el PATH."
 done
 [ -f "$TF_DIR/terraform.tfvars" ] || fail "Falta $TF_DIR/terraform.tfvars (copiar de terraform.tfvars.example)."
 [ -f "$TF_DIR/backend.hcl" ] || fail "Falta $TF_DIR/backend.hcl (ejecutar scripts/bootstrap-state.sh)."
 
-REGISTRY=$(tfvar container_registry_login_server)
-[ -n "$REGISTRY" ] || fail "container_registry_login_server no esta en terraform.tfvars."
-TAG="$(git -C "$ROOT" rev-parse --short HEAD)$(git -C "$ROOT" diff --quiet || echo -dirty)"
-IMAGE="$REGISTRY/cloudops-copilot-api:$TAG"
+API_IMAGE="${API_IMAGE:-ghcr.io/miguelortiz13/cloudops-copilot-api:latest}"
 
-step "[1/4] Imagen del API: $IMAGE"
-az acr login --name "${REGISTRY%%.*}" >/dev/null
-docker build -t "$IMAGE" "$ROOT/backend"
-docker push "$IMAGE"
-
-step "[2/4] Infraestructura (terraform apply)"
+step "[1/4] Infraestructura (terraform apply)"
 terraform -chdir="$TF_DIR" init -input=false -backend-config=backend.hcl >/dev/null
-terraform -chdir="$TF_DIR" apply -input=false -var "api_image=$IMAGE" ${AUTO_APPROVE:+-auto-approve}
+# api_image solo se usa al crear la Container App; despues Terraform la ignora
+# y la imagen se actualiza en el paso siguiente.
+terraform -chdir="$TF_DIR" apply -input=false -var "api_image=$API_IMAGE" ${AUTO_APPROVE:+-auto-approve}
 
 out() { terraform -chdir="$TF_DIR" output -raw "$1"; }
 API_URL=$(out api_url)
 FRONTEND_URL=$(out frontend_url)
+
+step "[2/4] Imagen del API: $API_IMAGE"
+az containerapp update --name "$(out api_container_app_name)" \
+  --resource-group "$(out resource_group_name)" --image "$API_IMAGE" --output none
 
 step "[3/4] Compilando el panel"
 npm ci --prefix "$ROOT/frontend" --no-audit --no-fund >/dev/null

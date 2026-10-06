@@ -3,7 +3,7 @@
 # incluidos los registros de aplicacion de Entra ID.
 #
 # ATENCION: borra tambien la cuenta de datos (cache de costos, historico de
-# KPIs, Excel y snapshots). La imagen en el ACR y el estado de Terraform se
+# KPIs, Excel y snapshots). La imagen en GHCR y el estado de Terraform se
 # conservan.
 set -euo pipefail
 

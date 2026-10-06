@@ -66,7 +66,7 @@ Un estado contiene los atributos completos de cada recurso, incluidas llaves de 
 ## Gestión de secretos
 
 - Local: `backend/.env` (ignorado por git).
-- Azure: **no hay secretos de Azure**. El API usa una identidad administrada asignada por el usuario (Reader, Storage Blob Data Reader, AcrPull). El único secreto opcional es la clave de Gemini, guardada como *secret* de la Container App.
+- Azure: **no hay secretos de Azure**. El API usa una identidad administrada asignada por el usuario (Reader y Storage Blob Data Reader). El único secreto opcional es la clave de Gemini, guardada como *secret* de la Container App.
 - Mejora pendiente: referencias a Key Vault en lugar de valores en app settings (ver [roadmap](roadmap.md)).
 - CI: [gitleaks](https://github.com/gitleaks/gitleaks) analiza cada push y PR.
 
@@ -75,7 +75,26 @@ Un estado contiene los atributos completos de cada recurso, incluidas llaves de 
 - Container App con ingress HTTPS y sin acceso de administración expuesto.
 - Storage con TLS 1.2 mínimo y sin acceso público a blobs.
 - Contenedor del backend con usuario sin privilegios (`uid 10001`).
-- nginx del panel con `X-Content-Type-Options`, `X-Frame-Options` y `Referrer-Policy`.
+- nginx del panel (Docker) con `X-Content-Type-Options`, `X-Frame-Options` y `Referrer-Policy`.
+- Static Web App con cabeceras en [`staticwebapp.config.json`](../frontend/public/staticwebapp.config.json): CSP restrictiva (scripts solo propios; conexiones solo al API en Container Apps y a Entra ID), HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` y `Permissions-Policy`. Verificada con el emulador de Static Web Apps: cero violaciones de CSP.
+- Imagen del API en GHCR, escaneada con Trivy en cada PR.
+
+## Cadena de suministro
+
+| Control | Dónde |
+|---|---|
+| Vulnerabilidades en dependencias de Python | `pip-audit` en CI |
+| Vulnerabilidades en dependencias de npm | `npm audit --audit-level=high` en CI |
+| Vulnerabilidades en la imagen | Trivy en CI (altas y críticas con corrección disponible) |
+| Actualizaciones | Dependabot semanal para pip, npm, Actions, Docker y Terraform |
+| Secretos en el código | gitleaks sobre todo el historial |
+| Despliegue sin secretos | OIDC de GitHub Actions a una identidad con permisos solo sobre el grupo de recursos |
+
+## Riesgos aceptados
+
+| Riesgo | Por qué se acepta | Cómo se mitiga |
+|---|---|---|
+| La cuenta de almacenamiento de datos admite acceso de red público (señalado por Infracost) | Container Apps en plan de consumo sin red virtual monta Azure Files por el endpoint público; desactivarlo rompe el almacenamiento de la plataforma | Acceso solo con la llave de la cuenta (que Terraform entrega a la Container App), TLS 1.2 mínimo y sin blobs públicos. La alternativa, un entorno con red virtual y endpoint privado, tiene costo fijo y queda como opción en el [plan](plan/05-infraestructura.md#red) |
 
 ## Reportar una vulnerabilidad
 
