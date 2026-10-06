@@ -43,11 +43,8 @@ class ResourceInventoryItem(BaseModel):
     managedBy: Optional[str] = Field(default=None)
     tags: Dict[str, str] = Field(default_factory=dict)
     environment: Optional[str] = Field(default=None)
-    customer: Optional[str] = Field(default=None)
-    tenant: Optional[str] = Field(default=None)
-    platform: Optional[str] = Field(default=None)
-    product: Optional[str] = Field(default=None)
-    suite: Optional[str] = Field(default=None)
+    # Valor de cada tag de MANDATORY_TAGS (None si falta).
+    tagValues: Dict[str, Optional[str]] = Field(default_factory=dict)
     mandatoryTags: MandatoryTagsResult = Field(
         default_factory=lambda: MandatoryTagsResult(present=0, missing=[], compliancePercentage=0.0, isCompliant=False)
     )

@@ -44,9 +44,11 @@ STORAGE_SCOPE = "https://storage.azure.com/.default"
 STORAGE_API_VERSION = "2021-08-06"
 
 ENABLED = os.getenv("TFSTATE_ENABLED", "true").strip().lower() in ("1", "true", "yes") and bool(config.TFSTATE_ACCOUNT)
-# Sin cuenta configurada la cobertura real de IaC queda desactivada.
-ACCOUNT = config.TFSTATE_ACCOUNT
-CONTAINER = config.TFSTATE_CONTAINER
+# Fuentes (cuenta, contenedor). Sin ninguna, la cobertura real de IaC queda
+# desactivada.
+SOURCES = config.TFSTATE_SOURCES
+ACCOUNT = ",".join(cuenta for cuenta, _ in SOURCES)
+CONTAINER = ",".join(sorted({contenedor for _, contenedor in SOURCES}))
 
 # Los estados cambian cuando alguien despliega, no cada minuto: seis horas de
 # cache evitan releer decenas de megabytes en cada consulta del panel.
@@ -84,11 +86,11 @@ class TfStateService:
             print(f"[TfStateService] No se pudo obtener token de storage: {exc}")
             return None
 
-    def _listar_blobs(self, token: str) -> List[str]:
-        """Nombres de los blobs del contenedor, siguiendo la paginacion."""
+    def _listar_blobs(self, token: str, cuenta: str, contenedor: str) -> List[str]:
+        """Nombres de los estados de un contenedor, siguiendo la paginacion."""
         nombres: List[str] = []
         marker = ""
-        base = f"https://{ACCOUNT}.blob.core.windows.net/{CONTAINER}"
+        base = f"https://{cuenta}.blob.core.windows.net/{contenedor}"
         cabeceras = {"Authorization": f"Bearer {token}", "x-ms-version": STORAGE_API_VERSION}
 
         while True:
@@ -98,7 +100,7 @@ class TfStateService:
             respuesta = requests.get(url, headers=cabeceras, timeout=REQUEST_TIMEOUT)
             if respuesta.status_code != 200:
                 raise RuntimeError(
-                    f"El listado de estados respondio {respuesta.status_code}"
+                    f"El listado de estados de {cuenta}/{contenedor} respondio {respuesta.status_code}"
                 )
             raiz = ElementTree.fromstring(respuesta.text)
             for blob in raiz.iter("Blob"):
@@ -141,7 +143,9 @@ class TfStateService:
         return {"ids": ids, "tipos": tipos, "ok": True}
 
     def _leer_estado(self, nombre: str, token: str) -> Dict[str, Any]:
-        url = f"https://{ACCOUNT}.blob.core.windows.net/{CONTAINER}/{nombre}"
+        """`nombre` es `cuenta/contenedor/blob`, tal como se publica en el indice."""
+        cuenta, contenedor, blob = nombre.split("/", 2)
+        url = f"https://{cuenta}.blob.core.windows.net/{contenedor}/{blob}"
         cabeceras = {"Authorization": f"Bearer {token}", "x-ms-version": STORAGE_API_VERSION}
         try:
             respuesta = requests.get(url, headers=cabeceras, timeout=REQUEST_TIMEOUT)
@@ -195,16 +199,22 @@ class TfStateService:
         if not token:
             return {**vacio, "reason": "sin credenciales de Azure"}
 
-        try:
-            nombres = self._listar_blobs(token)
-        except Exception as exc:
-            print(f"[TfStateService] No se pudieron listar los estados: {exc}")
-            return {**vacio, "reason": str(exc)[:160]}
-
-        nombres = [
-            n for n in nombres
-            if not any(n.startswith(p) for p in EXCLUDE_PREFIXES)
-        ]
+        # Una cuenta inaccesible no invalida las demas: se anota y se sigue.
+        nombres: List[str] = []
+        fallos_listado: List[str] = []
+        for cuenta, contenedor in SOURCES:
+            try:
+                blobs = self._listar_blobs(token, cuenta, contenedor)
+            except Exception as exc:
+                print(f"[TfStateService] No se pudieron listar los estados: {exc}")
+                fallos_listado.append(str(exc)[:160])
+                continue
+            nombres.extend(
+                f"{cuenta}/{contenedor}/{b}" for b in blobs
+                if not any(b.startswith(p) for p in EXCLUDE_PREFIXES)
+            )
+        if fallos_listado and not nombres:
+            return {**vacio, "reason": "; ".join(fallos_listado)}
 
         resultados: List[Dict[str, Any]] = []
         if nombres:
@@ -237,6 +247,7 @@ class TfStateService:
             "states_read": sum(1 for r in resultados if r["ok"]),
             "states_failed": sum(1 for r in resultados if not r["ok"]),
             "types": tipos,
+            "sources_failed": fallos_listado,
             "read_at": time.time(),
             "account": ACCOUNT,
             "container": CONTAINER,

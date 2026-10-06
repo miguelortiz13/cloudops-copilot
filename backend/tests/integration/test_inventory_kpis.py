@@ -31,7 +31,7 @@ import warnings  # noqa: E402
 warnings.filterwarnings("ignore")
 
 from app.agents.azure_agent import AzureInventoryAgent  # noqa: E402
-from app.services.inventory_service import InventoryService  # noqa: E402
+from app.services.inventory_service import MANDATORY_TAGS, InventoryService  # noqa: E402
 
 # KPIs escalares que deben coincidir exactamente entre ambos caminos.
 KPIS_EXACTOS = [
@@ -154,8 +154,10 @@ def main():
         ("sin filtros, pág. 3", {"page": 3, "pageSize": 25, "filters": {}}),
         ("solo no conformes", {"page": 1, "pageSize": 25, "filters": {"onlyNonCompliant": True}}),
         ("solo Shadow IT", {"page": 1, "pageSize": 25, "filters": {"onlyShadowItCandidates": True}}),
-        ("búsqueda 'vie'", {"page": 1, "pageSize": 25, "filters": {"search": "vie"}}),
-        ("falta tag Customer", {"page": 1, "pageSize": 25, "filters": {"missingTags": ["Customer"]}}),
+        ("búsqueda 'prod'", {"page": 1, "pageSize": 25, "filters": {"search": "prod"}}),
+        (f"falta tag {MANDATORY_TAGS[0]}", {"page": 1, "pageSize": 25, "filters": {"missingTags": [MANDATORY_TAGS[0]]}}),
+        (f"falta tag {MANDATORY_TAGS[-1].lower()} (minúsculas)", {"page": 1, "pageSize": 25, "filters": {"missingTags": [MANDATORY_TAGS[-1].lower()]}}),
+        ("falta tag no obligatoria", {"page": 1, "pageSize": 25, "filters": {"missingTags": ["TagQueNoExiste"]}}),
     ]
     for nombre, extra in casos:
         req = {"subscriptionIds": subscription_ids, "forceRefresh": False}

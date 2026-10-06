@@ -21,6 +21,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import conftest  # noqa: E402,F401  (aisla las pruebas del .env local)
 
 from app.services import governance  # noqa: E402
 from app.services.inventory_service import InventoryService  # noqa: E402
@@ -144,6 +146,61 @@ def test_sin_estados_la_consulta_no_afirma_nada():
 def test_demasiados_ids_no_generan_una_consulta_impracticable():
     muchos = {f"/subscriptions/x/r{i}" for i in range(governance.MAX_IDS_EN_CONSULTA + 1)}
     assert governance.kql_gestionado_por_terraform(muchos) == "false"
+
+def test_varias_cuentas_de_estado_se_suman_y_una_caida_no_invalida_las_demas():
+    """Cada proyecto suele guardar su estado en su propia cuenta."""
+    from app.services import tfstate_service as modulo
+
+    class Credencial:
+        def get_token(self, scope):
+            return type("T", (), {"token": "x"})()
+
+    class Agente:
+        azure_credentials = Credencial()
+
+    listado = (
+        '<?xml version="1.0"?><EnumerationResults><Blobs>'
+        '<Blob><Name>proyecto.tfstate</Name></Blob></Blobs><NextMarker/></EnumerationResults>'
+    )
+    estado = json.dumps({"resources": [{"mode": "managed", "type": "azurerm_resource_group", "instances": [
+        {"attributes": {"id": "/subscriptions/s/resourceGroups/rg-a"}}]}]}).encode()
+
+    class Respuesta:
+        def __init__(self, codigo, texto="", contenido=b""):
+            self.status_code, self.text, self.content = codigo, texto, contenido
+
+    def get_falso(url, headers=None, timeout=None):
+        if url.startswith("https://caida."):
+            return Respuesta(403)
+        if "comp=list" in url:
+            return Respuesta(200, texto=listado)
+        return Respuesta(200, contenido=estado)
+
+    originales = (modulo.SOURCES, modulo.ENABLED, modulo.requests.get)
+    try:
+        modulo.SOURCES = [("cuentaa", "tfstate"), ("caida", "tfstate")]
+        modulo.ENABLED = True
+        modulo.requests.get = get_falso
+        indice = TfStateService(Agente()).get_index(force=True)
+    finally:
+        modulo.SOURCES, modulo.ENABLED, modulo.requests.get = originales
+
+    assert indice["available"]
+    assert indice["managed_ids"] == {"/subscriptions/s/resourcegroups/rg-a"}
+    assert [e["name"] for e in indice["states"]] == ["cuentaa/tfstate/proyecto.tfstate"]
+    assert len(indice["sources_failed"]) == 1 and "caida" in indice["sources_failed"][0]
+
+def test_solo_los_recursos_de_primer_nivel_pueden_ser_cobertura_u_obsoletos():
+    """Subrecursos y role assignments del estado no estan en `resources`."""
+    base = "/subscriptions/s/resourcegroups/rg/providers"
+    assert governance.es_recurso_inventariable(f"{base}/microsoft.storage/storageaccounts/st1")
+    assert not governance.es_recurso_inventariable(
+        f"{base}/microsoft.storage/storageaccounts/st1/blobservices/default/containers/c1")
+    assert not governance.es_recurso_inventariable(
+        f"{base}/microsoft.insights/components/ai/providers/microsoft.authorization/roleassignments/x")
+    assert not governance.es_recurso_inventariable("/subscriptions/s/resourcegroups/rg")
+    assert not governance.es_recurso_inventariable(
+        "/subscriptions/s/providers/microsoft.consumption/budgets/b")
 
 
 if __name__ == "__main__":

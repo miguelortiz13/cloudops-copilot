@@ -21,7 +21,9 @@ from typing import List
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(BACKEND_DIR / ".env")
+# Las pruebas fijan su propia configuracion (tests/conftest.py).
+if not os.getenv("CLOUDOPS_SKIP_DOTENV"):
+    load_dotenv(BACKEND_DIR / ".env")
 
 
 def _lista(nombre: str, por_defecto: str) -> List[str]:
@@ -54,11 +56,9 @@ ORG_NAME = os.getenv("ORG_NAME", "tu organización")
 # defecto es el de docs/governance/tagging-policy.md; cambiarlo aqui cambia el
 # KPI de cumplimiento, la matriz de tags, el filtro de Shadow IT y las
 # plantillas de Terraform a la vez.
-MANDATORY_TAGS = _lista(
-    "MANDATORY_TAGS", "Customer,Tenant,Platform,Product,Suite,Environment"
-)
+MANDATORY_TAGS = _lista("MANDATORY_TAGS", "Environment,Project,ManagedBy")
 # Dimensiones por las que FinOps atribuye el gasto (showback / chargeback).
-SHOWBACK_TAGS = _lista("SHOWBACK_TAGS", "Customer,Product,Suite,Environment")
+SHOWBACK_TAGS = _lista("SHOWBACK_TAGS", "Project,Environment")
 
 # ---------------------------------------------------------------------------
 # Red y frontend
@@ -93,6 +93,13 @@ PIPELINE_DIR = BACKEND_DIR / "pipelines" / "inventory"
 # organizacion. Vacia = la cobertura real de IaC queda desactivada.
 TFSTATE_ACCOUNT = os.getenv("TFSTATE_ACCOUNT", "").strip()
 TFSTATE_CONTAINER = os.getenv("TFSTATE_CONTAINER", "tfstate")
+# Admite varias cuentas: "cuenta1,cuenta2/otro-contenedor". Sin contenedor
+# explicito se usa TFSTATE_CONTAINER. Es lo normal cuando cada proyecto guarda
+# su estado en su propia cuenta.
+TFSTATE_SOURCES = [
+    (fuente.split("/", 1)[0].strip(), (fuente.split("/", 1)[1] if "/" in fuente else TFSTATE_CONTAINER).strip())
+    for fuente in TFSTATE_ACCOUNT.split(",") if fuente.strip()
+]
 # Prefijo de la llave del estado en el codigo HCL que genera el modulo IaC:
 # <prefijo>/<suscripcion>/<ambiente>/<dominio>/terraform.tfstate
 IAC_STATE_KEY_PREFIX = os.getenv("IAC_STATE_KEY_PREFIX", "platform/azure").strip("/")

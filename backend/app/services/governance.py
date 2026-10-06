@@ -60,6 +60,10 @@ IAC_TAG_KEYS = [
 # Valores que delatan lo mismo, este donde este la clave.
 IAC_TAG_VALUES = ["terraform", "iac", "bicep", "arm", "pulumi", "crossplane"]
 
+# Valores que, aun bajo una clave de IaC, declaran lo contrario. Sin esto un
+# esquema que exige la tag `ManagedBy` contaria `ManagedBy=Manual` como IaC.
+NON_IAC_TAG_VALUES = ["manual", "portal", "clickops", "none", "n/a", ""]
+
 # --- Custodio ---------------------------------------------------------------
 # Un solo conjunto de claves de propiedad. Antes habia dos listas distintas
 # —una para el puntaje de completitud y otra para el custodio mostrado— y
@@ -93,8 +97,9 @@ def tiene_evidencia_iac(tags_lower: Dict[str, str]) -> bool:
     Es la evidencia debil: constata que alguien lo etiqueto. La fuerte es
     `esta_en_estado`, que lo comprueba contra el estado real de Terraform.
     """
-    if any(clave in IAC_TAG_KEYS for clave in tags_lower):
-        return True
+    for clave in IAC_TAG_KEYS:
+        if clave in tags_lower and str(tags_lower[clave] or "").strip().lower() not in NON_IAC_TAG_VALUES:
+            return True
     return any(valor in IAC_TAG_VALUES for valor in tags_lower.values())
 
 
@@ -142,8 +147,10 @@ def es_derivado(managed_by: Optional[str], resource_group: str, tipo: str) -> bo
 
 
 def kql_tiene_iac() -> str:
+    negativos = ", ".join(f"'{v}'" for v in NON_IAC_TAG_VALUES)
     claves = " or ".join(
-        f"array_index_of(bag_keys(_t), '{k}') >= 0" for k in IAC_TAG_KEYS
+        f"(array_index_of(bag_keys(_t), '{k}') >= 0 and trim(' ', tostring(_t['{k}'])) !in ({negativos}))"
+        for k in IAC_TAG_KEYS
     )
     # En el JSON ya minusculizado un valor exacto aparece como :"terraform", lo
     # que ancla la busqueda a la posicion de valor y no confunde con una clave
@@ -242,3 +249,31 @@ def kql_conteo_faltantes(tags: List[str]) -> str:
 
 def columna_faltantes(tag: str) -> str:
     return f"missing_{_slug_tag(tag)}"
+
+
+# ---------------------------------------------------------------------------
+# Que ids de un estado de Terraform puede ver el inventario
+# ---------------------------------------------------------------------------
+#
+# Un estado gestiona mucho mas que recursos: contenedores y tablas de storage,
+# role assignments, budgets, el propio resource group, secretos de Key Vault.
+# Ninguno esta en la tabla `resources` de Resource Graph. Tratarlos como
+# recursos hacia que la cobertura los diera por "borrados fuera de Terraform":
+# en un proyecto vivo, 37 de 57 ids salian como obsoletos y ninguno lo era.
+
+def es_recurso_inventariable(resource_id: str) -> bool:
+    """
+    Si el id corresponde a un recurso de primer nivel de la tabla `resources`.
+
+    Forma esperada: /subscriptions/<s>/resourcegroups/<rg>/providers/<ns>/<tipo>/<nombre>
+    Quedan fuera los subrecursos (mas pares tipo/nombre), los recursos de
+    extension (un segundo `/providers/`), los grupos de recursos y los recursos
+    de nivel de suscripcion.
+    """
+    partes = str(resource_id or "").strip("/").lower().split("/")
+    return (
+        len(partes) == 8
+        and partes[0] == "subscriptions"
+        and partes[2] == "resourcegroups"
+        and partes[4] == "providers"
+    )
