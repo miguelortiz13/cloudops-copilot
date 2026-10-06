@@ -2,14 +2,21 @@ terraform {
   required_version = ">= 1.5.0"
 
   # Configuracion parcial: los datos de la cuenta del estado se pasan en
-  # `terraform init -backend-config=backend.hcl` (ver backend.hcl.example), asi
-  # el codigo no queda atado a ninguna suscripcion concreta.
+  # `terraform init -backend-config=backend.hcl` (ver backend.hcl.example).
   backend "azurerm" {}
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 3.110"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.53"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
     }
   }
 }
@@ -17,22 +24,33 @@ terraform {
 provider "azurerm" {
   features {}
   subscription_id = var.subscription_id
-  tenant_id       = var.tenant_id
+  # Los proveedores de recursos se registran aparte (scripts/bootstrap-state.sh):
+  # registrar todos en cada plan exige permisos amplios y no aporta nada aqui.
+  skip_provider_registration = true
 }
 
+provider "azuread" {}
+
+data "azurerm_client_config" "current" {}
+data "azuread_client_config" "current" {}
+
 locals {
-  # Nombres derivados de un prefijo y el ambiente: cloudops-dev -> app-cloudops-dev.
+  # Nombres derivados de un prefijo y el ambiente: cloudops-dev -> ca-cloudops-dev.
   base = "${var.name_prefix}-${var.environment}"
   # Las cuentas de almacenamiento solo admiten minusculas y digitos (3-24).
   storage_name = substr(replace("st${var.name_prefix}${var.environment}data", "/[^a-z0-9]/", ""), 0, 24)
 
   tags = merge(var.tags, {
-    Environment = title(var.environment)
-    Provisioner = "Terraform"
+    Environment = var.environment
+    Project     = var.name_prefix
+    ManagedBy   = "Terraform"
   })
 
-  # Ruta donde el App Service monta el File Share; el backend la lee como DATA_DIR.
-  data_mount_path = "/home/site/data"
+  data_mount_path = "/data"
+  gemini_enabled  = nonsensitive(var.gemini_api_key != "")
+
+  # Cuentas de estados de Terraform a escanear: "cuenta/contenedor".
+  tfstate_sources = join(",", [for s in var.tfstate_sources : "${element(split("/", s.storage_account_id), 8)}/${s.container}"])
 }
 
 # ---------------------------------------------------------------------------
@@ -42,6 +60,40 @@ resource "azurerm_resource_group" "rg" {
   name     = "rg-${local.base}"
   location = var.location
   tags     = local.tags
+}
+
+# ---------------------------------------------------------------------------
+# Identidad de la plataforma: solo lectura, sin secretos
+# ---------------------------------------------------------------------------
+resource "azurerm_user_assigned_identity" "api" {
+  name                = "id-${local.base}"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  tags                = local.tags
+}
+
+# Reader sobre cada suscripcion observada: inventario, SecOps y costos con
+# alcance de suscripcion.
+resource "azurerm_role_assignment" "reader" {
+  for_each             = toset(var.observed_subscription_ids)
+  scope                = "/subscriptions/${each.value}"
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+# Lectura de los estados de Terraform para medir la cobertura real de IaC.
+resource "azurerm_role_assignment" "tfstate_reader" {
+  for_each             = { for s in var.tfstate_sources : s.storage_account_id => s }
+  scope                = each.key
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+# Descarga de la imagen del API desde el registro.
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = var.container_registry_id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
 
 # ---------------------------------------------------------------------------
@@ -61,98 +113,166 @@ resource "azurerm_storage_account" "data" {
 resource "azurerm_storage_share" "data" {
   name                 = "cloudops-data"
   storage_account_name = azurerm_storage_account.data.name
-  quota                = 5
+  quota                = 1
 }
 
 # ---------------------------------------------------------------------------
-# Backend (FastAPI en App Service Linux)
+# API en Container Apps (consumo, escala a cero)
 # ---------------------------------------------------------------------------
-resource "azurerm_service_plan" "plan" {
-  name                = "asp-${local.base}"
+# Sin Log Analytics: los logs se consultan en vivo con
+# `az containerapp logs show`. Conectar un workspace es opcional y tiene costo.
+resource "azurerm_container_app_environment" "env" {
+  name                = "cae-${local.base}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  os_type             = "Linux"
-  sku_name            = var.app_service_sku
   tags                = local.tags
 }
 
-resource "azurerm_linux_web_app" "api" {
-  name                = "app-${local.base}"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  service_plan_id     = azurerm_service_plan.plan.id
-  https_only          = true
-  tags                = local.tags
+resource "azurerm_container_app_environment_storage" "data" {
+  name                         = "cloudops-data"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  account_name                 = azurerm_storage_account.data.name
+  share_name                   = azurerm_storage_share.data.name
+  access_key                   = azurerm_storage_account.data.primary_access_key
+  access_mode                  = "ReadWrite"
+}
 
-  site_config {
-    application_stack {
-      python_version = "3.12"
+resource "azurerm_container_app" "api" {
+  name                         = "ca-${local.base}-api"
+  resource_group_name          = azurerm_resource_group.rg.name
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api.id]
+  }
+
+  registry {
+    server   = var.container_registry_login_server
+    identity = azurerm_user_assigned_identity.api.id
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8000
+    transport        = "auto"
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
     }
-    app_command_line = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
-    ftps_state       = "Disabled"
   }
 
-  app_settings = {
-    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
-    "WEBSITES_PORT"                  = "8000"
-    # Con SCM_DO_BUILD_DURING_DEPLOYMENT cada despliegue reinstala dependencias
-    # (pandas y los SDK de Azure tardan minutos); el limite por defecto de 230 s
-    # marca como fallido un arranque que termina bien poco despues.
-    "WEBSITES_CONTAINER_START_TIME_LIMIT" = "1800"
+  template {
+    # 0 replicas en reposo: sin trafico no hay costo. La primera peticion
+    # tras un periodo inactivo tarda unos segundos en arrancar el contenedor.
+    min_replicas = 0
+    max_replicas = 1
 
-    # Organizacion
-    "APP_NAME"       = var.app_display_name
-    "ORG_NAME"       = var.org_name
-    "MANDATORY_TAGS" = join(",", var.mandatory_tags)
-    "FRONTEND_URL"   = "https://${azurerm_static_web_app.web.default_host_name}"
-    "DATA_DIR"       = local.data_mount_path
+    volume {
+      name         = "data"
+      storage_type = "AzureFile"
+      storage_name = azurerm_container_app_environment_storage.data.name
+    }
 
-    # Lectura del tenant: Service Principal con rol Reader.
-    "AZURE_TENANT_ID"            = var.tenant_id
-    "AZURE_CLIENT_ID"            = var.bot_app_id
-    "AZURE_CLIENT_SECRET"        = var.bot_app_password
-    "AZURE_SUBSCRIPTION_ID"      = var.subscription_id
-    "AZURE_READER_CLIENT_ID"     = var.reader_client_id
-    "AZURE_READER_CLIENT_SECRET" = var.reader_client_secret
+    container {
+      name   = "api"
+      image  = var.api_image
+      cpu    = 0.5
+      memory = "1Gi"
 
-    "GEMINI_API_KEY" = var.gemini_api_key
+      volume_mounts {
+        name = "data"
+        path = local.data_mount_path
+      }
 
-    # CORS: solo el dominio del panel puede llamar al API.
-    "ALLOWED_ORIGINS" = "https://${azurerm_static_web_app.web.default_host_name}"
-
-    # Autenticacion con Entra ID. Con auth_enabled = false el API queda abierto
-    # a quien conozca la URL; ver docs/security.md.
-    "AUTH_ENABLED"           = tostring(var.auth_enabled)
-    "AZURE_AD_TENANT_ID"     = var.tenant_id
-    "AZURE_AD_API_CLIENT_ID" = var.api_client_id
-
-    # El webhook de Teams lo invoca Bot Framework, no una persona: se protege
-    # validando el JWT que firma. La audiencia esperada es el App Id del bot.
-    "BOT_AUTH_ENABLED" = "true"
-    "MICROSOFT_APP_ID" = var.bot_app_id
-
-    # Cobertura real de IaC (lectura de estados de Terraform). Opcional.
-    "TFSTATE_ACCOUNT"   = var.tfstate_account_to_scan
-    "TFSTATE_CONTAINER" = var.tfstate_container_to_scan
-
-    # Agente SRE de Kubernetes. Opcional.
-    "K8S_CLUSTER_NAME"    = var.k8s_cluster_name
-    "K8S_RESOURCE_GROUP"  = var.k8s_resource_group
-    "K8S_SUBSCRIPTION_ID" = var.k8s_subscription_id
+      env {
+        name  = "AZURE_MANAGED_IDENTITY_CLIENT_ID"
+        value = azurerm_user_assigned_identity.api.client_id
+      }
+      env {
+        name  = "AZURE_SUBSCRIPTION_ID"
+        value = var.subscription_id
+      }
+      env {
+        name  = "APP_NAME"
+        value = var.app_display_name
+      }
+      env {
+        name  = "ORG_NAME"
+        value = var.org_name
+      }
+      env {
+        name  = "MANDATORY_TAGS"
+        value = join(",", var.mandatory_tags)
+      }
+      env {
+        name  = "SHOWBACK_TAGS"
+        value = join(",", var.showback_tags)
+      }
+      env {
+        name  = "DATA_DIR"
+        value = local.data_mount_path
+      }
+      env {
+        name  = "FRONTEND_URL"
+        value = "https://${azurerm_static_web_app.web.default_host_name}"
+      }
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = "https://${azurerm_static_web_app.web.default_host_name}"
+      }
+      env {
+        name  = "TFSTATE_ACCOUNT"
+        value = local.tfstate_sources
+      }
+      env {
+        name  = "AUTH_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "AZURE_AD_TENANT_ID"
+        value = data.azurerm_client_config.current.tenant_id
+      }
+      env {
+        name  = "AZURE_AD_API_CLIENT_ID"
+        value = azuread_application.api.client_id
+      }
+      env {
+        name  = "GEMINI_MODEL"
+        value = var.gemini_model
+      }
+      # Sin clave, el chat y el generador de IaC usan el motor de reglas.
+      dynamic "env" {
+        for_each = local.gemini_enabled ? [1] : []
+        content {
+          name        = "GEMINI_API_KEY"
+          secret_name = "gemini-api-key"
+        }
+      }
+      # La precarga de costos corre mientras haya una replica viva; con escala
+      # a cero se apoya en la cache persistida en /data.
+      env {
+        name  = "COST_WARM_INITIAL_DELAY_SECONDS"
+        value = "5"
+      }
+    }
   }
 
-  storage_account {
-    name         = "cloudops-data"
-    type         = "AzureFiles"
-    account_name = azurerm_storage_account.data.name
-    access_key   = azurerm_storage_account.data.primary_access_key
-    share_name   = azurerm_storage_share.data.name
-    mount_path   = local.data_mount_path
+  dynamic "secret" {
+    for_each = local.gemini_enabled ? [1] : []
+    content {
+      name  = "gemini-api-key"
+      value = var.gemini_api_key
+    }
   }
+
+  depends_on = [azurerm_role_assignment.acr_pull]
 }
 
 # ---------------------------------------------------------------------------
-# Frontend (Static Web App)
+# Panel (Static Web App gratuita)
 # ---------------------------------------------------------------------------
 resource "azurerm_static_web_app" "web" {
   name                = "stapp-${local.base}"
@@ -161,27 +281,4 @@ resource "azurerm_static_web_app" "web" {
   sku_tier            = "Free"
   sku_size            = "Free"
   tags                = local.tags
-}
-
-# ---------------------------------------------------------------------------
-# Bot de Microsoft Teams (opcional)
-# ---------------------------------------------------------------------------
-resource "azurerm_bot_service_azure_bot" "bot" {
-  count                   = var.enable_teams_bot ? 1 : 0
-  name                    = "bot-${local.base}"
-  resource_group_name     = azurerm_resource_group.rg.name
-  location                = "global"
-  sku                     = "F0"
-  microsoft_app_id        = var.bot_app_id
-  microsoft_app_tenant_id = var.tenant_id
-  microsoft_app_type      = "SingleTenant"
-  endpoint                = "https://${azurerm_linux_web_app.api.default_hostname}/api/teams/webhook"
-  tags                    = local.tags
-}
-
-resource "azurerm_bot_channel_ms_teams" "teams" {
-  count               = var.enable_teams_bot ? 1 : 0
-  bot_name            = azurerm_bot_service_azure_bot.bot[0].name
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_bot_service_azure_bot.bot[0].location
 }

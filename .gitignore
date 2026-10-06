@@ -45,3 +45,7 @@ override.tf.json
 .DS_Store
 Thumbs.db
 *:Zone.Identifier
+
+# Planes de Terraform (pueden contener valores sensibles)
+*.tfplan
+tfplan

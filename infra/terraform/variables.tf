@@ -6,11 +6,6 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "tenant_id" {
-  description = "Tenant de Microsoft Entra ID."
-  type        = string
-}
-
 variable "location" {
   description = "Region de Azure para los recursos."
   type        = string
@@ -24,7 +19,7 @@ variable "static_web_app_location" {
 }
 
 variable "name_prefix" {
-  description = "Prefijo de los nombres de recursos (solo minusculas, digitos y guiones)."
+  description = "Prefijo de los nombres de recursos (minusculas, digitos y guiones)."
   type        = string
   default     = "cloudops"
 
@@ -40,23 +35,49 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "app_service_sku" {
-  description = "SKU del App Service Plan. B1 basta para un equipo pequeno."
-  type        = string
-  default     = "B1"
-}
-
 variable "tags" {
-  description = "Tags comunes de los recursos de la plataforma."
+  description = "Tags adicionales de los recursos de la plataforma."
   type        = map(string)
-  default = {
-    Product = "CloudOpsCopilot"
-    Suite   = "Platform"
-  }
+  default     = {}
 }
 
 # ---------------------------------------------------------------------------
-# Organizacion que usa la plataforma
+# Imagen del API
+# ---------------------------------------------------------------------------
+variable "container_registry_id" {
+  description = "Id de ARM del Azure Container Registry con la imagen del API."
+  type        = string
+}
+
+variable "container_registry_login_server" {
+  description = "Servidor del registro (p. ej. miregistro.azurecr.io)."
+  type        = string
+}
+
+variable "api_image" {
+  description = "Imagen completa del API (registro/repositorio:tag). La define scripts/deploy.sh."
+  type        = string
+}
+
+# ---------------------------------------------------------------------------
+# Que observa la plataforma
+# ---------------------------------------------------------------------------
+variable "observed_subscription_ids" {
+  description = "Suscripciones sobre las que la identidad de la plataforma recibe Reader."
+  type        = list(string)
+}
+
+variable "tfstate_sources" {
+  description = "Cuentas con estados de Terraform a escanear (lectura de blobs)."
+  type = list(object({
+    storage_account_id = string
+    container          = string
+  }))
+  default = []
+}
+
+# ---------------------------------------------------------------------------
+# Organizacion
 # ---------------------------------------------------------------------------
 variable "app_display_name" {
   description = "Nombre visible de la plataforma."
@@ -65,98 +86,56 @@ variable "app_display_name" {
 }
 
 variable "org_name" {
-  description = "Nombre de la organizacion con el que se presentan los agentes."
+  description = "Nombre con el que se presentan los agentes."
   type        = string
   default     = "tu organización"
 }
 
 variable "mandatory_tags" {
-  description = "Tags obligatorias que la plataforma evalua en el inventario."
+  description = "Tags obligatorias que la plataforma evalua."
   type        = list(string)
-  default     = ["Customer", "Tenant", "Platform", "Product", "Suite", "Environment"]
+  default     = ["Environment", "Project", "ManagedBy"]
+}
+
+variable "showback_tags" {
+  description = "Dimensiones de atribucion de gasto."
+  type        = list(string)
+  default     = ["Project", "Environment"]
 }
 
 # ---------------------------------------------------------------------------
-# Identidades
+# Acceso
 # ---------------------------------------------------------------------------
-variable "bot_app_id" {
-  description = "Application (client) ID del registro de aplicacion del bot / API."
-  type        = string
+variable "allowed_user_object_ids" {
+  description = "Object ids de los usuarios que pueden entrar al panel. Vacio = quien ejecuta Terraform."
+  type        = list(string)
+  default     = []
 }
 
-variable "bot_app_password" {
-  description = "Client secret del registro del bot."
-  type        = string
-  sensitive   = true
-}
-
-variable "reader_client_id" {
-  description = "Client ID del Service Principal con rol Reader sobre el tenant (opcional; si se omite se usa bot_app_id)."
-  type        = string
-  default     = ""
-}
-
-variable "reader_client_secret" {
-  description = "Secret del Service Principal lector."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "gemini_api_key" {
-  description = "API key de Google Gemini. Vacia = modo local basado en reglas."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "auth_enabled" {
-  description = "Exige token de Microsoft Entra ID en el API. Requiere api_client_id."
-  type        = bool
-  default     = false
-}
-
-variable "api_client_id" {
-  description = "Application (client) ID del App Registration que representa al API."
-  type        = string
-  default     = ""
-}
-
-# ---------------------------------------------------------------------------
-# Modulos opcionales
-# ---------------------------------------------------------------------------
-variable "enable_teams_bot" {
-  description = "Crea el Azure Bot y el canal de Teams."
+variable "allow_azure_cli" {
+  description = "Preautoriza Azure CLI para pedir tokens del API (pruebas y scripts)."
   type        = bool
   default     = true
 }
 
-variable "tfstate_account_to_scan" {
-  description = "Cuenta de almacenamiento con los estados de Terraform de la organizacion, para medir la cobertura real de IaC. Vacia = desactivado."
-  type        = string
-  default     = ""
+variable "local_redirect_uris" {
+  description = "Redirect URIs adicionales para desarrollo local."
+  type        = list(string)
+  default     = ["http://localhost:5173/"]
 }
 
-variable "tfstate_container_to_scan" {
-  description = "Contenedor de esos estados."
-  type        = string
-  default     = "tfstate"
-}
-
-variable "k8s_cluster_name" {
-  description = "Cluster AKS que diagnostica el Agente SRE (opcional)."
+# ---------------------------------------------------------------------------
+# Motor cognitivo (opcional)
+# ---------------------------------------------------------------------------
+variable "gemini_api_key" {
+  description = "API key de Google Gemini. Vacia = motor de reglas local."
   type        = string
   default     = ""
+  sensitive   = true
 }
 
-variable "k8s_resource_group" {
-  description = "Grupo de recursos del cluster AKS."
+variable "gemini_model" {
+  description = "Modelo de Gemini."
   type        = string
-  default     = ""
-}
-
-variable "k8s_subscription_id" {
-  description = "Suscripcion del cluster AKS."
-  type        = string
-  default     = ""
+  default     = "gemini-3.5-flash"
 }
