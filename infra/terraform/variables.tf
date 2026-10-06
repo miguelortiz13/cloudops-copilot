@@ -135,7 +135,12 @@ variable "gemini_model" {
 # Despliegue continuo
 # ---------------------------------------------------------------------------
 variable "github_repository" {
-  description = "Repositorio de GitHub (propietario/nombre) autorizado a desplegar."
+  description = <<-EOT
+    Repositorio de GitHub autorizado a desplegar, tal como aparece en el claim
+    `sub` del token OIDC. Los repositorios nuevos usan el formato inmutable
+    `propietario@id/nombre@id`: consultarlo con
+    `gh api repos/<propietario>/<nombre> --jq '"\(.owner.login)@\(.owner.id)/\(.name)@\(.id)"'`.
+  EOT
   type        = string
-  default     = "miguelortiz13/cloudops-copilot"
+  default     = "miguelortiz13@89714460/cloudops-copilot@1406664105"
 }
