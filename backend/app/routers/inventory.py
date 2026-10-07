@@ -5,7 +5,7 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
-from app.core.container import get_services
+from app.core.deps import AgentDep, HistoryDep, InventoryDep
 import os
 from pydantic import BaseModel
 
@@ -60,7 +60,7 @@ class WebhookTestRequest(BaseModel):
 
 
 @router.get("/api/inventory/health")
-def inventory_health():
+def inventory_health(agent: AgentDep, inventory: InventoryDep):
     """Health check for the inventory module. Never exposes secrets."""
     from datetime import datetime, timezone
     has_creds = all([
@@ -69,21 +69,21 @@ def inventory_health():
         os.getenv("AZURE_CLIENT_SECRET") or os.getenv("AZURE_READER_CLIENT_SECRET")
     ])
     return {
-        "status": "ok" if get_services()[0].azure_connected else "degraded",
-        "azureConnected": get_services()[0].azure_connected,
+        "status": "ok" if agent.azure_connected else "degraded",
+        "azureConnected": agent.azure_connected,
         "credentialsConfigured": has_creds,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "cacheEnabled": True,
-        "cacheTtlSeconds": get_services()[1]._cache_ttl,
+        "cacheTtlSeconds": inventory._cache_ttl,
         "version": config.APP_VERSION
     }
 
 
 
 @router.get("/api/inventory/subscriptions")
-def inventory_subscriptions():
+def inventory_subscriptions(inventory: InventoryDep):
     """Lists all Azure subscriptions accessible to the Service Principal."""
-    subs, warnings = get_services()[1].list_accessible_subscriptions()
+    subs, warnings = inventory.list_accessible_subscriptions()
     if not subs and warnings:
         return {
             "subscriptions": [],
@@ -99,10 +99,10 @@ def inventory_subscriptions():
 
 
 @router.post("/api/inventory/resources")
-def inventory_resources(req: InventoryResourcesRequest):
+def inventory_resources(inventory: InventoryDep, req: InventoryResourcesRequest):
     """Returns paginated, filtered inventory resources with normalized governance data."""
     try:
-        result = get_services()[1].get_resources(req.model_dump())
+        result = inventory.get_resources(req.model_dump())
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al consultar recursos: {str(e)}")
@@ -110,7 +110,7 @@ def inventory_resources(req: InventoryResourcesRequest):
 
 
 @router.post("/api/inventory/summary")
-def inventory_summary(req: SubscriptionSummaryRequest):
+def inventory_summary(inventory: InventoryDep, history: HistoryDep, req: SubscriptionSummaryRequest):
     """
     KPIs globales del inventario.
 
@@ -118,12 +118,12 @@ def inventory_summary(req: SubscriptionSummaryRequest):
     tendencia sin necesidad de un proceso aparte.
     """
     try:
-        result = get_services()[1].get_summary(
+        result = inventory.get_summary(
             subscription_ids=req.subscriptionIds or [],
             force_refresh=req.forceRefresh
         )
         try:
-            get_services()[2].record(req.subscriptionIds or [], result)
+            history.record(req.subscriptionIds or [], result)
         except Exception as exc:
             # La tendencia es un extra: nunca debe impedir devolver los KPIs.
             print(f"No se pudo registrar el punto historico: {exc}")
@@ -134,10 +134,10 @@ def inventory_summary(req: SubscriptionSummaryRequest):
 
 
 @router.post("/api/inventory/tag-compliance")
-def inventory_tag_compliance(req: SubscriptionSummaryRequest):
+def inventory_tag_compliance(inventory: InventoryDep, req: SubscriptionSummaryRequest):
     """Returns tag compliance matrix for mandatory tags."""
     try:
-        result = get_services()[1].get_tag_compliance(req.subscriptionIds, req.forceRefresh)
+        result = inventory.get_tag_compliance(req.subscriptionIds, req.forceRefresh)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al evaluar cumplimiento de tags: {str(e)}")
@@ -150,7 +150,7 @@ class InventoryHistoryRequest(BaseModel):
 
 
 @router.post("/api/inventory/history")
-def inventory_history(req: InventoryHistoryRequest):
+def inventory_history(history: HistoryDep, req: InventoryHistoryRequest):
     """
     Evolucion historica de los KPIs de gobernanza para el scope indicado.
 
@@ -159,7 +159,7 @@ def inventory_history(req: InventoryHistoryRequest):
     suficientes puntos para dibujar una tendencia.
     """
     try:
-        return get_services()[2].get_series(
+        return history.get_series(
             subscription_ids=req.subscriptionIds or [],
             days=req.days or 90,
         )
@@ -169,7 +169,7 @@ def inventory_history(req: InventoryHistoryRequest):
 
 
 @router.post("/api/inventory/manual-creations")
-def inventory_manual_creations(req: SubscriptionSummaryRequest):
+def inventory_manual_creations(inventory: InventoryDep, req: SubscriptionSummaryRequest):
     """
     Recursos creados a mano, con evidencia del historial de cambios de Azure.
 
@@ -179,19 +179,19 @@ def inventory_manual_creations(req: SubscriptionSummaryRequest):
     unos catorce dias: es evidencia de lo reciente, nunca del historico.
     """
     try:
-        return get_services()[1].get_manual_creations(req.subscriptionIds or [])
+        return inventory.get_manual_creations(req.subscriptionIds or [])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/inventory/export")
-def inventory_export(req: InventoryResourcesRequest):
+def inventory_export(inventory: InventoryDep, req: InventoryResourcesRequest):
     """Exports inventory as CSV. Generates in-memory, no database required."""
     from fastapi.responses import StreamingResponse
     import io
     try:
         filters = req.filters.model_dump() if req.filters else {}
-        csv_content = get_services()[1].export_csv(req.subscriptionIds, filters)
+        csv_content = inventory.export_csv(req.subscriptionIds, filters)
         
         stream = io.BytesIO(csv_content.encode("utf-8-sig"))
         from datetime import datetime

@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versionado [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Cambiado
+- Los endpoints reciben sus servicios por `Depends` con tipos (`app/core/deps.py`) en lugar de la tupla posicional `get_services()[n]`; el contenedor es un dataclass con nombres.
+
+### Añadido
+- Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`).
+
+### Corregido
+- `azure_agent.py` cargaba el `.env` por su cuenta al importarse e ignoraba `CLOUDOPS_SKIP_DOTENV`.
+
 ## [2.4.2] — 2026-10-06
 
 ### Cambiado

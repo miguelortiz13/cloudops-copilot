@@ -4,16 +4,16 @@ from typing import Optional
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.container import get_services
+from app.core.deps import AgentDep, RiskDep, SecOpsDep
 
 
 router = APIRouter(tags=['secops'])
 
 @router.get("/api/secops/details")
-def get_secops_details():
+def get_secops_details(agent: AgentDep):
     """Legacy endpoint kept for backwards compatibility. Returns basic NSG/failed counts."""
     try:
-        nsgs = get_services()[0].query_azure_resource_graph(
+        nsgs = agent.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.network/networksecuritygroups' "
             "| mv-expand rules=properties.securityRules "
             "| where rules.properties.direction =~ 'Inbound' and rules.properties.access =~ 'Allow' "
@@ -26,7 +26,7 @@ def get_secops_details():
             "| project name, resourceGroup, port = rules.properties.destinationPortRange, "
             "          source = rules.properties.sourceAddressPrefix, ruleName = rules.name"
         ) or []
-        failed = get_services()[0].query_azure_resource_graph(
+        failed = agent.query_azure_resource_graph(
             "resources | where properties.provisioningState =~ 'Failed' "
             "| project name, type, resourceGroup, location"
         ) or []
@@ -37,7 +37,7 @@ def get_secops_details():
 
 
 @router.get("/api/secops/exposure")
-def get_secops_exposure(subscriptions: Optional[str] = None):
+def get_secops_exposure(risk: RiskDep, subscriptions: Optional[str] = None):
     """
     Hallazgos de seguridad priorizados por severidad y por gasto expuesto.
 
@@ -47,13 +47,13 @@ def get_secops_exposure(subscriptions: Optional[str] = None):
     """
     try:
         subs_list = [s.strip() for s in subscriptions.split(",")] if subscriptions else []
-        return get_services()[8].build_report(subs_list)
+        return risk.build_report(subs_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/secops/report")
-def get_secops_report(subscriptions: Optional[str] = None):
+def get_secops_report(secops: SecOpsDep, subscriptions: Optional[str] = None):
     """
     Reporte de seguridad con hallazgos clasificados por severidad.
 
@@ -63,7 +63,7 @@ def get_secops_report(subscriptions: Optional[str] = None):
     """
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
-        return get_services()[6].build_report(subs_list)
+        return secops.build_report(subs_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

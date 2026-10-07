@@ -5,7 +5,7 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
-from app.core.container import get_services
+from app.core.deps import AgentDep, SecOpsDep
 from app.services.bot_auth import BOT_AUTH_ENABLED, BotAuthError, validate_bot_token
 import os
 import requests
@@ -15,11 +15,11 @@ from pydantic import BaseModel
 router = APIRouter(tags=['teams'])
 
 @router.post("/api/integration/test-webhook")
-def test_webhook(req: WebhookTestRequest):
+def test_webhook(agent: AgentDep, secops: SecOpsDep, req: WebhookTestRequest):
     """Sends a real, context-aware DevOps/FinOps/SecOps status alert to a Teams Webhook."""
     try:
         # Get actual stats to populate the webhook message with real numbers
-        stats = get_services()[0].get_summary_stats()
+        stats = agent.get_summary_stats()
         
         # Build payload based on alert type
         if req.alert_type == "finops":
@@ -37,7 +37,7 @@ def test_webhook(req: WebhookTestRequest):
             title = "🚨 Alerta SecOps: Postura de Seguridad Cloud Comprometida"
             # Las cifras salen del mismo reporte que muestra el panel; antes las
             # dos ultimas filas llevaban numeros escritos a mano.
-            superficie = get_services()[6].build_report().get("attack_surface_summary", {})
+            superficie = secops.build_report().get("attack_surface_summary", {})
             color = "EF4444"  # Crimson Red
             facts = [
                 {"name": "NSGs Expuestos a Internet", "value": f"{stats.get('exposed_nsgs', 0)} reglas de acceso admin (Port 22/3389/*)"},
@@ -166,6 +166,7 @@ def send_reply_to_teams(activity: Dict[str, Any], reply_text: str):
 
 @router.post("/api/teams/webhook")
 def teams_webhook(
+    agent: AgentDep,
     request: Request, activity: Dict[str, Any], background_tasks: BackgroundTasks
 ):
     """
@@ -196,7 +197,7 @@ def teams_webhook(
         clean_text = re.sub(r'<at>.*?</at>', '', text).strip()
         
         # Process query
-        response = get_services()[0].ask(clean_text)
+        response = agent.ask(clean_text)
         
         # Send reply in the background to avoid locking Teams SCM client
         background_tasks.add_task(send_reply_to_teams, activity, response["answer"])

@@ -25,7 +25,14 @@ make dev       # API con recarga en :8000, panel en :5173
 | `app/agents` | Chat y generación de código | Reglas propias (las toma de `services`) |
 | `app/schemas` | Contratos Pydantic | Lógica |
 
-Los routers obtienen los servicios con `get_services()` de `app/core/container.py`. Es una tupla por compatibilidad con el código existente; migrarla a dependencias de FastAPI (`Depends`) está en el [roadmap](roadmap.md).
+Los endpoints declaran los servicios que usan como parámetros tipados de [`app/core/deps.py`](../backend/app/core/deps.py):
+
+```python
+@router.get("/api/finops/costs")
+def get_cost_overview(cost_overview: CostOverviewDep, subscriptions: Optional[str] = None): ...
+```
+
+En las pruebas se sustituye el contenedor completo con `app.dependency_overrides[deps.services]` (ver [`tests/unit/test_routers.py`](../backend/tests/unit/test_routers.py)); ningún endpoint necesita Azure para probarse.
 
 ## Pruebas
 

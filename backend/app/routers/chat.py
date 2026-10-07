@@ -3,15 +3,15 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.container import get_services
+from app.core.deps import AgentDep
 
 
 router = APIRouter(tags=['chat'])
 
 @router.post("/api/chat", response_model=ChatResponse)
-def post_chat(req: ChatRequest):
+def post_chat(agent: AgentDep, req: ChatRequest):
     try:
-        response = get_services()[0].ask(req.message, agent_type=req.agent_type or "inventory", subscriptions=req.subscriptions)
+        response = agent.ask(req.message, agent_type=req.agent_type or "inventory", subscriptions=req.subscriptions)
         return ChatResponse(
             answer=response["answer"],
             mode=response["mode"],

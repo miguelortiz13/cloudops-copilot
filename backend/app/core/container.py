@@ -13,7 +13,9 @@ bloquearia el arranque del servidor (y de las pruebas) si Azure no responde.
 import os
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from app.core import config
 from app.services.cost_overview_service import CostOverviewService
@@ -27,20 +29,35 @@ from app.services.risk_service import RiskService
 from app.services.secops_service import SecOpsService
 from app.services.tfstate_service import TfStateService
 
+if TYPE_CHECKING:
+    from app.agents.azure_agent import AzureInventoryAgent
+
 base_dir = config.BACKEND_DIR
 
+
+@dataclass(frozen=True)
+class Services:
+    """Servicios compartidos por los routers (ver `app/core/deps.py`)."""
+
+    agent: "AzureInventoryAgent"
+    inventory: InventoryService
+    history: HistoryService
+    cost: CostService
+    metrics: MetricsService
+    finops: FinOpsService
+    secops: SecOpsService
+    k8s: K8sService
+    risk: RiskService
+    tfstate: TfStateService
+    cost_overview: CostOverviewService
+
+
 _lock = threading.Lock()
-_services = None
+_services: Services | None = None
 
 
-def get_services():
-    """
-    Devuelve la tupla de servicios, creandolos la primera vez.
-
-    El orden es parte del contrato con los routers:
-    (agent, inventory, history, cost, metrics, finops, secops, k8s, risk, tfstate,
-     cost_overview)
-    """
+def get_services() -> Services:
+    """Devuelve los servicios, creandolos la primera vez."""
     global _services
     if _services is not None:
         return _services
@@ -69,8 +86,11 @@ def get_services():
         # asi comparte su cache —incluida la precarga de costos— y, sobre
         # todo, las mismas reglas de dominio.
         agent.attach_services(secops=secops, finops=finops, cost=cost, risk=risk)
-        _services = (agent, inventory, history, cost, metrics,
-                     finops, secops, k8s, risk, tfstate, cost_overview)
+        _services = Services(
+            agent=agent, inventory=inventory, history=history, cost=cost,
+            metrics=metrics, finops=finops, secops=secops, k8s=k8s, risk=risk,
+            tfstate=tfstate, cost_overview=cost_overview,
+        )
         print("Agent initialization complete!")
         return _services
 
@@ -120,14 +140,14 @@ def _cost_warm_loop():
 
     while True:
         try:
-            subs, _ = get_services()[1].list_accessible_subscriptions()
+            subs, _ = get_services().inventory.list_accessible_subscriptions()
             sub_ids = [x["subscriptionId"] for x in subs]
 
             # La cache de costos sobrevive a los reinicios, asi que un arranque
             # con dato fresco no tiene por que volver a gastar las ~56 llamadas
             # de la precarga: se espera a que venza y se refresca entonces. Sin
             # esto, varios despliegues seguidos agotaban la cuota.
-            frescura = get_services()[3].cache_freshness(sub_ids)
+            frescura = get_services().cost.cache_freshness(sub_ids)
             if sub_ids and not frescura["should_warm"]:
                 cost_warm_status["last_result"] = {
                     "skipped": "cache_fresca",
@@ -147,7 +167,7 @@ def _cost_warm_loop():
 
             if sub_ids:
                 cost_warm_status["running"] = True
-                resultado = get_services()[3].warm(sub_ids)
+                resultado = get_services().cost.warm(sub_ids)
                 cost_warm_status["last_result"] = resultado
                 cost_warm_status["last_run"] = datetime.now(timezone.utc).isoformat()
                 recuperadas = resultado.get("recovered_on_retry") or 0
