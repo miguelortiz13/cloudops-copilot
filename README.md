@@ -86,7 +86,8 @@ cloudops-copilot/
 ├── backend/                  API FastAPI
 │   ├── app/
 │   │   ├── core/             configuración central y contenedor de servicios
-│   │   ├── agents/           agente Azure (chat) y generador de IaC
+│   │   ├── agents/           agente de chat y generador de IaC
+│   │   ├── providers/        acceso a cada nube (hoy Azure: credenciales y Resource Graph)
 │   │   ├── routers/          endpoints REST por módulo
 │   │   ├── services/         lógica de dominio (inventario, costos, seguridad...)
 │   │   └── schemas/          modelos Pydantic

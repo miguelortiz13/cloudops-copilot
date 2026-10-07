@@ -5,7 +5,7 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
-from app.core.deps import AgentDep, HistoryDep, InventoryDep
+from app.core.deps import AzureDep, HistoryDep, InventoryDep
 import os
 from pydantic import BaseModel
 
@@ -60,7 +60,7 @@ class WebhookTestRequest(BaseModel):
 
 
 @router.get("/api/inventory/health")
-def inventory_health(agent: AgentDep, inventory: InventoryDep):
+def inventory_health(azure: AzureDep, inventory: InventoryDep):
     """Health check for the inventory module. Never exposes secrets."""
     from datetime import datetime, timezone
     has_creds = all([
@@ -69,8 +69,8 @@ def inventory_health(agent: AgentDep, inventory: InventoryDep):
         os.getenv("AZURE_CLIENT_SECRET") or os.getenv("AZURE_READER_CLIENT_SECRET")
     ])
     return {
-        "status": "ok" if agent.azure_connected else "degraded",
-        "azureConnected": agent.azure_connected,
+        "status": "ok" if azure.azure_connected else "degraded",
+        "azureConnected": azure.azure_connected,
         "credentialsConfigured": has_creds,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "cacheEnabled": True,

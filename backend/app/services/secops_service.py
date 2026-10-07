@@ -40,8 +40,8 @@ SEVERIDAD_ORDEN = {"critica": 0, "alta": 1, "media": 2, "info": 3}
 class SecOpsService:
     """Construye el reporte de seguridad a partir de Azure Resource Graph."""
 
-    def __init__(self, agent):
-        self.agent = agent
+    def __init__(self, azure):
+        self.azure = azure
 
     # ------------------------------------------------------------------
     # Consultas
@@ -82,7 +82,7 @@ class SecOpsService:
         with ThreadPoolExecutor(max_workers=len(consultas)) as executor:
             futuros = {
                 nombre: executor.submit(
-                    self.agent.query_azure_resource_graph, kql, False, subs
+                    self.azure.query_azure_resource_graph, kql, False, subs
                 )
                 for nombre, kql in consultas.items()
             }

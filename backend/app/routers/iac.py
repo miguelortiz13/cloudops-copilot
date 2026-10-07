@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.deps import AgentDep, InventoryDep
+from app.core.deps import AzureDep, InventoryDep
 
 
 router = APIRouter(tags=['iac'])
@@ -26,11 +26,11 @@ def terraform_coverage(inventory: InventoryDep, req: SubscriptionSummaryRequest)
 
 
 @router.post("/api/iac/generate")
-def generate_iac_files(agent: AgentDep, req: IaCGenerateRequest):
+def generate_iac_files(azure: AzureDep, req: IaCGenerateRequest):
     """Generates Terraform files (main.tf, providers.tf, backend.hcl, etc.) for a manual resource."""
     try:
         from app.agents.iac_generator import IaCManager
-        iac_mgr = IaCManager(agent)
+        iac_mgr = IaCManager(azure)
         files = iac_mgr.generate_iac_files(
             resource_id=req.resource_id,
             environment=req.environment,

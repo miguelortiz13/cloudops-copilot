@@ -4,16 +4,16 @@ from typing import Optional
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.deps import AgentDep, RiskDep, SecOpsDep
+from app.core.deps import AzureDep, RiskDep, SecOpsDep
 
 
 router = APIRouter(tags=['secops'])
 
 @router.get("/api/secops/details")
-def get_secops_details(agent: AgentDep):
+def get_secops_details(azure: AzureDep):
     """Legacy endpoint kept for backwards compatibility. Returns basic NSG/failed counts."""
     try:
-        nsgs = agent.query_azure_resource_graph(
+        nsgs = azure.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.network/networksecuritygroups' "
             "| mv-expand rules=properties.securityRules "
             "| where rules.properties.direction =~ 'Inbound' and rules.properties.access =~ 'Allow' "
@@ -26,7 +26,7 @@ def get_secops_details(agent: AgentDep):
             "| project name, resourceGroup, port = rules.properties.destinationPortRange, "
             "          source = rules.properties.sourceAddressPrefix, ruleName = rules.name"
         ) or []
-        failed = agent.query_azure_resource_graph(
+        failed = azure.query_azure_resource_graph(
             "resources | where properties.provisioningState =~ 'Failed' "
             "| project name, type, resourceGroup, location"
         ) or []

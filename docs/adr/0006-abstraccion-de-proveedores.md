@@ -1,6 +1,6 @@
 # 0006 · Abstracción de proveedores de nube
 
-**Estado:** propuesta (fase 1 del [plan de evolución](../plan/README.md))
+**Estado:** aceptada, en implementación. Primer paso hecho: `AzureClient` extraído del agente (fase 1 del [plan de evolución](../plan/README.md)).
 
 ## Contexto
 

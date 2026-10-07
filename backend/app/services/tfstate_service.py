@@ -68,8 +68,8 @@ EXCLUDE_PREFIXES = [
 class TfStateService:
     """Indice de recursos gestionados por Terraform, leido de los estados."""
 
-    def __init__(self, agent):
-        self.agent = agent
+    def __init__(self, azure):
+        self.azure = azure
         self._lock = threading.Lock()
         self._cache: Optional[Dict[str, Any]] = None
         self._cached_at = 0.0
@@ -77,7 +77,7 @@ class TfStateService:
     # ------------------------------------------------------------------
 
     def _token(self) -> Optional[str]:
-        credenciales = getattr(self.agent, "azure_credentials", None)
+        credenciales = getattr(self.azure, "azure_credentials", None)
         if credenciales is None:
             return None
         try:

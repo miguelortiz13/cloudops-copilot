@@ -81,8 +81,8 @@ def _health_score(incidents: List[Dict]) -> int:
 
 
 class K8sService:
-    def __init__(self, agent=None):
-        self.agent = agent
+    def __init__(self, azure=None):
+        self.azure = azure
         self._init_client()
 
     def _init_client(self) -> None:
@@ -99,8 +99,8 @@ class K8sService:
         self.connection_mode = "aks_run_command" if all([self.cluster_name, self.resource_group, self.subscription_id]) else "offline"
         self._server_version = "unknown"
 
-        if self.connection_mode != "offline" and HAS_AKS_SDK and self.agent:
-            self.aks_client = ContainerServiceClient(self.agent.azure_credentials, self.subscription_id)
+        if self.connection_mode != "offline" and HAS_AKS_SDK and self.azure:
+            self.aks_client = ContainerServiceClient(self.azure.azure_credentials, self.subscription_id)
         else:
             self.aks_client = None
 
@@ -158,7 +158,7 @@ class K8sService:
 
     def list_aks_clusters(self, subscription_ids: Optional[List[str]] = None) -> Dict:
         clusters = []
-        if self.agent and hasattr(self.agent, "query_azure_resource_graph"):
+        if self.azure and hasattr(self.azure, "query_azure_resource_graph"):
             kql = (
                 "resources "
                 "| where type =~ 'microsoft.containerservice/managedclusters' "
@@ -170,7 +170,7 @@ class K8sService:
                 "  nodeCount = toint(properties.agentPoolProfiles[0].count)"
             )
             try:
-                raw = self.agent.query_azure_resource_graph(kql, subscriptions=subscription_ids or [])
+                raw = self.azure.query_azure_resource_graph(kql, subscriptions=subscription_ids or [])
                 for r in raw:
                     clusters.append(r)
             except Exception as e:

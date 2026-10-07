@@ -30,6 +30,7 @@ import warnings  # noqa: E402
 warnings.filterwarnings("ignore")
 
 from app.agents.azure_agent import AzureInventoryAgent  # noqa: E402
+from app.providers.azure import AzureClient  # noqa: E402
 from app.services.finops_service import FinOpsService  # noqa: E402
 
 SUB_MEDIDA = "11111111-1111-1111-1111-111111111111"
@@ -122,16 +123,15 @@ def agente_falso(cost_service=None):
     El constructor real se autentica contra Azure, y esta prueba tiene que
     correr sin credenciales y sin red.
     """
-    agente = AzureInventoryAgent.__new__(AzureInventoryAgent)
-    agente.azure_connected = True
-    agente._cost = cost_service or CostServiceFalso()
-    agente._secops = None
-    agente._finops = None
-    agente.query_azure_resource_graph = (
+    azure = AzureClient(connect=False)
+    azure.azure_connected = True
+    azure.query_azure_resource_graph = (
         lambda query, bypass_cache=False, subscriptions=None: (
             list(RECURSOS_DEL_GRUPO) if "resourcegroup =~" in query.lower() else []
         )
     )
+    agente = AzureInventoryAgent(azure)
+    agente._cost = cost_service or CostServiceFalso()
     return agente
 
 

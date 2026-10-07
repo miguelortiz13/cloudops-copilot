@@ -6,7 +6,7 @@ from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
 from app.core.container import get_services, sync_status
-from app.core.deps import AgentDep
+from app.core.deps import AgentDep, AzureDep
 from app.routers.teams import get_microsoft_oauth_token
 import os
 import requests
@@ -15,11 +15,11 @@ import requests
 router = APIRouter(tags=['legacy'])
 
 @router.get("/")
-def read_root(agent: AgentDep):
+def read_root(azure: AzureDep):
     return {
         "status": "online", 
         "agent": "Azure Inventory AI Bot Service",
-        "mode": "Azure Live Cloud Query" if agent.azure_connected else "Unauthenticated"
+        "mode": "Azure Live Cloud Query" if azure.azure_connected else "Unauthenticated"
     }
 
 
@@ -133,11 +133,11 @@ def get_iso_governance_report():
 
 
 @router.get("/api/subscriptions")
-def get_subscriptions(agent: AgentDep):
+def get_subscriptions(azure: AzureDep):
     """Queries Azure Resource Graph to list all subscriptions accessible to the Service Principal."""
     try:
         kql = "resourcecontainers | where type == 'microsoft.resources/subscriptions' | project name, subscriptionId"
-        raw = agent.query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
+        raw = azure.query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
         return [{"name": r.get("name"), "id": r.get("subscriptionId")} for r in raw]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

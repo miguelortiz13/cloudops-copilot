@@ -7,8 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ### Cambiado
 - Los endpoints reciben sus servicios por `Depends` con tipos (`app/core/deps.py`) en lugar de la tupla posicional `get_services()[n]`; el contenedor es un dataclass con nombres.
 
+- `AzureClient` (`app/providers/azure/`): credenciales y Resource Graph salen del agente de chat. Los servicios y el generador de IaC dependen del cliente, no del agente; hay una sola instancia compartida.
+
 ### Añadido
-- Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`).
+- Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
 ### Corregido
 - `azure_agent.py` cargaba el `.env` por su cuenta al importarse e ignoraba `CLOUDOPS_SKIP_DOTENV`.

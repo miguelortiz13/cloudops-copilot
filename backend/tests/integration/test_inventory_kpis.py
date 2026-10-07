@@ -30,7 +30,7 @@ import warnings  # noqa: E402
 
 warnings.filterwarnings("ignore")
 
-from app.agents.azure_agent import AzureInventoryAgent  # noqa: E402
+from app.providers.azure import AzureClient  # noqa: E402
 from app.services.inventory_service import MANDATORY_TAGS, InventoryService  # noqa: E402
 
 # KPIs escalares que deben coincidir exactamente entre ambos caminos.
@@ -51,12 +51,12 @@ DISTRIBUCIONES = ["bySubscription", "byResourceType", "byRegion", "byEnvironment
 
 def comparar(subscription_ids):
     """Ejecuta ambos caminos y devuelve (kql, referencia, tiempos)."""
-    agente = AzureInventoryAgent()
-    if not agente.azure_connected:
+    azure = AzureClient()
+    if not azure.azure_connected:
         print("SALTADA: sin conexión autenticada a Azure.")
         sys.exit(0)
 
-    servicio = InventoryService(agente)
+    servicio = InventoryService(azure)
 
     t0 = time.time()
     por_kql = servicio._summary_from_kql(subscription_ids, force_refresh=True)
@@ -70,8 +70,8 @@ def comparar(subscription_ids):
 
 
 def main():
-    agente_tmp = AzureInventoryAgent()
-    servicio_tmp = InventoryService(agente_tmp)
+    azure_tmp = AzureClient()
+    servicio_tmp = InventoryService(azure_tmp)
     subs, _ = servicio_tmp.list_accessible_subscriptions()
     subscription_ids = [s["subscriptionId"] for s in subs]
 
@@ -133,8 +133,8 @@ def main():
     # --- Matriz de cumplimiento de tags ---
     print()
     print("Matriz de tags obligatorias:")
-    agente = AzureInventoryAgent()
-    servicio = InventoryService(agente)
+    azure = AzureClient()
+    servicio = InventoryService(azure)
     tc_kql = servicio.get_tag_compliance(subscription_ids, force_refresh=True)
     tc_ref = servicio.get_tag_compliance_from_resources(subscription_ids, force_refresh=True)
     m_kql = {m["tag"]: (m["present"], m["missing"]) for m in tc_kql["matrix"]}

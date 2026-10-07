@@ -22,8 +22,8 @@ def _bloque_tags(environment: str) -> str:
     return "tags = {\n" + filas + "\n}"
 
 class IaCManager:
-    def __init__(self, agent):
-        self.agent = agent
+    def __init__(self, azure):
+        self.azure = azure
         self.gemini_enabled = bool(os.getenv("GEMINI_API_KEY"))
         if self.gemini_enabled:
             genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -43,7 +43,7 @@ class IaCManager:
 
         # 1. Query Azure Resource Graph for the live properties of the resource
         kql = f"resources | where id =~ '{resource_id}' | project name, type, resourceGroup, subscriptionId, location, tags, sku, properties, kind"
-        raw_results = self.agent.query_azure_resource_graph(kql)
+        raw_results = self.azure.query_azure_resource_graph(kql)
         
         resource_data = {}
         if raw_results:

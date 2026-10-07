@@ -28,25 +28,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import conftest  # noqa: E402,F401  (aisla las pruebas del .env local)
 
 from app.agents.azure_agent import AzureInventoryAgent  # noqa: E402
+from app.providers.azure import AzureClient  # noqa: E402
 from app.services import kql  # noqa: E402
 from app.services.secops_service import SecOpsService  # noqa: E402
 
 
 def _agente_sin_azure() -> AzureInventoryAgent:
     """Un agente que no se conecta a nada; solo se prueban sus reglas."""
-    agente = AzureInventoryAgent.__new__(AzureInventoryAgent)
-    agente.azure_connected = False
-    agente.rg_client = None
-    agente._cache = {}
-    agente._cache_ttl = 900
-    agente._secops = None
-    agente._finops = None
-    agente._cost = None
-    agente._risk = None
-    import threading
-
-    agente._lock = threading.Lock()
-    return agente
+    return AzureInventoryAgent(AzureClient(connect=False))
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +139,7 @@ def test_el_agente_de_finops_usa_las_consultas_del_catalogo():
         ejecutadas.append(consulta)
         return []
 
-    agente.query_azure_resource_graph = consulta_falsa
+    agente.azure.query_azure_resource_graph = consulta_falsa
     agente._contexto_de_dominio("finops", ["sub"])
 
     assert kql.DISCOS_HUERFANOS in ejecutadas
@@ -173,7 +162,7 @@ def test_una_consulta_lenta_no_vacia_las_demas():
             time.sleep(3)
         return [{"name": "recurso"}]
 
-    agente.query_azure_resource_graph = consulta_falsa
+    agente.azure.query_azure_resource_graph = consulta_falsa
     contexto = agente._contexto_de_dominio("finops", ["sub"])
 
     assert contexto["unattached_disks_list"] == [{"name": "recurso"}]
