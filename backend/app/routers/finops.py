@@ -4,20 +4,21 @@ from typing import Optional
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.container import get_services, cost_warm_status
+from app.core.container import cost_warm_status
+from app.core.deps import AgentDep, CostOverviewDep, FinOpsDep
 
 
 router = APIRouter(tags=['finops'])
 
 @router.get("/api/finops/details")
-def get_finops_details():
+def get_finops_details(agent: AgentDep):
     """Legacy endpoint kept for backwards compatibility. Returns basic orphan counts."""
     try:
-        disks = get_services()[0].query_azure_resource_graph(
+        disks = agent.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.compute/disks' and properties.diskState =~ 'Unattached' "
             "| project name, resourceGroup, sizeGB = toint(properties.diskSizeGB), location"
         ) or []
-        ips = get_services()[0].query_azure_resource_graph(
+        ips = agent.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.network/publicipaddresses' and isnull(properties.ipConfiguration) "
             "| project name, resourceGroup, ipAddress = properties.ipAddress, location"
         ) or []
@@ -27,7 +28,7 @@ def get_finops_details():
 
 
 @router.get("/api/finops/costs")
-def get_cost_overview(subscriptions: Optional[str] = None):
+def get_cost_overview(cost_overview: CostOverviewDep, subscriptions: Optional[str] = None):
     """
     Vista global de costos: totales, tendencia diaria, desgloses y ranking.
 
@@ -36,13 +37,13 @@ def get_cost_overview(subscriptions: Optional[str] = None):
     """
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
-        return get_services()[10].build(subs_list)
+        return cost_overview.build(subs_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/finops/report")
-def get_finops_report(subscriptions: Optional[str] = None):
+def get_finops_report(finops: FinOpsDep, subscriptions: Optional[str] = None):
     """
     Reporte integral de FinOps con gasto facturado real.
 
@@ -53,7 +54,7 @@ def get_finops_report(subscriptions: Optional[str] = None):
     """
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
-        return get_services()[5].build_report(subs_list)
+        return finops.build_report(subs_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -6,7 +6,6 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional
 import google.generativeai as genai
-from dotenv import load_dotenv
 
 from app.core import config
 from app.services import cost_service, governance, kql, pricing
@@ -20,8 +19,7 @@ try:
 except ImportError:
     HAS_AZURE_SDK = False
 
-# Load environment variables
-load_dotenv()
+# El .env lo carga app.core.config (respeta CLOUDOPS_SKIP_DOTENV).
 
 # Setup Gemini API if available
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

@@ -3,13 +3,13 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
-from app.core.container import get_services
+from app.core.deps import AgentDep, InventoryDep
 
 
 router = APIRouter(tags=['iac'])
 
 @router.post("/api/iac/terraform-coverage")
-def terraform_coverage(req: SubscriptionSummaryRequest):
+def terraform_coverage(inventory: InventoryDep, req: SubscriptionSummaryRequest):
     """
     Cobertura real de Terraform, leida de los estados.
 
@@ -18,7 +18,7 @@ def terraform_coverage(req: SubscriptionSummaryRequest):
     inventario con los ids que aparecen en los estados de Terraform.
     """
     try:
-        return get_services()[1].get_terraform_coverage(
+        return inventory.get_terraform_coverage(
             req.subscriptionIds or [], force_refresh=req.forceRefresh
         )
     except Exception as e:
@@ -26,11 +26,11 @@ def terraform_coverage(req: SubscriptionSummaryRequest):
 
 
 @router.post("/api/iac/generate")
-def generate_iac_files(req: IaCGenerateRequest):
+def generate_iac_files(agent: AgentDep, req: IaCGenerateRequest):
     """Generates Terraform files (main.tf, providers.tf, backend.hcl, etc.) for a manual resource."""
     try:
         from app.agents.iac_generator import IaCManager
-        iac_mgr = IaCManager(get_services()[0])
+        iac_mgr = IaCManager(agent)
         files = iac_mgr.generate_iac_files(
             resource_id=req.resource_id,
             environment=req.environment,

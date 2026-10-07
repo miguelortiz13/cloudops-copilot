@@ -6,6 +6,7 @@ from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
 from app.core.container import get_services, sync_status
+from app.core.deps import AgentDep
 from app.routers.teams import get_microsoft_oauth_token
 import os
 import requests
@@ -14,19 +15,19 @@ import requests
 router = APIRouter(tags=['legacy'])
 
 @router.get("/")
-def read_root():
+def read_root(agent: AgentDep):
     return {
         "status": "online", 
         "agent": "Azure Inventory AI Bot Service",
-        "mode": "Azure Live Cloud Query" if get_services()[0].azure_connected else "Unauthenticated"
+        "mode": "Azure Live Cloud Query" if agent.azure_connected else "Unauthenticated"
     }
 
 
 @router.get("/api/stats")
-def get_stats(subscriptions: Optional[str] = None):
+def get_stats(agent: AgentDep, subscriptions: Optional[str] = None):
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
-        stats = get_services()[0].get_summary_stats(subscriptions=subs_list)
+        stats = agent.get_summary_stats(subscriptions=subs_list)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -34,6 +35,7 @@ def get_stats(subscriptions: Optional[str] = None):
 
 @router.get("/api/resources")
 def get_resources(
+    agent: AgentDep,
     query: Optional[str] = None, 
     provisioning: Optional[str] = None,
     location: Optional[str] = None,
@@ -46,7 +48,7 @@ def get_resources(
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
         search_limit = 5000 if page is not None else limit
-        results = get_services()[0].search_resources(query or "", limit=search_limit, subscriptions=subs_list)
+        results = agent.search_resources(query or "", limit=search_limit, subscriptions=subs_list)
         
         if provisioning:
             results = [r for r in results if r.get('provisioning_method', '').lower() == provisioning.lower()]
@@ -131,11 +133,11 @@ def get_iso_governance_report():
 
 
 @router.get("/api/subscriptions")
-def get_subscriptions():
+def get_subscriptions(agent: AgentDep):
     """Queries Azure Resource Graph to list all subscriptions accessible to the Service Principal."""
     try:
         kql = "resourcecontainers | where type == 'microsoft.resources/subscriptions' | project name, subscriptionId"
-        raw = get_services()[0].query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
+        raw = agent.query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
         return [{"name": r.get("name"), "id": r.get("subscriptionId")} for r in raw]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -144,7 +146,7 @@ def send_pipeline_report_to_teams(webhook_url: str, n_added: int, n_removed: int
     from datetime import date
     
     try:
-        stats = get_services()[0].get_summary_stats()
+        stats = get_services().agent.get_summary_stats()
         total_resources = stats.get("total_resources", 0)
         tag_compliance = stats.get("tag_compliance_percentage", 0.0)
     except Exception:
@@ -196,7 +198,7 @@ def send_proactive_report_to_teams(service_url: str, conversation_id: str, n_add
         return
         
     try:
-        stats = get_services()[0].get_summary_stats()
+        stats = get_services().agent.get_summary_stats()
         total_resources = stats.get("total_resources", 0)
         tag_compliance = stats.get("tag_compliance_percentage", 0.0)
     except Exception:
