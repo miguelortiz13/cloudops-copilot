@@ -206,14 +206,14 @@ def resumir_serie(serie: Dict[str, float], hoy: date) -> Dict[str, Any]:
 class CostOverviewService:
     """Agrega el gasto real del scope en totales, desgloses y ranking."""
 
-    def __init__(self, agent, cost_service):
-        self.agent = agent
+    def __init__(self, azure, cost_service):
+        self.azure = azure
         self.cost = cost_service
 
     def _resolver_scope(self, subscription_ids: Optional[List[str]]) -> List[str]:
         if subscription_ids:
             return [s for s in subscription_ids if s]
-        filas = self.agent.query_azure_resource_graph(
+        filas = self.azure.query_azure_resource_graph(
             "resourcecontainers | where type == 'microsoft.resources/subscriptions' "
             "| project subscriptionId",
             False,
@@ -229,13 +229,13 @@ class CostOverviewService:
             f_por_recurso = executor.submit(self.cost.costs_for, subs)
             f_diario = executor.submit(self.cost.get_daily_costs, subs, DAILY_WINDOW_DAYS)
             f_recursos = executor.submit(
-                self.agent.query_azure_resource_graph,
+                self.azure.query_azure_resource_graph,
                 "resources | project id, name, type, resourceGroup, location, subscriptionId, tags",
                 False,
                 subs,
             )
             f_subs = executor.submit(
-                self.agent.query_azure_resource_graph,
+                self.azure.query_azure_resource_graph,
                 "resourcecontainers | where type == 'microsoft.resources/subscriptions' "
                 "| project subscriptionId, name",
                 False,

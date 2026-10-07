@@ -2,22 +2,13 @@ import os
 import re
 import json
 import time
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional
 import google.generativeai as genai
 
 from app.core import config
+from app.providers.azure import AzureClient
 from app.services import cost_service, governance, kql, pricing
-
-# Azure SDK Imports at module level to prevent Threading / Import lock deadlocks
-try:
-    from azure.identity import ClientSecretCredential, DefaultAzureCredential
-    from azure.mgmt.resourcegraph import ResourceGraphClient
-    from azure.mgmt.resourcegraph.models import QueryRequest, QueryRequestOptions
-    HAS_AZURE_SDK = True
-except ImportError:
-    HAS_AZURE_SDK = False
 
 # El .env lo carga app.core.config (respeta CLOUDOPS_SKIP_DOTENV).
 
@@ -51,15 +42,10 @@ REGLA_LISTAS_ACOTADAS = (
 
 
 class AzureInventoryAgent:
-    def __init__(self):
-        self.azure_connected = False
-        self.rg_client = None
-        self.azure_credentials = None
-        
-        # Cache for KQL queries to avoid timeouts
-        self._cache = {}
-        self._cache_ttl = 900  # 15 minutes TTL for stable chat
-        self._lock = threading.Lock()
+    def __init__(self, azure: Optional[AzureClient] = None):
+        # Todo acceso a Azure pasa por el cliente; el agente solo arma
+        # contexto y conversa.
+        self.azure = azure if azure is not None else AzureClient()
 
         # Servicios de dominio. main.py inyecta con attach_services las mismas
         # instancias que alimentan el panel, para que el chat comparta su cache
@@ -70,10 +56,7 @@ class AzureInventoryAgent:
         self._finops = None
         self._cost = None
         self._risk = None
-        
-        # Connect to Azure API in real-time
-        self.connect_azure()
-        
+
     def attach_services(self, secops=None, finops=None, cost=None, risk=None) -> None:
         """Comparte con el agente los servicios que ya usa el panel."""
         if secops is not None:
@@ -89,7 +72,7 @@ class AzureInventoryAgent:
         if self._secops is None:
             from app.services.secops_service import SecOpsService
 
-            self._secops = SecOpsService(self)
+            self._secops = SecOpsService(self.azure)
         return self._secops
 
     def _get_cost(self):
@@ -104,159 +87,13 @@ class AzureInventoryAgent:
         if self._cost is None:
             from app.services.cost_service import CostService
 
-            self._cost = CostService(self)
+            self._cost = CostService(self.azure)
         return self._cost
 
-    # Scope de ARM: si se obtiene un token para el, la identidad funciona.
-    _ARM_SCOPE = "https://management.azure.com/.default"
-
-    def connect_azure(self):
-        """
-        Autentica contra Azure y confirma que la identidad obtiene un token.
-
-        Orden de preferencia:
-        1. Service Principal explicito (AZURE_READER_* o AZURE_CLIENT_*).
-        2. DefaultAzureCredential: identidad administrada en Azure (sin
-           secretos) o la sesion de `az login` en desarrollo.
-
-        Antes se marcaba la conexion como activa solo por construir el objeto
-        de credenciales, sin pedir un token: el health check decia "ok" aunque
-        cada consulta fallara despues. Ahora se pide uno al conectar.
-        """
-        tenant_id = os.getenv("AZURE_TENANT_ID")
-        client_id = os.getenv("AZURE_READER_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID")
-        client_secret = os.getenv("AZURE_READER_CLIENT_SECRET") or os.getenv("AZURE_CLIENT_SECRET")
-
-        try:
-            if tenant_id and client_id and client_secret:
-                print("Autenticando con Service Principal...")
-                self.azure_credentials = ClientSecretCredential(
-                    tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
-                )
-            else:
-                print("Autenticando con DefaultAzureCredential (identidad administrada o az login)...")
-                # `az` puede tardar varios segundos en emitir un token (en WSL,
-                # ~8 s); el limite por defecto de 10 s lo deja al borde.
-                self.azure_credentials = DefaultAzureCredential(
-                    process_timeout=int(os.getenv("AZURE_CLI_TIMEOUT_SECONDS", "30")),
-                    managed_identity_client_id=os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID") or None,
-                )
-            self.azure_credentials.get_token(self._ARM_SCOPE)
-            self.rg_client = ResourceGraphClient(self.azure_credentials)
-            self.azure_connected = True
-            print("✅ Conectado a Azure.")
-        except Exception as e:
-            print(f"⚠️ Sin conexion autenticada con Azure: {str(e).splitlines()[0]}")
-            self.azure_connected = False
-            self.rg_client = None
-
-    def query_azure_resource_graph(self, query: str, bypass_cache: bool = False, subscriptions: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-        """Queries Azure Resource Graph in real-time using KQL, using cache if appropriate."""
-        if not self.azure_connected or not self.rg_client:
-            return []
-            
-        now = time.time()
-        
-        # Include subscriptions list in cache key to prevent cross-subscription collisions
-        cache_key = (query, tuple(subscriptions) if subscriptions else None)
-        with self._lock:
-            if not bypass_cache and cache_key in self._cache:
-                cache_time, data = self._cache[cache_key]
-                if now - cache_time < self._cache_ttl:
-                    return data
-            
-        try:
-            if subscriptions is None:
-                sub_id = os.getenv("AZURE_SUBSCRIPTION_ID")
-                subscriptions_list = [sub_id] if sub_id else []
-            else:
-                subscriptions_list = subscriptions
-            
-            all_results = []
-            skip_token = None
-            
-            while True:
-                options = QueryRequestOptions(result_format="ObjectArray", skip_token=skip_token) if skip_token else QueryRequestOptions(result_format="ObjectArray")
-                request = QueryRequest(
-                    subscriptions=subscriptions_list,
-                    query=query,
-                    options=options
-                )
-                
-                response = self.rg_client.resources(request)
-                if response.data:
-                    all_results.extend(response.data)
-                
-                skip_token = getattr(response, "skip_token", None)
-                if not skip_token:
-                    break
-            
-            with self._lock:
-                self._cache[cache_key] = (now, all_results)
-            return all_results
-        except Exception as e:
-            print(f"Error querying Resource Graph: {e}")
-            return []
-
-    def query_azure_resource_graph_page(
-        self,
-        query: str,
-        skip: int = 0,
-        top: int = 100,
-        subscriptions: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Trae una sola ventana de resultados en lugar de recorrer todas las paginas.
-
-        Resource Graph no admite `serialize` ni `row_number()`, asi que la
-        paginacion no puede expresarse dentro del KQL: se pide con las opciones
-        `skip` y `top` de la peticion. La respuesta trae ademas `total_records`,
-        el total de coincidencias del filtro, con lo que no hace falta una
-        segunda consulta solo para contar.
-
-        Devuelve {"rows": [...], "total": int, "ok": bool}.
-        """
-        if not self.azure_connected or not self.rg_client:
-            return {"rows": [], "total": 0, "ok": False}
-
-        if subscriptions is None:
-            sub_id = os.getenv("AZURE_SUBSCRIPTION_ID")
-            subscriptions_list = [sub_id] if sub_id else []
-        else:
-            subscriptions_list = subscriptions
-
-        try:
-            options = QueryRequestOptions(
-                result_format="ObjectArray", skip=skip, top=top
-            )
-            request = QueryRequest(
-                subscriptions=subscriptions_list, query=query, options=options
-            )
-            response = self.rg_client.resources(request)
-            return {
-                "rows": list(response.data or []),
-                "total": int(getattr(response, "total_records", 0) or 0),
-                "ok": True,
-            }
-        except Exception as e:
-            print(f"Error querying Resource Graph (paged): {e}")
-            return {"rows": [], "total": 0, "ok": False}
-
-    def get_resource_groups(self, subscriptions: Optional[List[str]] = None) -> List[str]:
-        """Fetches all resource group names from Azure in real-time."""
-        if not self.azure_connected:
-            return []
-        try:
-            kql = "resourcecontainers | where type == 'microsoft.resources/subscriptions/resourcegroups' | project name"
-            results = self.query_azure_resource_graph(kql, subscriptions=subscriptions)
-            return [r['name'] for r in results if r.get('name')]
-        except Exception as e:
-            print(f"Error fetching resource groups: {e}")
-            return []
 
     def get_summary_stats(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Calculates current statistics of the Azure Subscription in real-time."""
-        if not self.azure_connected:
+        if not self.azure.azure_connected:
             return {
                 "total_resources": 0,
                 "terraform_managed": 0,
@@ -290,7 +127,7 @@ class AzureInventoryAgent:
                     + (governance.kql_conteo_faltantes(tags_obligatorias) + ", " if tags_obligatorias else "")
                     + f"non_compliant = countif(not({governance.kql_todas_presentes(tags_obligatorias)}))"
                 )
-                f_stats = executor.submit(self.query_azure_resource_graph, kql_stats, False, subscriptions)
+                f_stats = executor.submit(self.azure.query_azure_resource_graph, kql_stats, False, subscriptions)
                 
                 # 2. Terraform-managed
                 # La evidencia de IaC sale de services/governance.py, igual que
@@ -298,7 +135,7 @@ class AzureInventoryAgent:
                 # con el valor exacto 'terraform', asi que daba una cobertura
                 # distinta a la del panel sobre el mismo tenant.
                 f_tf = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources "
                     "| extend _t = todynamic(tolower(tostring(tags))) "
                     "| extend _json = tolower(tostring(tags)) "
@@ -310,7 +147,7 @@ class AzureInventoryAgent:
                 
                 # 3. Resource type distribution
                 f_types = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | summarize count() by type | order by count_ desc | limit 6",
                     False,
                     subscriptions
@@ -318,7 +155,7 @@ class AzureInventoryAgent:
                 
                 # 4. Subscription distribution
                 f_subs = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | summarize count() by subscriptionId | limit 5",
                     False,
                     subscriptions
@@ -326,7 +163,7 @@ class AzureInventoryAgent:
                 
                 # 5. Unattached Disks
                 f_disks = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | where type =~ 'microsoft.compute/disks' and properties.diskState =~ 'Unattached' | summarize count()",
                     False,
                     subscriptions
@@ -334,7 +171,7 @@ class AzureInventoryAgent:
                 
                 # 6. Unassociated Public IPs
                 f_ips = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | where type =~ 'microsoft.network/publicipaddresses' and isnull(properties.ipConfiguration) | summarize count()",
                     False,
                     subscriptions
@@ -342,7 +179,7 @@ class AzureInventoryAgent:
                 
                 # 7. Orphaned Network Interfaces
                 f_nics = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | where type =~ 'microsoft.network/networkinterfaces' and isnull(properties.virtualMachine) | summarize count()",
                     False,
                     subscriptions
@@ -350,7 +187,7 @@ class AzureInventoryAgent:
                 
                 # 8. Exposed NSGs
                 f_nsgs = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | where type =~ 'microsoft.network/networksecuritygroups' | mv-expand rules=properties.securityRules | where rules.properties.direction =~ 'Inbound' and rules.properties.access =~ 'Allow' and (rules.properties.destinationPortRange in ('22', '3389', '*') or rules.properties.destinationPortRanges has '22' or rules.properties.destinationPortRanges has '3389') and (rules.properties.sourceAddressPrefix in ('*', '0.0.0.0/0', 'Internet') or rules.properties.sourceAddressPrefixes has '*' or rules.properties.sourceAddressPrefixes has 'Internet') | summarize count()",
                     False,
                     subscriptions
@@ -358,7 +195,7 @@ class AzureInventoryAgent:
                 
                 # 9. Failed resources
                 f_failed = executor.submit(
-                    self.query_azure_resource_graph,
+                    self.azure.query_azure_resource_graph,
                     "resources | where properties.provisioningState =~ 'Failed' | summarize count()",
                     False,
                     subscriptions
@@ -460,7 +297,7 @@ class AzureInventoryAgent:
             return self._sub_names_cache[sub_id]
         try:
             kql = "resourcecontainers | where type == 'microsoft.resources/subscriptions' | project name, subscriptionId"
-            res = self.query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
+            res = self.azure.query_azure_resource_graph(kql, bypass_cache=False, subscriptions=[])
             for r in res:
                 self._sub_names_cache[r.get("subscriptionId")] = r.get("name")
         except Exception as e:
@@ -469,7 +306,7 @@ class AzureInventoryAgent:
 
     def search_resources(self, query_str: str, limit: int = 25, subscriptions: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Searches resources directly in Azure Resource Graph in real-time."""
-        if not self.azure_connected:
+        if not self.azure.azure_connected:
             return []
             
         try:
@@ -485,7 +322,7 @@ class AzureInventoryAgent:
                 f"| limit {limit} "
                 f"| project id, name, type, resourceGroup, subscriptionId, location, tags, sku, properties, kind"
             )
-            raw_results = self.query_azure_resource_graph(kql, subscriptions=subscriptions)
+            raw_results = self.azure.query_azure_resource_graph(kql, subscriptions=subscriptions)
             
             formatted = []
             for r in raw_results:
@@ -568,7 +405,7 @@ class AzureInventoryAgent:
             "top_expensive_resources": [],
             "all_resources_summary": [],
         }
-        if not self.azure_connected:
+        if not self.azure.azure_connected:
             return vacio
 
         rg_escaped = rg_name.replace("'", "\\'")
@@ -576,7 +413,7 @@ class AzureInventoryAgent:
             f"resources | where resourceGroup =~ '{rg_escaped}' | limit 500 "
             "| project id, name, type, location, tags, sku, properties, kind, subscriptionId"
         )
-        recursos = self.query_azure_resource_graph(consulta, subscriptions=subscriptions) or []
+        recursos = self.azure.query_azure_resource_graph(consulta, subscriptions=subscriptions) or []
         if not recursos:
             return {
                 **vacio,
@@ -713,7 +550,7 @@ class AzureInventoryAgent:
 
     def ask_rule_based(self, question: str) -> Dict[str, Any]:
         """Offline and rule-based fallback answering engine using direct KQL queries."""
-        if not self.azure_connected:
+        if not self.azure.azure_connected:
             return {
                 "answer": "⚠️ **Error de Conexión:** No estoy conectado a Azure. Revisa tus llaves del Service Principal en el archivo `.env` para habilitar las consultas en tiempo real.",
                 "mode": "offline",
@@ -737,7 +574,7 @@ class AzureInventoryAgent:
         if resource_match:
             resource_name = resource_match.group(1)
             kql = f"resources | where name =~ '{resource_name}' | project name, type, resourceGroup, subscriptionId, location, tags"
-            raw = self.query_azure_resource_graph(kql)
+            raw = self.azure.query_azure_resource_graph(kql)
             
             if raw:
                 res = raw[0]
@@ -819,7 +656,7 @@ class AzureInventoryAgent:
                 "| limit 5 "
                 "| project name, type, resourceGroup, tags"
             )
-            raw_gaps = self.query_azure_resource_graph(kql_gaps)
+            raw_gaps = self.azure.query_azure_resource_graph(kql_gaps)
             stats = self.get_summary_stats()
             
             md_resp = (
@@ -862,7 +699,7 @@ class AzureInventoryAgent:
                 "| limit 5 "
                 "| project name, type, resourceGroup, tags"
             )
-            raw_manual = self.query_azure_resource_graph(kql_manual)
+            raw_manual = self.azure.query_azure_resource_graph(kql_manual)
             stats = self.get_summary_stats()
             
             md_resp = (
@@ -1099,7 +936,7 @@ class AzureInventoryAgent:
         with ThreadPoolExecutor(max_workers=max(1, len(consultas))) as executor:
             futuros = {
                 nombre: executor.submit(
-                    self.query_azure_resource_graph, consulta, False, subscriptions
+                    self.azure.query_azure_resource_graph, consulta, False, subscriptions
                 )
                 for nombre, consulta in consultas.items()
             }
@@ -1135,7 +972,7 @@ class AzureInventoryAgent:
             tiempos: Dict[str, float] = {}
             etapas = {
                 "stats": lambda: self.get_summary_stats(subscriptions=subscriptions) or {},
-                "grupos": lambda: self.get_resource_groups(subscriptions=subscriptions) or [],
+                "grupos": lambda: self.azure.get_resource_groups(subscriptions=subscriptions) or [],
                 "dominio": lambda: self._contexto_de_dominio(agent_type, subscriptions),
             }
             resultados_etapa: Dict[str, Any] = {"stats": {}, "grupos": [], "dominio": {}}
@@ -1199,7 +1036,7 @@ class AzureInventoryAgent:
             
             if not relevant_resources:
                 kql = "resources | limit 10 | project name, type, resourceGroup, location, tags, sku, properties, kind"
-                raw = self.query_azure_resource_graph(kql, subscriptions=subscriptions)
+                raw = self.azure.query_azure_resource_graph(kql, subscriptions=subscriptions)
                 for r in raw:
                     relevant_resources.append({
                         "name": r.get('name'),
@@ -1269,7 +1106,7 @@ class AzureInventoryAgent:
                 
                 rg_escaped = mentioned_rg.replace("'", "\\'")
                 kql_rg_res = f"resources | where resourceGroup =~ '{rg_escaped}' | limit 500 | project name, type, location, tags, sku, properties, kind"
-                raw_rg_res = self.query_azure_resource_graph(kql_rg_res, subscriptions=subscriptions) or []
+                raw_rg_res = self.azure.query_azure_resource_graph(kql_rg_res, subscriptions=subscriptions) or []
                 for r in raw_rg_res:
                     raw_props = r.get("properties") or {}
                     pruned_props = {}

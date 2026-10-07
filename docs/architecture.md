@@ -49,7 +49,9 @@ flowchart TB
 app/main.py            ← crea FastAPI, middlewares (auth, CORS) e incluye routers
 app/core/config.py     ← única fuente de configuración (lee .env)
 app/core/container.py  ← crea los servicios una vez y los comparte; precarga de costos
+app/core/deps.py       ← servicios como dependencias tipadas de FastAPI (Depends)
 app/routers/*          ← traducen HTTP ↔ servicios; sin lógica de dominio
+app/providers/azure/*  ← acceso a Azure: credenciales y Resource Graph (ADR 0006)
 app/services/*         ← lógica de dominio
 app/agents/*           ← agente conversacional y generador de IaC
 app/schemas/*          ← contratos Pydantic
@@ -59,12 +61,13 @@ app/schemas/*          ← contratos Pydantic
 
 ```mermaid
 flowchart LR
-    AG[AzureInventoryAgent<br/>cliente ARG + chat] --> INV[InventoryService]
-    AG --> COST[CostService]
-    AG --> MET[MetricsService]
-    AG --> SEC[SecOpsService]
-    AG --> TF[TfStateService]
-    AG --> K8S[K8sService]
+    AZ[AzureClient<br/>credenciales + Resource Graph] --> INV[InventoryService]
+    AZ --> COST[CostService]
+    AZ --> MET[MetricsService]
+    AZ --> SEC[SecOpsService]
+    AZ --> TF[TfStateService]
+    AZ --> K8S[K8sService]
+    AZ --> AG[AzureInventoryAgent<br/>chat]
     COST --> FIN[FinOpsService]
     MET --> FIN
     SEC --> RISK[RiskService]
@@ -76,7 +79,8 @@ flowchart LR
     HIST[HistoryService] --- INV
 ```
 
-- **`AzureInventoryAgent`** encapsula la autenticación (Service Principal o `DefaultAzureCredential`) y el cliente de Resource Graph con paginación por `skip_token`. Además responde el chat.
+- **`AzureClient`** (`app/providers/azure/`) encapsula la autenticación (Service Principal o `DefaultAzureCredential`) y el cliente de Resource Graph con caché y paginación por `skip_token`. Es la única puerta a Azure: una sola instancia compartida por todos los servicios.
+- **`AzureInventoryAgent`** solo arma contexto y responde el chat; consulta Azure a través del mismo cliente.
 - **El agente recibe los mismos servicios que el panel** (`attach_services`): comparte su caché y, sobre todo, sus reglas. Ver [ADR 0002](adr/0002-una-definicion-por-regla.md).
 - **Los servicios se crean de forma perezosa** en la primera petición (`container.get_services`), para que el arranque no dependa de que Azure responda.
 

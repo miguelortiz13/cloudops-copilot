@@ -17,6 +17,7 @@ from fastapi import Depends
 
 from app.agents.azure_agent import AzureInventoryAgent
 from app.core.container import Services, get_services
+from app.providers.azure import AzureClient
 from app.services.cost_overview_service import CostOverviewService
 from app.services.cost_service import CostService
 from app.services.finops_service import FinOpsService
@@ -35,6 +36,10 @@ def services() -> Services:
 
 
 ServicesDep = Annotated[Services, Depends(services)]
+
+
+def _azure(s: ServicesDep) -> AzureClient:
+    return s.azure
 
 
 def _agent(s: ServicesDep) -> AzureInventoryAgent:
@@ -81,6 +86,7 @@ def _cost_overview(s: ServicesDep) -> CostOverviewService:
     return s.cost_overview
 
 
+AzureDep = Annotated[AzureClient, Depends(_azure)]
 AgentDep = Annotated[AzureInventoryAgent, Depends(_agent)]
 InventoryDep = Annotated[InventoryService, Depends(_inventory)]
 HistoryDep = Annotated[HistoryService, Depends(_history)]

@@ -151,7 +151,7 @@ def test_inyecciones_se_rechazan():
 
 def test_logs_de_pod_validan_sus_tres_identificadores():
     servicio = K8sService.__new__(K8sService)  # sin tocar Azure
-    servicio.agent = None
+    servicio.azure = None
     servicio.aks_client = None
     for campo, kwargs in [
         ("pod", {"pod_name": "x;rm -rf /", "namespace": "default"}),

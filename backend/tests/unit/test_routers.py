@@ -46,6 +46,7 @@ class Registro:
 @pytest.fixture
 def servicios():
     s = SimpleNamespace(
+        azure=Registro(),
         agent=Registro(),
         inventory=Registro(list_accessible_subscriptions=([{"subscriptionId": "s1"}], [])),
         history=Registro(record=None),
@@ -58,7 +59,7 @@ def servicios():
         tfstate=Registro(),
         cost_overview=Registro(build={"basis": "actual", "totals": {"last_period": 12.5}}),
     )
-    s.agent.azure_connected = True
+    s.azure.azure_connected = True
     s.inventory._cache_ttl = 300
     app.dependency_overrides[deps.services] = lambda: s
     yield s
@@ -111,9 +112,9 @@ def test_resumen_no_falla_si_el_historico_falla(cliente, servicios):
     assert r.status_code == 200
 
 
-def test_health_refleja_la_conexion_del_agente(cliente, servicios):
+def test_health_refleja_la_conexion_con_azure(cliente, servicios):
     assert cliente.get("/api/inventory/health").json()["status"] == "ok"
-    servicios.agent.azure_connected = False
+    servicios.azure.azure_connected = False
     assert cliente.get("/api/inventory/health").json()["status"] == "degraded"
 
 
@@ -121,3 +122,28 @@ def test_reporte_de_seguridad_con_scope(cliente, servicios):
     r = cliente.get("/api/secops/report", params={"subscriptions": "s1"})
     assert r.status_code == 200
     assert servicios.secops.llamadas == [("build_report", (["s1"],), {})]
+
+
+def test_generador_de_iac_consulta_azure_por_el_cliente(cliente, servicios):
+    # El generador recibe el cliente de Azure, no el agente de chat: con el
+    # agente fallaba con un 500 (no tiene query_azure_resource_graph).
+    servicios.azure._respuestas["query_azure_resource_graph"] = [{
+        "id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/st1",
+        "name": "st1", "type": "microsoft.storage/storageaccounts", "location": "eastus2",
+        "resourceGroup": "rg", "subscriptionId": "s1", "tags": {}, "properties": {}, "sku": {"name": "Standard_LRS"},
+        "kind": "StorageV2",
+    }]
+    r = cliente.post("/api/iac/generate", json={
+        "resource_id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/st1",
+        "environment": "dev", "domain": "data",
+    })
+    assert r.status_code == 200, r.text
+    assert "st1" in r.json()["main_tf"]
+    assert servicios.azure.llamadas[0][0] == "query_azure_resource_graph"
+
+
+def test_chat_delega_en_el_agente(cliente, servicios):
+    servicios.agent._respuestas["ask"] = {"answer": "32 recursos", "mode": "rules", "data": []}
+    r = cliente.post("/api/chat", json={"message": "cuantos recursos", "agent_type": "inventory", "subscriptions": ["s1"]})
+    assert r.json()["answer"] == "32 recursos"
+    assert servicios.agent.llamadas == [("ask", ("cuantos recursos",), {"agent_type": "inventory", "subscriptions": ["s1"]})]

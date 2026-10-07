@@ -32,16 +32,16 @@ MAX_WORKERS = int(os.getenv("METRICS_MAX_WORKERS", "8"))
 class MetricsService:
     """Lee metricas de utilizacion reales de Azure Monitor, con cache."""
 
-    def __init__(self, agent):
-        self.agent = agent
+    def __init__(self, azure):
+        self.azure = azure
         self._cache: Dict[Any, Any] = {}
         self._lock = threading.Lock()
         self._ttl = DEFAULT_TTL_SECONDS
 
     def _token(self) -> Optional[str]:
-        if not getattr(self.agent, "azure_connected", False):
+        if not getattr(self.azure, "azure_connected", False):
             return None
-        credentials = getattr(self.agent, "azure_credentials", None)
+        credentials = getattr(self.azure, "azure_credentials", None)
         if not credentials:
             return None
         try:

@@ -27,6 +27,7 @@ from app.services.k8s_service import K8sService
 from app.services.metrics_service import MetricsService
 from app.services.risk_service import RiskService
 from app.services.secops_service import SecOpsService
+from app.providers.azure import AzureClient
 from app.services.tfstate_service import TfStateService
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ base_dir = config.BACKEND_DIR
 class Services:
     """Servicios compartidos por los routers (ver `app/core/deps.py`)."""
 
+    azure: AzureClient
     agent: "AzureInventoryAgent"
     inventory: InventoryService
     history: HistoryService
@@ -65,33 +67,36 @@ def get_services() -> Services:
     with _lock:
         if _services is not None:
             return _services
-        print("Inicializando Azure Agent...")
+        print("Inicializando servicios...")
         from app.agents.azure_agent import AzureInventoryAgent
 
-        agent = AzureInventoryAgent()
-        inventory = InventoryService(agent)
+        # Un solo cliente de Azure (credenciales y cache de Resource Graph)
+        # para todos los servicios y el chat.
+        azure = AzureClient()
+        agent = AzureInventoryAgent(azure)
+        inventory = InventoryService(azure)
         # El indice de estados de Terraform es la unica fuente que demuestra
         # que recursos estan gestionados; ver services/tfstate_service.py.
-        tfstate = TfStateService(agent)
+        tfstate = TfStateService(azure)
         inventory.attach_tfstate(tfstate)
         history = HistoryService()
-        cost = CostService(agent)
-        metrics = MetricsService(agent)
-        finops = FinOpsService(agent, cost, metrics)
-        secops = SecOpsService(agent)
+        cost = CostService(azure)
+        metrics = MetricsService(azure)
+        finops = FinOpsService(azure, cost, metrics)
+        secops = SecOpsService(azure)
         risk = RiskService(secops, cost)
-        k8s = K8sService(agent)
-        cost_overview = CostOverviewService(agent, cost)
+        k8s = K8sService(azure)
+        cost_overview = CostOverviewService(azure, cost)
         # El chat responde con los mismos servicios que alimentan el panel:
         # asi comparte su cache —incluida la precarga de costos— y, sobre
         # todo, las mismas reglas de dominio.
         agent.attach_services(secops=secops, finops=finops, cost=cost, risk=risk)
         _services = Services(
-            agent=agent, inventory=inventory, history=history, cost=cost,
+            azure=azure, agent=agent, inventory=inventory, history=history, cost=cost,
             metrics=metrics, finops=finops, secops=secops, k8s=k8s, risk=risk,
             tfstate=tfstate, cost_overview=cost_overview,
         )
-        print("Agent initialization complete!")
+        print("Servicios listos.")
         return _services
 
 

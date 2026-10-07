@@ -194,8 +194,8 @@ def attach_costs(
 class CostService:
     """Consulta y cachea el gasto real de Azure Cost Management."""
 
-    def __init__(self, agent, cache_dir: Optional[str] = None):
-        self.agent = agent
+    def __init__(self, azure, cache_dir: Optional[str] = None):
+        self.azure = azure
         self._cache: Dict[Tuple, Tuple[float, Any]] = {}
         self._lock = threading.Lock()
         self._ttl = DEFAULT_TTL_SECONDS
@@ -363,9 +363,9 @@ class CostService:
 
     def _token(self) -> Optional[str]:
         """Obtiene un bearer token de ARM reutilizando las credenciales del agente."""
-        if not getattr(self.agent, "azure_connected", False):
+        if not getattr(self.azure, "azure_connected", False):
             return None
-        credentials = getattr(self.agent, "azure_credentials", None)
+        credentials = getattr(self.azure, "azure_credentials", None)
         if not credentials:
             return None
         try:

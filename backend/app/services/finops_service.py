@@ -43,8 +43,8 @@ MAX_VMS_TO_PROFILE = 25
 class FinOpsService:
     """Construye el reporte de FinOps a partir de gasto y utilizacion reales."""
 
-    def __init__(self, agent, cost_service, metrics_service):
-        self.agent = agent
+    def __init__(self, azure, cost_service, metrics_service):
+        self.azure = azure
         self.cost = cost_service
         self.metrics = metrics_service
 
@@ -62,7 +62,7 @@ class FinOpsService:
                 "| where type == 'microsoft.resources/subscriptions' "
                 "| project subscriptionId"
             )
-            raw = self.agent.query_azure_resource_graph(kql, subscriptions=[])
+            raw = self.azure.query_azure_resource_graph(kql, subscriptions=[])
             resolved = [r.get("subscriptionId") for r in raw if r.get("subscriptionId")]
             if resolved:
                 return resolved
@@ -122,7 +122,7 @@ class FinOpsService:
         with ThreadPoolExecutor(max_workers=len(queries)) as executor:
             futures = {
                 key: executor.submit(
-                    self.agent.query_azure_resource_graph, kql, False, subs
+                    self.azure.query_azure_resource_graph, kql, False, subs
                 )
                 for key, kql in queries.items()
             }
@@ -492,10 +492,10 @@ class FinOpsService:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             f_no_owner = executor.submit(
-                self.agent.query_azure_resource_graph, kql_no_owner, False, subs
+                self.azure.query_azure_resource_graph, kql_no_owner, False, subs
             )
             f_aging = executor.submit(
-                self.agent.query_azure_resource_graph, kql_aging, False, subs
+                self.azure.query_azure_resource_graph, kql_aging, False, subs
             )
             raw_no_owner = f_no_owner.result() or []
             raw_aging = f_aging.result() or []
@@ -616,7 +616,7 @@ class FinOpsService:
             f_orphans = executor.submit(self._collect_orphans, subs)
             # Tags de todos los recursos, para atribuir el gasto por dimension.
             f_tags = executor.submit(
-                self.agent.query_azure_resource_graph,
+                self.azure.query_azure_resource_graph,
                 "resources | project id, tags, name, type, resourceGroup",
                 False,
                 subs,
@@ -626,12 +626,12 @@ class FinOpsService:
             f_governance = executor.submit(self._build_governance_lists, subs)
             # La lista de VMs la comparten utilizacion y reservas: una sola consulta.
             f_vms = executor.submit(
-                self.agent.query_azure_resource_graph, kql_vms, False, subs
+                self.azure.query_azure_resource_graph, kql_vms, False, subs
             )
             # Nombres de suscripcion, para poder nombrar en el reporte cuales
             # quedaron fuera de la medicion de costos.
             f_sub_names = executor.submit(
-                self.agent.query_azure_resource_graph,
+                self.azure.query_azure_resource_graph,
                 "resourcecontainers "
                 "| where type == 'microsoft.resources/subscriptions' "
                 "| project subscriptionId, name",

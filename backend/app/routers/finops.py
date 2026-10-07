@@ -5,20 +5,20 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core.container import cost_warm_status
-from app.core.deps import AgentDep, CostOverviewDep, FinOpsDep
+from app.core.deps import AzureDep, CostOverviewDep, FinOpsDep
 
 
 router = APIRouter(tags=['finops'])
 
 @router.get("/api/finops/details")
-def get_finops_details(agent: AgentDep):
+def get_finops_details(azure: AzureDep):
     """Legacy endpoint kept for backwards compatibility. Returns basic orphan counts."""
     try:
-        disks = agent.query_azure_resource_graph(
+        disks = azure.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.compute/disks' and properties.diskState =~ 'Unattached' "
             "| project name, resourceGroup, sizeGB = toint(properties.diskSizeGB), location"
         ) or []
-        ips = agent.query_azure_resource_graph(
+        ips = azure.query_azure_resource_graph(
             "resources | where type =~ 'microsoft.network/publicipaddresses' and isnull(properties.ipConfiguration) "
             "| project name, resourceGroup, ipAddress = properties.ipAddress, location"
         ) or []

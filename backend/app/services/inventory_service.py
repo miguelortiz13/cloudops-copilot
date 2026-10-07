@@ -21,10 +21,10 @@ PRODUCTION_ENVIRONMENTS = {"prod", "production", "prd", "produccion", "producci�
 NON_PRODUCTION_ENVIRONMENTS = {"dev", "development", "qa", "staging", "test", "sandbox", "demo", "uat"}
 
 class InventoryService:
-    """Centralized inventory service that wraps the existing AzureInventoryAgent."""
+    """Inventario normalizado sobre Resource Graph (via AzureClient)."""
     
-    def __init__(self, agent):
-        self.agent = agent
+    def __init__(self, azure):
+        self.azure = azure
         self._cache = {}
         self._cache_ttl = int(os.getenv("INVENTORY_CACHE_TTL_SECONDS", "300"))
         self._lock = threading.Lock()
@@ -38,7 +38,7 @@ class InventoryService:
         Returns (subscriptions_list, warnings_list).
         """
         warnings = []
-        if not self.agent.azure_connected:
+        if not self.azure.azure_connected:
             return [], ["Azure no está conectado. Verifica las credenciales del Service Principal."]
         
         now = time.time()
@@ -51,7 +51,7 @@ class InventoryService:
                 "| where type == 'microsoft.resources/subscriptions' "
                 "| project subscriptionId, displayName=name, state=properties.state, tenantId"
             )
-            results = self.agent.query_azure_resource_graph(kql, bypass_cache=True, subscriptions=[])
+            results = self.azure.query_azure_resource_graph(kql, bypass_cache=True, subscriptions=[])
             
             subs = []
             for r in results:
@@ -317,7 +317,7 @@ class InventoryService:
         Returns (normalized_resources, warnings).
         """
         warnings = []
-        if not self.agent.azure_connected:
+        if not self.azure.azure_connected:
             return [], ["Azure no está conectado."]
         
         if not subscription_ids:
@@ -354,7 +354,7 @@ class InventoryService:
         )
         
         try:
-            raw_results = self.agent.query_azure_resource_graph(
+            raw_results = self.azure.query_azure_resource_graph(
                 kql, bypass_cache=force_refresh, subscriptions=subscription_ids
             )
         except Exception as e:
@@ -547,7 +547,7 @@ class InventoryService:
             "| order by name asc"
         )
 
-        result = self.agent.query_azure_resource_graph_page(
+        result = self.azure.query_azure_resource_graph_page(
             page_kql, skip=offset, top=page_size, subscriptions=sub_ids
         )
         if not result.get("ok"):
@@ -679,7 +679,7 @@ class InventoryService:
             literal = ", ".join("'" + i.replace("'", "") + "'" for i in trozo)
             consulta = f"resources | where tolower(id) in ({literal}) | project id"
             try:
-                filas = self.agent.query_azure_resource_graph(consulta, subscriptions=subs) or []
+                filas = self.azure.query_azure_resource_graph(consulta, subscriptions=subs) or []
             except Exception as exc:
                 logger.warning(f"[Terraform] Lote de ids sin verificar: {exc}")
                 continue
@@ -722,7 +722,7 @@ class InventoryService:
             return vacio
 
         try:
-            filas = self.agent.query_azure_resource_graph(
+            filas = self.azure.query_azure_resource_graph(
                 governance.KQL_CREACIONES, subscriptions=subs
             ) or []
         except Exception as exc:
@@ -928,10 +928,10 @@ class InventoryService:
         try:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 f_kpi = executor.submit(
-                    self.agent.query_azure_resource_graph, kpi_kql, force_refresh, subscription_ids
+                    self.azure.query_azure_resource_graph, kpi_kql, force_refresh, subscription_ids
                 )
                 f_dist = executor.submit(
-                    self.agent.query_azure_resource_graph, dist_kql, force_refresh, subscription_ids
+                    self.azure.query_azure_resource_graph, dist_kql, force_refresh, subscription_ids
                 )
                 kpi_rows = f_kpi.result()
                 dist_rows = f_dist.result() or []
