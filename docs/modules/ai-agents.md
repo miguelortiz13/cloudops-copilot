@@ -41,4 +41,18 @@ Un recurso sin tags llegaba al contexto como la cadena `"null"`; al deserializar
 
 ## Modelo
 
-`GEMINI_MODEL` (por defecto `gemini-3.5-flash`). El SDK actual (`google-generativeai`) está en desuso; la migración a `google-genai` y la abstracción del proveedor de LLM están en el [roadmap](../roadmap.md).
+Los agentes no conocen el SDK del proveedor: piden texto a [`app/llm`](../../backend/app/llm/__init__.py) con `llm.generar(uso, sistema, mensaje)`.
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `LLM_PROVIDER` | `gemini` | `gemini` o `none` (solo motor de reglas) |
+| `GEMINI_API_KEY` | vacía | Sin clave, se usa el motor de reglas |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | Modelo de Gemini |
+| `LLM_TIMEOUT_SECONDS` | `60` | Tiempo máximo por llamada |
+| `LLM_MAX_REQUESTS_PER_HOUR` / `_PER_DAY` | `30` / `150` | Consultas al modelo por usuario (0 = sin límite) |
+
+- **Gemini** usa el SDK `google-genai` (`app/llm/gemini.py`). `google-generativeai` ya no tiene soporte y se retiró; la imagen bajó de 533 a 366 MB.
+- **Otro proveedor** (Azure OpenAI, Claude) es otra clase con el método `generar()` de [`app/llm/base.py`](../../backend/app/llm/base.py). Ni los agentes ni los endpoints cambian.
+- **Fallas**: todo error del proveedor llega como `LLMError`, y cada agente responde con su respaldo. El chat usa el motor de reglas, IaC usa las plantillas y Kubernetes muestra el estado del clúster. La respuesta indica el modo: `llm_<proveedor>_...` o reglas.
+- **Consumo**: cada llamada deja una línea `[llm]` en el log con uso, proveedor, modelo, usuario, tokens de entrada y salida, y duración.
+- **Límite por usuario** ([`app/llm/limits.py`](../../backend/app/llm/limits.py)): el chat, el agente de Kubernetes, el generador de IaC y el bot de Teams cuentan contra una ventana por hora y otra por día. Al pasarlas responden **429** con `Retry-After`. Solo cuentan las respuestas del modelo: el motor de reglas no tiene límite. El conteo vive en memoria (una réplica); con varias réplicas debe pasar a un almacén compartido.

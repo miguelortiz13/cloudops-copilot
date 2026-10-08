@@ -373,7 +373,7 @@ export function AgentDock() {
             <div className="msg-meta">
               {m.from === 'user' ? USER_NAME : `Agente de ${agent.label.toLowerCase()}`} · {m.time}
               {m.mode && m.from === 'bot' && (
-                <> · {m.mode === 'error' ? 'error' : m.mode.includes('gemini') ? 'IA' : 'motor de reglas'}</>
+                <> · {m.mode === 'error' ? 'error' : m.mode.startsWith('llm_') ? 'IA' : 'motor de reglas'}</>
               )}
             </div>
             <div className="msg-body">{m.from === 'bot' ? <Markdown text={m.text} /> : m.text}</div>

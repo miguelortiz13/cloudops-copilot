@@ -10,6 +10,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `AzureClient` (`app/providers/azure/`): credenciales y Resource Graph salen del agente de chat. Los servicios y el generador de IaC dependen del cliente, no del agente; hay una sola instancia compartida.
 
 ### Añadido
+- **Interfaz de modelos de lenguaje** (`app/llm`): los agentes piden texto con `llm.generar()` y no conocen el SDK. Gemini migra a `google-genai`, porque `google-generativeai` ya no tiene soporte y se retiró (la imagen baja de 533 a 366 MB). Las fallas llegan como `LLMError`, con respaldo por agente, y cada llamada registra uso, modelo, usuario, tokens y duración.
+- **Límite de uso del modelo por usuario**: 30 consultas por hora y 150 por día, configurables. Responde 429 con `Retry-After` en el chat, el agente de Kubernetes y el generador de IaC; el bot de Teams avisa en el canal. El motor de reglas no cuenta.
 - **Grupos de seguridad de Entra ID por rol** (Administradores, Operadores, Lectores), con miembros en la variable `role_members`. El rol sale del claim `groups` del token. En Entra ID Free Terraform además asigna el acceso a cada miembro, porque asignar grupos a una aplicación requiere P1.
 - **Administración** en el panel (solo administradores): actividad de usuarios (auditoría con búsqueda y filtros), tu acceso y el origen de tu rol, y el estado de la base y de cada recolector.
 - **Roles**: los app roles de Entra ID `CloudOps.Reader`, `CloudOps.Operator` y `CloudOps.Admin`. El backend los exige con `requiere()` y responde 403 si no alcanzan. Un usuario asignado sin rol es lector. `GET /api/me` devuelve el usuario y sus permisos, y el panel desactiva lo que el rol no permite.
@@ -23,6 +25,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
 ### Corregido
+- Algunas pruebas unitarias se conectaban a Azure con la sesión de `az login` de la máquina (al resolver los servicios reales antes de un 403). Ahora el cliente de Azure nunca se conecta en las pruebas unitarias.
+- El agente de Kubernetes sin clave de Gemini respondía "Error IA: GEMINI_API_KEY missing". Ahora muestra el estado del clúster.
 - La auditoría no guardaba en la base las acciones con fechas en el detalle (aceptar un riesgo con vencimiento): la columna JSON no serializa `date`. La acción se hacía y quedaba en el log, pero no en `audit_log`.
 - Conectar a una base serverless que se está reanudando fallaba con un timeout de TCP (error 258 del driver), que no se reconocía como transitorio. Ahora se espera igual que con el error 40613.
 - `/api/admin/database` respondía 500 sobre una base sin migrar.

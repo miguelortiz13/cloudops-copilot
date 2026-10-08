@@ -123,8 +123,15 @@ AZURE_MANAGED_IDENTITY_CLIENT_ID = os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID",
 # ---------------------------------------------------------------------------
 # Motor cognitivo
 # ---------------------------------------------------------------------------
+# Proveedor del modelo de lenguaje (app/llm): "gemini" o "none" (solo motor de
+# reglas). Gemini necesita GEMINI_API_KEY; sin ella tambien se usan las reglas.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "60"))
+# Consultas al modelo por usuario (0 = sin limite). Ver app/llm/limits.py.
+LLM_MAX_REQUESTS_PER_HOUR = int(os.getenv("LLM_MAX_REQUESTS_PER_HOUR", "30"))
+LLM_MAX_REQUESTS_PER_DAY = int(os.getenv("LLM_MAX_REQUESTS_PER_DAY", "150"))
 
 
 def ensure_data_dirs() -> None:

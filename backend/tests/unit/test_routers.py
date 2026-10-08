@@ -146,4 +146,5 @@ def test_chat_delega_en_el_agente(cliente, servicios):
     servicios.agent._respuestas["ask"] = {"answer": "32 recursos", "mode": "rules", "data": []}
     r = cliente.post("/api/chat", json={"message": "cuantos recursos", "agent_type": "inventory", "subscriptions": ["s1"]})
     assert r.json()["answer"] == "32 recursos"
-    assert servicios.agent.llamadas == [("ask", ("cuantos recursos",), {"agent_type": "inventory", "subscriptions": ["s1"]})]
+    assert servicios.agent.llamadas == [("ask", ("cuantos recursos",), {
+        "agent_type": "inventory", "subscriptions": ["s1"], "usuario": "Desarrollo local"})]

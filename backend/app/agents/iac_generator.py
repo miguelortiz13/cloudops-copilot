@@ -1,9 +1,7 @@
-import os
 import re
 import json
 from typing import Dict, Any, Optional
-import google.generativeai as genai
-
+from app import llm
 from app.core import config
 
 # Suscripcion de relleno cuando el id recibido no se puede interpretar. Nunca
@@ -24,11 +22,9 @@ def _bloque_tags(environment: str) -> str:
 class IaCManager:
     def __init__(self, azure):
         self.azure = azure
-        self.gemini_enabled = bool(os.getenv("GEMINI_API_KEY"))
-        if self.gemini_enabled:
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-    def generate_iac_files(self, resource_id: str, environment: str, domain: str) -> Dict[str, Any]:
+    def generate_iac_files(self, resource_id: str, environment: str, domain: str,
+                           usuario: Optional[str] = None) -> Dict[str, Any]:
         """
         Queries Azure Resource Graph for the resource metadata and uses Gemini (with a robust
         rule-based fallback) to generate Terraform code stacks (main.tf, providers.tf, variables.tf,
@@ -61,14 +57,14 @@ class IaCManager:
                 "properties": {}
             }
 
-        # 2. Try to generate using Gemini if enabled
-        if self.gemini_enabled:
+        # 2. Con un modelo de lenguaje configurado, se intenta primero con IA.
+        if llm.disponible():
             try:
-                generated = self._generate_with_gemini(resource_data, environment, domain)
+                generated = self._generate_with_llm(resource_data, environment, domain, usuario)
                 if generated:
                     return generated
             except Exception as e:
-                print(f"Error generating HCL with Gemini: {e}. Falling back to rule-based template.")
+                print(f"No se pudo generar el HCL con el modelo ({e}); se usan las plantillas.")
 
         # 3. Fallback to rule-based templates
         return self._generate_with_templates(resource_data, environment, domain, resource_id)
@@ -97,7 +93,8 @@ class IaCManager:
             "name": parts[-1] if parts else "resource-name"
         }
 
-    def _generate_with_gemini(self, resource_data: Dict[str, Any], environment: str, domain: str) -> Optional[Dict[str, Any]]:
+    def _generate_with_llm(self, resource_data: Dict[str, Any], environment: str, domain: str,
+                           usuario: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Invokes Gemini to construct standard-compliant HCL stacks."""
         system_instruction = (
             f"Eres el Agente DevOps & SRE Especialista en Terraform de {config.ORG_NAME}.\n"
@@ -128,19 +125,8 @@ class IaCManager:
             f"Genera los archivos Terraform correspondientes en formato JSON estructurado."
         )
 
-        model = genai.GenerativeModel(
-            model_name=config.GEMINI_MODEL,
-            system_instruction=system_instruction
-        )
-        response = model.generate_content(
-            contents=[prompt],
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.1,
-                response_mime_type="application/json"
-            )
-        )
-
-        text = response.text.strip()
+        respuesta = llm.generar("iac.generar", system_instruction, prompt, temperatura=0.1, json_=True, usuario=usuario)
+        text = respuesta.texto.strip()
         # Strip potential markdown wrapper
         if text.startswith("```json"):
             text = text[7:]
@@ -160,7 +146,7 @@ class IaCManager:
             "outputs_tf": data.get("outputs_tf", ""),
             "terraform_tfvars": data.get("terraform_tfvars", ""),
             "backend_hcl": data.get("backend_hcl", ""),
-            "generation_mode": "gemini_ai"
+            "generation_mode": f"llm_{llm.proveedor().nombre}"
         }
 
     @staticmethod

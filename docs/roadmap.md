@@ -12,7 +12,7 @@ Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desp
 - [x] Despliegue por **OIDC** desde GitHub Actions (workflow de CD con `environment`). Terraform sigue aplicándose a mano.
 - [x] Autorización por rol (lector, operador, administrador) además de autenticación, con auditoría: el agente SRE y el pipeline solo para operadores.
 - [ ] Volver a aprovisionar el bot de Teams con la arquitectura de Container Apps (registro con credencial federada, sin secreto).
-- [ ] Límite de tasa en `/api/chat` y `/api/k8s/chat`.
+- [x] Límite de uso del modelo por usuario en el chat, el agente de Kubernetes, IaC y Teams.
 
 ## 2. Calidad del backend
 
@@ -26,8 +26,8 @@ Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desp
 
 ## 3. IA
 
-- [ ] Migrar de `google-generativeai` (en desuso) a `google-genai`.
-- [ ] Abstraer el proveedor de LLM (Gemini, Azure OpenAI, Claude) detrás de una interfaz común.
+- [x] Migrar de `google-generativeai` (en desuso) a `google-genai`.
+- [x] Abstraer el proveedor de LLM detrás de una interfaz común (`app/llm`); falta una segunda implementación (Azure OpenAI o Claude).
 - [ ] Respuestas en streaming en el chat.
 - [ ] Evaluaciones automáticas del agente: un conjunto de preguntas con respuestas verificables contra el tenant de prueba.
 

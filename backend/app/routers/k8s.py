@@ -7,6 +7,7 @@ from app.schemas.requests import *
 from app.core.audit import auditado
 from app.core.authz import Usuario, requiere
 from app.core.deps import K8sDep
+from app.llm.limits import exigir_cupo
 from app.services.k8s_service import K8sInputError
 
 
@@ -112,12 +113,13 @@ def k8s_pod_logs(
 def k8s_chat(k8s: K8sDep, req: K8sChatRequest, usuario: Usuario = requiere("operador")):
     """
     Chat IA del Agente SRE Kubernetes con contexto real del clúster
-    inyectado en Gemini. El agente tiene acceso al estado actual de nodos,
-    pods, eventos y workloads para responder con datos reales.
+    inyectado en el modelo de lenguaje. El agente tiene acceso al estado actual
+    de nodos, pods, eventos y workloads para responder con datos reales.
     """
+    exigir_cupo(usuario.actor)
     try:
         with auditado(usuario, "k8s.chat", detalle={"pregunta": req.message[:300]}):
-            return k8s.chat(req.message, req.model_dump())
+            return k8s.chat(req.message, req.model_dump(), usuario=usuario.actor)
     except K8sInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
