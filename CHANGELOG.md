@@ -23,6 +23,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
 ### Corregido
+- La auditoría no guardaba en la base las acciones con fechas en el detalle (aceptar un riesgo con vencimiento): la columna JSON no serializa `date`. La acción se hacía y quedaba en el log, pero no en `audit_log`.
 - Conectar a una base serverless que se está reanudando fallaba con un timeout de TCP (error 258 del driver), que no se reconocía como transitorio. Ahora se espera igual que con el error 40613.
 - `/api/admin/database` respondía 500 sobre una base sin migrar.
 - `azure_agent.py` cargaba el `.env` por su cuenta al importarse e ignoraba `CLOUDOPS_SKIP_DOTENV`.

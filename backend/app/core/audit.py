@@ -26,7 +26,9 @@ def auditar(usuario: Usuario, accion: str, objetivo: Optional[str] = None,
     registro = {
         "at": datetime.now(timezone.utc).isoformat(), "actor": usuario.actor, "actor_oid": usuario.oid or None,
         "role": usuario.rol, "action": accion, "target": (objetivo or "")[:450] or None,
-        "outcome": resultado, "detail": detalle or {},
+        "outcome": resultado,
+        # El detalle va a una columna JSON: fechas y otros tipos se guardan como texto.
+        "detail": json.loads(json.dumps(detalle or {}, default=str)),
     }
     print("[audit] " + json.dumps(registro, ensure_ascii=False, default=str))
     if not db.is_configured():
