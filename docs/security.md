@@ -94,6 +94,7 @@ Un estado contiene los atributos completos de cada recurso, incluidas llaves de 
 
 | Riesgo | Por qué se acepta | Cómo se mitiga |
 |---|---|---|
+| Azure SQL admite conexiones desde cualquier servicio de Azure (regla `AllowAzureServices`, 0.0.0.0) | Container Apps de consumo no tiene IPs de salida fijas ni red virtual; un endpoint privado tiene costo fijo | Autenticación solo con Entra ID (sin usuarios SQL ni contraseñas): conectarse exige un token de una identidad con usuario en la base. TLS 1.2 mínimo. Las IPs de administración se abren por ejecución (`scripts/db-bootstrap.sh`) y se cierran al terminar |
 | La cuenta de almacenamiento de datos admite acceso de red público (señalado por Infracost) | Container Apps en plan de consumo sin red virtual monta Azure Files por el endpoint público; desactivarlo rompe el almacenamiento de la plataforma | Acceso solo con la llave de la cuenta (que Terraform entrega a la Container App), TLS 1.2 mínimo y sin blobs públicos. La alternativa, un entorno con red virtual y endpoint privado, tiene costo fijo y queda como opción en el [plan](plan/05-infraestructura.md#red) |
 
 ## Reportar una vulnerabilidad

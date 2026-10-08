@@ -144,3 +144,13 @@ variable "github_repository" {
   type        = string
   default     = "miguelortiz13@89714460/cloudops-copilot@1406664105"
 }
+
+# ---------------------------------------------------------------------------
+# Base de datos
+# ---------------------------------------------------------------------------
+variable "sql_location" {
+  description = "Región de Azure SQL. Puede diferir de `location`: en suscripciones de pago por uso Azure restringe la creación de servidores SQL en algunas regiones (eastus2 y eastus en este caso; error ProvisioningDisabled)."
+  type        = string
+  default     = "centralus"
+}
+
