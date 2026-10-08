@@ -4,7 +4,8 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario -> costos -> hallazgos -> KPIs. Cada
+Orden: migraciones -> inventario -> costos -> hallazgos -> KPIs -> vistas
+precalculadas para el panel (app/readmodel). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
 de salida es 1 si alguno termino en error, para que Container Apps lo marque
@@ -26,11 +27,19 @@ from app.collectors.common import Contexto, Resultado, ahora
 from app.db import engine as db
 from app.db.models import CollectorRun
 
+def precalcular_vistas(ctx: Contexto, session) -> Resultado:
+    """Deja las vistas por defecto del panel en la cache compartida (app/readmodel)."""
+    from app.readmodel.service import precalentar
+
+    return Resultado(items=precalentar(session))
+
+
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
     "costs": costs.recolectar,
     "findings": findings.recolectar,
     "kpis": kpis.recolectar,
+    "readmodel": precalcular_vistas,
 }
 
 # Reanudar una base serverless pausada puede tardar; el job tiene tiempo.

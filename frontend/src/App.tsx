@@ -15,7 +15,9 @@ import { IsoPage } from './modules/iso/IsoPage';
 import { ReportsPage } from './modules/reports/ReportsPage';
 
 const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.id, i.label])));
-const SUBVIEWS: Record<string, string> = { costos: 'Visión general', ahorro: 'Optimización y ahorro' };
+const SUBVIEWS: Record<string, string> = {
+  costos: 'Visión general', historial: 'Historial y comparación', ahorro: 'Optimización y ahorro', gestion: 'Gestión de hallazgos',
+};
 
 function Shell() {
   const [route, navigate] = useRoute();
@@ -33,7 +35,7 @@ function Shell() {
     setDockAgent(agente as 'finops' | 'secops' | 'inventory');
   }, [page, setDockAgent]);
 
-  const trail = ['CloudOps Copilot', LABELS[page], ...(page === 'finops' && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
+  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
 
   return (
     <div className="shell">
@@ -46,7 +48,7 @@ function Shell() {
             {page === 'resumen' && <OverviewPage />}
             {page === 'inventario' && <InventoryPage />}
             {page === 'finops' && <FinOpsPage view={sub} onView={(v) => navigate(`finops/${v}`)} />}
-            {page === 'secops' && <SecOpsPage />}
+            {page === 'secops' && <SecOpsPage view={sub} onView={(v) => navigate(`secops/${v}`)} />}
             {page === 'iac' && <IacPage />}
             {page === 'iso' && <IsoPage />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}

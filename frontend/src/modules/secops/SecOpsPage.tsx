@@ -6,8 +6,9 @@ import { money, number } from '../../lib/format';
 import type { Finding, RiskExposure, SecOpsReport, Severity } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import {
-  Card, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile,
+  Card, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile, Tabs,
 } from '../../components/ui';
+import { ManagementView } from './ManagementView';
 
 /**
  * Reglas evaluadas por SecOps (services/secops_service.py). El conteo sale de
@@ -30,7 +31,30 @@ function CostCell({ f, currency }: { f: Finding; currency: string }) {
   return <span className="muted" title="Su suscripción no tiene cobertura de costos">Desconocido</span>;
 }
 
-export function SecOpsPage() {
+type View = 'vivo' | 'gestion';
+
+export function SecOpsPage({ view, onView }: { view: string | undefined; onView: (v: View) => void }) {
+  const active: View = view === 'gestion' ? 'gestion' : 'vivo';
+  return (
+    <>
+      <PageHeader
+        title="Seguridad"
+        description="Hallazgos de exposición y salud operativa. En vivo, ordenados por severidad y gasto expuesto; en gestión, con su ciclo de vida: quién los asumió, qué riesgos se aceptaron y cuáles se resolvieron."
+      />
+      <Tabs<View>
+        value={active}
+        onChange={onView}
+        tabs={[
+          { id: 'vivo', label: 'Hallazgos en vivo' },
+          { id: 'gestion', label: 'Gestión de hallazgos' },
+        ]}
+      />
+      {active === 'vivo' ? <LiveFindings /> : <ManagementView />}
+    </>
+  );
+}
+
+function LiveFindings() {
   const { scope, scopeKey, askAgent } = useApp();
   const exposure = useApi<RiskExposure>(`exposure:${scopeKey}`, () => get(`/api/secops/exposure${scopeQuery(scope)}`));
   const report = useApi<SecOpsReport>(`secops:${scopeKey}`, () => get(`/api/secops/report${scopeQuery(scope)}`));
@@ -43,11 +67,6 @@ export function SecOpsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Seguridad"
-        description="Hallazgos de exposición y salud operativa, ordenados por severidad y, dentro de cada severidad, por el gasto del recurso expuesto."
-      />
-
       {exposure.loading && <Loading label="Evaluando la postura de seguridad…" />}
       {exposure.error && !e && <ErrorState error={exposure.error} onRetry={exposure.reload} />}
 

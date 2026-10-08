@@ -228,6 +228,34 @@ export interface FinOpsReport {
   };
 }
 
+export type CostPeriod = '7d' | '30d' | '90d' | 'mtd' | 'last_month';
+
+/** /api/history/costs: costos desde la base, por periodo y con comparación. */
+export interface CostHistory {
+  available: boolean;
+  message?: string;
+  period: CostPeriod;
+  label: string;
+  from: string;
+  to: string;
+  previous_from: string;
+  previous_to: string;
+  previous_complete: boolean;
+  currency: string;
+  total: number;
+  previous_total: number;
+  delta_percentage: number | null;
+  daily: { date: string; cost: number }[];
+  by_service: CostGroup[];
+  by_account: (CostGroup & { name: string })[];
+  by_resource: (CostGroup & { name: string; type: string | null; group: string | null; account: string | null; deleted: boolean })[];
+  by_month: { month: string; cost: number }[];
+  data_from: string | null;
+  data_through: string;
+  collected_at: string | null;
+  source?: 'cache' | 'database';
+}
+
 // ---------------------------------------------------------------- SecOps
 
 export type Severity = 'critica' | 'alta' | 'media';
@@ -274,6 +302,47 @@ export interface RiskExposure {
     currency: string;
   };
   coverage: { status: string; covered_count: number; uncovered_count: number; message: string };
+}
+
+export type FindingStatus = 'abierto' | 'asumido' | 'aceptado' | 'resuelto';
+
+/** Hallazgo con ciclo de vida, desde la base (/api/findings). */
+export interface ManagedFinding {
+  id: number;
+  rule_id: string;
+  title: string;
+  remediation: string | null;
+  severity: Severity;
+  status: FindingStatus;
+  resource_uid: string;
+  resource_name: string;
+  resource_type: string | null;
+  resource_group: string | null;
+  account: string | null;
+  details: Record<string, unknown>;
+  owner: string | null;
+  due_date: string | null;
+  accepted_until: string | null;
+  first_seen: string;
+  last_seen: string;
+  resolved_at: string | null;
+}
+
+export interface ManagedFindings {
+  available: boolean;
+  items: ManagedFinding[];
+  by_status: Partial<Record<FindingStatus, number>>;
+  collected_at: string | null;
+  source?: 'cache' | 'database';
+}
+
+export interface FindingEvent {
+  at: string;
+  kind: 'detectado' | 'estado' | 'resuelto' | 'reabierto' | 'vencido';
+  from: FindingStatus | null;
+  to: FindingStatus | null;
+  actor: string;
+  note: string | null;
 }
 
 // ---------------------------------------------------------------- IaC

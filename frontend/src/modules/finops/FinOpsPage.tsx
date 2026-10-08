@@ -1,11 +1,12 @@
 import { PageHeader, Tabs } from '../../components/ui';
 import { CostsView } from './CostsView';
+import { HistoryView } from './HistoryView';
 import { SavingsView } from './SavingsView';
 
-type View = 'costos' | 'ahorro';
+type View = 'costos' | 'historial' | 'ahorro';
 
 export function FinOpsPage({ view, onView }: { view: string | undefined; onView: (v: View) => void }) {
-  const active: View = view === 'ahorro' ? 'ahorro' : 'costos';
+  const active: View = view === 'ahorro' || view === 'historial' ? view : 'costos';
   return (
     <>
       <PageHeader
@@ -17,10 +18,13 @@ export function FinOpsPage({ view, onView }: { view: string | undefined; onView:
         onChange={onView}
         tabs={[
           { id: 'costos', label: 'Visión general' },
+          { id: 'historial', label: 'Historial y comparación' },
           { id: 'ahorro', label: 'Optimización y ahorro' },
         ]}
       />
-      {active === 'costos' ? <CostsView /> : <SavingsView />}
+      {active === 'costos' && <CostsView />}
+      {active === 'historial' && <HistoryView />}
+      {active === 'ahorro' && <SavingsView />}
     </>
   );
 }
