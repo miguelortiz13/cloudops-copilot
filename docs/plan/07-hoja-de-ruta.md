@@ -45,20 +45,21 @@ gantt
 
 **Objetivo:** que la plataforma tenga memoria, un modelo independiente de la nube y procesos fuera del API. Es la fase menos vistosa y la que habilita todo lo demás.
 
-| Entregable | Módulo | Detalle |
-|---|---|---|
-| Base de datos (Azure SQL gratuita) con SQLAlchemy y Alembic | Plataforma | Esquema del [modelo canónico](02-arquitectura-objetivo.md#modelo-canónico) |
-| Capa de proveedores con `AzureProvider` | Plataforma | Extraer de `services/` y `agents/azure_agent.py`; pruebas de contrato con fixtures |
-| Job diario de recolección | Plataforma | inventory, costs, findings, iac_states, activity, kpis |
-| Inyección de dependencias con `Depends` | API | Reemplaza `get_services()[n]` |
-| Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento |
-| Catálogo de reglas con mapeo CIS / ISO | Seguridad / Cumplimiento | Las 7 reglas actuales, migradas |
-| Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management |
-| Clasificación ISO en la base (sin Excel) | Cumplimiento | |
-| Roles (lector, operador, administrador) y auditoría | Seguridad | App roles de Entra ID |
-| Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario |
-| Administración: cuentas conectadas y estado de recolectores | Administración | Primera versión |
-| Pruebas de frontend (Vitest) y E2E con Playwright | Calidad | Capturas anonimizadas como regresión visual |
+| Entregable | Módulo | Detalle | Estado |
+|---|---|---|---|
+| Base de datos (Azure SQL gratuita) con SQLAlchemy y Alembic | Plataforma | Esquema del [modelo canónico](02-arquitectura-objetivo.md#modelo-canónico) | Hecho |
+| Capa de proveedores con `AzureProvider` | Plataforma | Extraer de `services/` y `agents/azure_agent.py`; pruebas de contrato con fixtures | En curso: `AzureClient` extraído |
+| Job diario de recolección | Plataforma | inventory, costs, findings, iac_states, activity, kpis | Hecho: inventario (con estado IaC y creador como campos del recurso), costos, hallazgos y KPIs |
+| Inyección de dependencias con `Depends` | API | Reemplaza `get_services()[n]` | Hecho |
+| Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento | Automático hecho; falta la gestión manual (asumir, aceptar) |
+| Catálogo de reglas con mapeo CIS / ISO | Seguridad / Cumplimiento | Las 7 reglas actuales, migradas | Iniciado: 7 reglas con id estable; falta el mapeo CIS/ISO |
+| Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management | |
+| Clasificación ISO en la base (sin Excel) | Cumplimiento | | |
+| Roles (lector, operador, administrador) y auditoría | Seguridad | App roles de Entra ID | |
+| Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario | |
+| Administración: cuentas conectadas y estado de recolectores | Administración | Primera versión | |
+| Pruebas de frontend (Vitest) y E2E con Playwright | Calidad | Capturas anonimizadas como regresión visual | |
+
 
 **Criterios de salida:**
 - El panel muestra 30 días de historia propia de inventario, costos y hallazgos.

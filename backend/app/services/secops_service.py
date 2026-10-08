@@ -63,8 +63,13 @@ class SecOpsService:
 
     # ------------------------------------------------------------------
 
-    def build_report(self, subscription_ids: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Reporte de seguridad con hallazgos clasificados por severidad."""
+    def build_report(self, subscription_ids: Optional[List[str]] = None, strict: bool = False) -> Dict[str, Any]:
+        """
+        Reporte de seguridad con hallazgos clasificados por severidad.
+
+        Con `strict` las consultas que fallan quedan en `failed_queries` en vez
+        de confundirse con "sin hallazgos" (lo usa el recolector).
+        """
         subs = subscription_ids or []
 
         consultas = {
@@ -78,20 +83,22 @@ class SecOpsService:
             "discos": self.KQL_DISCOS_SIN_CMK,
         }
 
+        def consultar(kql: str):
+            if strict:
+                return self.azure.query_azure_resource_graph(kql, False, subs, raise_errors=True)
+            return self.azure.query_azure_resource_graph(kql, False, subs)
+
         crudos: Dict[str, List[Dict[str, Any]]] = {}
+        fallidas: List[str] = []
         with ThreadPoolExecutor(max_workers=len(consultas)) as executor:
-            futuros = {
-                nombre: executor.submit(
-                    self.azure.query_azure_resource_graph, kql, False, subs
-                )
-                for nombre, kql in consultas.items()
-            }
+            futuros = {nombre: executor.submit(consultar, kql) for nombre, kql in consultas.items()}
             for nombre, futuro in futuros.items():
                 try:
                     crudos[nombre] = futuro.result() or []
                 except Exception as exc:
                     print(f"[SecOpsService] Consulta '{nombre}' falló: {exc}")
                     crudos[nombre] = []
+                    fallidas.append(nombre)
 
         # El conjunto de IPs publicas permite decidir si una regla de NSG es
         # teoricamente abierta o realmente alcanzable desde internet.
@@ -174,4 +181,5 @@ class SecOpsService:
             "severity_summary": conteo,
             "sql_public": crudos["sql"],
             "apps_without_https": crudos["https"],
+            "failed_queries": sorted(fallidas),
         }

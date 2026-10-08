@@ -105,6 +105,16 @@ jobs:
           done
           echo "La revisión no quedó lista a tiempo" && exit 1
 
+      # El recolector diario usa la misma imagen. No se ejecuta aquí: cada
+      # ejecución despierta la base y consume el cupo gratuito.
+      - name: Actualizar la imagen del recolector
+        run: |
+          az containerapp job update \
+            --name "${{ vars.CONTAINER_APP_JOB }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --image "${{ needs.image.outputs.ref }}" \
+            --output none
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22

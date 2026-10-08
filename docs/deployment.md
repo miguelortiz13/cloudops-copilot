@@ -14,6 +14,7 @@ La plataforma se despliega con un diseño de **costo cercano a cero**: el API es
 | Identidad de despliegue | `id-cloudops-dev-deploy` | Contributor solo sobre el grupo de recursos; credencial federada para GitHub Actions | $0 |
 | Storage Account + File Share | `stcloudopsdevdata` / `cloudops-data` (1 GB) | Montado en `/data` (`DATA_DIR`) | centavos |
 | Static Web App (panel) | `stapp-cloudops-dev` | SKU Free | $0 |
+| Container Apps Job (recolector) | `caj-cloudops-dev-collector` | Diario a las 06:00 UTC (`collector_cron`), 0,5 vCPU / 1 GiB, misma imagen e identidad que el API | $0 dentro del cupo gratuito |
 | Servidor Azure SQL | `sql-cloudops-dev-<sufijo>` | **centralus** (ver nota). Solo Entra ID; TLS 1.2 | $0 |
 | Base de datos | `sqldb-cloudops-dev` | Serverless 0,5-1 vCore, 32 GB, **oferta gratuita** con pausa automática al agotar el cupo | $0 |
 | App registrations (Entra ID) | `CloudOps Copilot API (dev)` y `CloudOps Copilot (dev)` | Acceso solo para usuarios asignados | $0 |
@@ -140,7 +141,23 @@ Después del primer `terraform apply`, y cada vez que haya migraciones nuevas:
 
 Abre el firewall solo para tu IP, aplica las migraciones de Alembic, da acceso a la identidad del API (`CREATE USER ... FROM EXTERNAL PROVIDER` con lectura, escritura y DDL) y vuelve a cerrar el firewall aunque algo falle. Lo ejecuta el administrador de Entra ID del servidor, que es quien aplicó Terraform. No hay usuarios ni contraseñas de SQL.
 
+El recolector diario aplica las migraciones nuevas por su cuenta (la identidad tiene DDL), así que este script solo hace falta la primera vez o para cambiar permisos.
+
 El estado se consulta con `GET /api/admin/database` (versión del esquema, filas por tabla y últimas ejecuciones de los recolectores). Despierta la base, así que no forma parte del health check.
+
+### Recolector diario
+
+`caj-cloudops-dev-collector` ejecuta `python -m app.collectors.run`: migraciones, inventario, costos (30 días la primera vez, después una ventana móvil de 7), hallazgos con su ciclo de vida y KPIs. Cada recolector deja su ejecución en `collector_runs` y el job termina en error si alguno falla.
+
+```bash
+# Ejecutarlo ahora (despierta la base: consume cupo durante la hora siguiente)
+az containerapp job start -n caj-cloudops-dev-collector -g rg-cloudops-dev
+# Historial y logs
+az containerapp job execution list -n caj-cloudops-dev-collector -g rg-cloudops-dev -o table
+az containerapp job logs show -n caj-cloudops-dev-collector -g rg-cloudops-dev --container collector
+```
+
+En local: `python -m app.collectors.run [--only inventory,costs]` con `DB_SERVER`/`DB_NAME` (y tu IP en el firewall) o `DATABASE_URL=sqlite:///...`.
 
 ### 5. Verificar
 

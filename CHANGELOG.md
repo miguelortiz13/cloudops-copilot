@@ -11,6 +11,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 - **Base de datos**: Azure SQL Database con la oferta gratuita (pausa automática al agotar el cupo: USD 0), solo Entra ID, en centralus. Modelo canónico con SQLAlchemy (`app/db/models.py`: cuentas, recursos, costos diarios FOCUS, reglas, hallazgos con historial, KPIs diarios, ejecuciones de recolectores) y migraciones de Alembic.
+- **Recolector diario** (`app/collectors/`, Container Apps Job `caj-<base>-collector`, 06:00 UTC): inventario con altas y bajas, costo diario por recurso y servicio (30 días la primera vez, después ventana móvil de 7), hallazgos con ciclo de vida (detectado, resuelto solo al dejar de detectarse, reabierto, aceptación vencida) y KPIs diarios. Cada ejecución queda en `collector_runs`.
+- Modo estricto en `AzureClient.query_azure_resource_graph(raise_errors=True)` y `SecOpsService.build_report(strict=True)` (`failed_queries`): un error ya no se confunde con "sin resultados".
+- `CostService.get_daily_cost_by_resource`: gasto diario por recurso y servicio.
 - `scripts/db-bootstrap.sh`: migraciones y usuario de la identidad del API, con firewall abierto solo durante la ejecución.
 - `GET /api/admin/database`: versión del esquema, filas por tabla y últimas ejecuciones de los recolectores.
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
