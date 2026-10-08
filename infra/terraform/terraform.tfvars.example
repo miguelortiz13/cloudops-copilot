@@ -22,8 +22,11 @@ showback_tags  = ["Project", "Environment"]
 # Motor cognitivo (opcional). Mejor como variable de entorno: TF_VAR_gemini_api_key
 # gemini_api_key = ""
 
-# Usuarios con acceso y su rol (Reader, Operator, Admin). Vacío = quien aplica
-# Terraform, como Admin. Ver docs/security.md#autorización-por-rol.
-# user_roles = {
-#   "00000000-0000-0000-0000-000000000000" = "Admin"
+# Miembros de cada grupo de seguridad de la plataforma (Admin, Operator,
+# Reader). Vacío = quien aplica Terraform, en Admin.
+# Ver docs/security.md#autorización-por-rol.
+# role_members = {
+#   Admin    = ["00000000-0000-0000-0000-000000000000"]
+#   Operator = []
+#   Reader   = []
 # }

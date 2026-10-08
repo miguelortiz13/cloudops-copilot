@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
+import type { Role } from '../lib/types';
 import {
-  Boxes, CircleDollarSign, FileCode2, FileSpreadsheet, LayoutGrid, ShieldCheck, ShieldHalf,
+  Boxes, CircleDollarSign, FileCode2, FileSpreadsheet, LayoutGrid, Settings2, ShieldCheck, ShieldHalf,
 } from 'lucide-react';
 
 /** Secciones de la plataforma, en el orden de la barra lateral. */
-export const NAV: { group: string; items: { id: string; label: string; icon: ReactNode }[] }[] = [
+/** `role`: solo se muestra a quien tenga al menos ese rol (el API también lo exige). */
+export const NAV: { group: string; items: { id: string; label: string; icon: ReactNode; role?: Role }[] }[] = [
   {
     group: 'General',
     items: [{ id: 'resumen', label: 'Resumen', icon: <LayoutGrid size={16} /> }],
@@ -21,6 +23,9 @@ export const NAV: { group: string; items: { id: string; label: string; icon: Rea
   },
   {
     group: 'Herramientas',
-    items: [{ id: 'reportes', label: 'Reportes', icon: <FileSpreadsheet size={16} /> }],
+    items: [
+      { id: 'reportes', label: 'Reportes', icon: <FileSpreadsheet size={16} /> },
+      { id: 'admin', label: 'Administración', icon: <Settings2 size={16} />, role: 'administrador' },
+    ],
   },
 ];

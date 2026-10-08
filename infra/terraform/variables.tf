@@ -97,17 +97,18 @@ variable "showback_tags" {
 # ---------------------------------------------------------------------------
 # Acceso
 # ---------------------------------------------------------------------------
-variable "user_roles" {
+variable "role_members" {
   description = <<-EOT
-    Usuarios con acceso y su rol: object id de Entra ID => Reader | Operator | Admin
-    (ver app/core/authz.py). Vacío = quien ejecuta Terraform, como Admin.
+    Miembros de cada grupo de seguridad de la plataforma: Admin | Operator | Reader
+    => lista de object ids de Entra ID. El grupo define el rol (docs/security.md).
+    Vacío = quien ejecuta Terraform, en Admin.
   EOT
-  type        = map(string)
+  type        = map(list(string))
   default     = {}
 
   validation {
-    condition     = alltrue([for r in values(var.user_roles) : contains(["Reader", "Operator", "Admin"], r)])
-    error_message = "Cada rol debe ser Reader, Operator o Admin."
+    condition     = alltrue([for r in keys(var.role_members) : contains(["Reader", "Operator", "Admin"], r)])
+    error_message = "Las claves deben ser Reader, Operator o Admin."
   }
 }
 

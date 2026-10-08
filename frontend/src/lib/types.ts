@@ -9,6 +9,8 @@ export interface Me {
   role: Role;
   permissions: Record<Role, boolean>;
   auth_enabled: boolean;
+  /** De dónde sale el rol: grupo de seguridad, app role o por defecto. */
+  role_source?: 'grupo' | 'app_role' | 'por_defecto' | 'sin_autenticacion';
 }
 
 export interface Subscription {
