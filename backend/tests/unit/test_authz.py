@@ -110,6 +110,15 @@ def test_el_operador_gestiona_y_queda_auditado(cliente):
     assert a.detail["status"] == "asumido"
 
 
+def test_aceptar_un_riesgo_queda_auditado_con_su_fecha(cliente):
+    r = cliente.post("/api/findings/1/status", headers=como("operador"), json={
+        "status": "aceptado", "accepted_until": "2099-01-31", "note": "Mitigado por otra vía"})
+    assert r.status_code == 200
+    with db.session_scope() as s:
+        a = s.query(AuditLog).one()
+    assert a.detail["accepted_until"] == "2099-01-31" and a.detail["status"] == "aceptado"
+
+
 @pytest.mark.parametrize("ruta,metodo", [
     ("/api/k8s/chat", "post"), ("/api/k8s/incidents", "post"), ("/api/sync", "post"),
     ("/api/integration/test-webhook", "post"),
