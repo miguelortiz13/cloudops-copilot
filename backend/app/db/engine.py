@@ -29,9 +29,12 @@ class DatabaseUnavailable(RuntimeError):
 
 
 # Mensajes de Azure SQL que indican una base reanudandose o un corte
-# transitorio. Un error de autenticacion o de firewall no esta aqui: no se
+# transitorio. Mientras una base serverless se reanuda, la conexion puede
+# fallar con 40613 o con un timeout de TCP (error 258 del driver). Un error de
+# autenticacion (18456) o de firewall (40615, inmediato) no esta aqui: no se
 # resuelve esperando.
-_TRANSITORIOS = ("40613", "40197", "40501", "49918", "not currently available", "communication link failure")
+_TRANSITORIOS = ("40613", "40197", "40501", "49918", "not currently available", "communication link failure",
+                 "timeout error [258]", "tcp provider: timeout")
 
 
 def database_url() -> Optional[URL | str]:

@@ -105,6 +105,13 @@ def test_espera_a_que_la_base_se_reanude(monkeypatch):
     assert falso.intentos == 3
 
 
+def test_el_timeout_de_tcp_al_reanudar_es_transitorio(monkeypatch):
+    falso = EngineFalso(["Driver Error: Client unable to establish connection; DDBC Error: [Microsoft]TCP Provider: Timeout error [258]."])
+    monkeypatch.setattr(db, "get_engine", lambda: falso)
+    monkeypatch.setattr(db.time, "sleep", lambda s: None)
+    assert db.connect(timeout=60) == "conexion"
+
+
 def test_no_reintenta_un_error_de_permisos(monkeypatch):
     falso = EngineFalso(["(18456) Login failed for user '<token-identified principal>'"])
     monkeypatch.setattr(db, "get_engine", lambda: falso)
