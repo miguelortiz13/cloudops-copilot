@@ -172,7 +172,8 @@ function FindingDrawer({ finding: f, onClose, onChanged, onAsk }: {
   onChanged: (f: ManagedFinding) => void;
   onAsk: () => void;
 }) {
-  const { toast } = useApp();
+  const { toast, can } = useApp();
+  const puedeGestionar = can('operador');
   const events = useApi<FindingEvent[]>(`finding-events:${f.id}:${f.status}`, () => get(`/api/findings/${f.id}/events`));
   const [action, setAction] = useState<Action | null>(null);
   const [note, setNote] = useState('');
@@ -181,7 +182,8 @@ function FindingDrawer({ finding: f, onClose, onChanged, onAsk }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const disponibles: Action[] = f.status === 'abierto' ? ['asumido', 'aceptado']
+  const disponibles: Action[] = !puedeGestionar ? []
+    : f.status === 'abierto' ? ['asumido', 'aceptado']
     : f.status === 'asumido' ? ['aceptado', 'abierto']
       : f.status === 'aceptado' ? ['asumido', 'abierto'] : [];
   const etiqueta: Record<Action, string> = { asumido: 'Asumir', aceptado: 'Aceptar el riesgo', abierto: 'Reabrir' };
@@ -249,6 +251,10 @@ function FindingDrawer({ finding: f, onClose, onChanged, onAsk }: {
           <div className="subhead">Cómo corregirlo</div>
           <p style={{ margin: '6px 0 0', fontSize: 13 }}>{f.remediation}</p>
         </div>
+      )}
+
+      {!puedeGestionar && f.status !== 'resuelto' && (
+        <Notice>Gestionar hallazgos requiere el rol Operador. Pídeselo a un administrador de la plataforma.</Notice>
       )}
 
       {f.status === 'resuelto' && (

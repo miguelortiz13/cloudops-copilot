@@ -163,3 +163,20 @@ class CollectorRun(Base):
     items: Mapped[int] = mapped_column(default=0)
     detail: Mapped[dict[str, Any]] = mapped_column(default=dict)
     error: Mapped[Optional[str]] = mapped_column(UnicodeText)
+
+
+class AuditLog(Base):
+    """Quien hizo que: toda accion que cambia algo o actua sobre la nube."""
+
+    __tablename__ = "audit_log"
+    __table_args__ = (Index("ix_audit_log_at", "at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actor: Mapped[str] = mapped_column(Unicode(320))
+    actor_oid: Mapped[Optional[str]] = mapped_column(String(64))
+    role: Mapped[str] = mapped_column(String(16))
+    action: Mapped[str] = mapped_column(String(64))  # hallazgo.estado, k8s.chat...
+    target: Mapped[Optional[str]] = mapped_column(Unicode(450))
+    outcome: Mapped[str] = mapped_column(String(16))  # ok | error
+    detail: Mapped[dict[str, Any]] = mapped_column(default=dict)

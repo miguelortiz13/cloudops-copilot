@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { Subscription } from '../lib/types';
+import type { Me, Role, Subscription } from '../lib/types';
 
 export type AgentType = 'inventory' | 'finops' | 'secops' | 'k8s';
 export type Theme = 'light' | 'dark' | 'system';
@@ -34,6 +34,10 @@ export interface AppState {
   /** Abre la consola en un agente y, si se pasa, envía la pregunta. */
   askAgent: (agent: AgentType, question?: string) => void;
   pendingQuestion: { agent: AgentType; text: string; id: number } | null;
+  /** Usuario actual; null mientras carga. */
+  me: Me | null;
+  /** Si el usuario tiene al menos ese rol. Mientras carga, no. */
+  can: (role: Role) => boolean;
 }
 
 

@@ -33,6 +33,29 @@ El panel obtiene el token con MSAL ([`frontend/src/auth.ts`](../frontend/src/aut
 1. **API**: App Registration con un scope expuesto `access_as_user`. Su client id es `AZURE_AD_API_CLIENT_ID`.
 2. **Panel**: App Registration tipo SPA con redirect URI a la URL de la Static Web App y permiso delegado sobre el scope del API. Su client id es `VITE_AZURE_AD_CLIENT_ID`; `VITE_API_SCOPE=api://<client id del API>/access_as_user`.
 
+## Autorización por rol
+
+Autenticarse solo prueba quién eres. Lo que puedes hacer depende del **app role** con el que estás asignado al API en Entra ID (variable `user_roles` de Terraform). Viaja en el claim `roles` del token y lo traduce [`app/core/authz.py`](../backend/app/core/authz.py).
+
+| Rol | App role | Puede |
+|---|---|---|
+| Lector | `CloudOps.Reader` | Todo lo que lee: inventario, costos, seguridad, IaC, ISO y chat |
+| Operador | `CloudOps.Operator` | Además gestionar hallazgos (asumir, aceptar riesgos), ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
+| Administrador | `CloudOps.Admin` | Además ver el estado de la base y la auditoría, y reiniciar el cliente de Kubernetes |
+
+- Un usuario asignado sin app role es **lector**: tener acceso nunca implica poder escribir.
+- El backend decide (403). El panel solo oculta o desactiva lo que el rol no permite, para no ofrecer acciones que fallarían.
+- Con `AUTH_ENABLED=false` (desarrollo local) todo el mundo es administrador, y el panel lo muestra como "sin autenticación".
+
+## Auditoría
+
+Toda acción que cambia algo o actúa sobre la nube queda registrada: cambios de estado de hallazgos, sincronización, comandos del agente de Kubernetes, alertas de prueba a Teams y reinicio de clientes. Se guarda quién la hizo (UPN y object id del token), con qué rol, sobre qué objeto, con qué resultado y con qué detalle.
+
+- Va siempre al log como una línea JSON (`[audit] {...}`) y, si hay base, a la tabla `audit_log`. La consulta `GET /api/admin/audit` (solo administradores).
+- La URL de un webhook de Teams es una credencial: solo se audita su host.
+- Un fallo al auditar no bloquea la acción; queda en el log.
+- Los intentos denegados (403) quedan en el log, no en la base, para que nadie pueda despertarla a voluntad con peticiones prohibidas.
+
 ## Webhook de Teams
 
 `/api/teams/webhook` valida en cada actividad el JWT que firma Bot Framework ([`services/bot_auth.py`](../backend/app/services/bot_auth.py)):

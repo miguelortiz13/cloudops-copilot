@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Ctx, type AgentType, type AppState, type Theme, type Toast } from './context';
 import { get } from '../lib/api';
-import type { Subscription } from '../lib/types';
+import type { Me, Role, Subscription } from '../lib/types';
 
 function readTheme(): Theme {
   try {
@@ -22,6 +22,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dockOpen, setDockOpen] = useState(false);
   const [dockAgent, setDockAgent] = useState<AgentType>('inventory');
   const [pendingQuestion, setPending] = useState<AppState['pendingQuestion']>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const toastId = useRef(0);
 
   useEffect(() => {
@@ -34,6 +35,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => setSubscriptions([]))
       .finally(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    // El backend decide; esto solo evita ofrecer acciones que devolverían 403.
+    get<Me>('/api/me').then(setMe).catch(() => setMe(null));
+  }, []);
+
+  const can = useCallback((role: Role) => Boolean(me?.permissions[role]), [me]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -67,7 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppState = {
     subscriptions, subscriptionsLoaded, selected, setSelected, scope, scopeKey,
     theme, setTheme: setThemeState, toast, toasts,
-    dockOpen, setDockOpen, dockAgent, setDockAgent, askAgent, pendingQuestion,
+    dockOpen, setDockOpen, dockAgent, setDockAgent, askAgent, pendingQuestion, me, can,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

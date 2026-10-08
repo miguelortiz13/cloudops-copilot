@@ -1,5 +1,16 @@
 /** Contratos del API. Reflejan las respuestas del backend (app/routers). */
 
+export type Role = 'lector' | 'operador' | 'administrador';
+
+/** /api/me: el usuario y su rol (app roles de Entra ID). */
+export interface Me {
+  name: string;
+  upn: string;
+  role: Role;
+  permissions: Record<Role, boolean>;
+  auth_enabled: boolean;
+}
+
 export interface Subscription {
   subscriptionId: string;
   displayName: string;

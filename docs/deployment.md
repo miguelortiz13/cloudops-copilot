@@ -179,7 +179,17 @@ az containerapp logs show -g rg-cloudops-dev -n ca-cloudops-dev-api --follow
 
 ## Dar acceso a otra persona
 
-Agrega su object id a `allowed_user_object_ids` y vuelve a aplicar. Sin asignación, Entra ID rechaza el inicio de sesión, tanto en el panel como desde la CLI.
+Agrégala a `user_roles` con su object id y su rol, y vuelve a aplicar:
+
+```hcl
+user_roles = {
+  "<tu object id>"        = "Admin"
+  "<object id de Ana>"    = "Operator"
+  "<object id de Carlos>" = "Reader"
+}
+```
+
+Sin asignación, Entra ID rechaza el inicio de sesión, tanto en el panel como desde la CLI. Qué permite cada rol está en [seguridad](security.md#autorización-por-rol). Un rol nuevo llega en el siguiente token, así que puede tardar hasta una hora o hasta volver a iniciar sesión.
 
 ## Destruir
 

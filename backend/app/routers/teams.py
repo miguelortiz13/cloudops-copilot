@@ -5,6 +5,10 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
+from urllib.parse import urlparse
+
+from app.core.audit import auditar
+from app.core.authz import Usuario, requiere
 from app.core.deps import AgentDep, SecOpsDep
 from app.services.bot_auth import BOT_AUTH_ENABLED, BotAuthError, validate_bot_token
 import os
@@ -15,8 +19,10 @@ from pydantic import BaseModel
 router = APIRouter(tags=['teams'])
 
 @router.post("/api/integration/test-webhook")
-def test_webhook(agent: AgentDep, secops: SecOpsDep, req: WebhookTestRequest):
+def test_webhook(agent: AgentDep, secops: SecOpsDep, req: WebhookTestRequest, usuario: Usuario = requiere("operador")):
     """Sends a real, context-aware DevOps/FinOps/SecOps status alert to a Teams Webhook."""
+    # La URL del webhook es una credencial: solo se audita el host.
+    auditar(usuario, "teams.alerta_prueba", objetivo=urlparse(req.webhook_url).hostname, detalle={"tipo": req.alert_type})
     try:
         # Get actual stats to populate the webhook message with real numbers
         stats = agent.get_summary_stats()

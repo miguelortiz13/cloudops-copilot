@@ -10,8 +10,24 @@
 #
 # El acceso queda restringido a los usuarios asignados (por defecto, quien
 # ejecuta Terraform): el resto del tenant recibe un error al iniciar sesion.
+#
+# Autorizacion: cada usuario se asigna al API con un app role (Reader,
+# Operator, Admin) que viaja en el claim `roles` del token; el backend lo
+# traduce en app/core/authz.py.
 
 resource "random_uuid" "scope_access_as_user" {}
+
+locals {
+  app_roles = {
+    Reader   = { name = "Lector", description = "Ve inventario, costos, seguridad, IaC y cumplimiento." }
+    Operator = { name = "Operador", description = "Además gestiona hallazgos, sincroniza y usa el agente de Kubernetes." }
+    Admin    = { name = "Administrador", description = "Además ve el estado de la base y la auditoría." }
+  }
+}
+
+resource "random_uuid" "app_role" {
+  for_each = local.app_roles
+}
 
 resource "azuread_application" "api" {
   display_name     = "${var.app_display_name} API (${var.environment})"
@@ -22,6 +38,18 @@ resource "azuread_application" "api" {
   # id, que solo existe despues de crear la app). Sin esto, cada apply la borra.
   lifecycle {
     ignore_changes = [identifier_uris]
+  }
+
+  dynamic "app_role" {
+    for_each = local.app_roles
+    content {
+      id                   = random_uuid.app_role[app_role.key].result
+      value                = "CloudOps.${app_role.key}"
+      display_name         = app_role.value.name
+      description          = app_role.value.description
+      allowed_member_types = ["User"]
+      enabled              = true
+    }
   }
 
   api {
@@ -55,10 +83,13 @@ resource "azuread_service_principal" "api" {
 }
 
 resource "azuread_app_role_assignment" "api_users" {
-  for_each            = toset(local.allowed_users)
-  app_role_id         = "00000000-0000-0000-0000-000000000000"
-  principal_object_id = each.value
+  for_each            = local.user_roles
+  app_role_id         = random_uuid.app_role[each.value].result
+  principal_object_id = each.key
   resource_object_id  = azuread_service_principal.api.object_id
+
+  # El rol tiene que existir en la aplicacion antes de asignarlo.
+  depends_on = [azuread_application.api]
 }
 
 # Azure CLI preautorizada: permite `az account get-access-token --scope ...`
@@ -72,7 +103,8 @@ resource "azuread_application_pre_authorized" "azure_cli" {
 }
 
 locals {
-  allowed_users = coalescelist(var.allowed_user_object_ids, [data.azuread_client_config.current.object_id])
+  user_roles    = length(var.user_roles) > 0 ? var.user_roles : { (data.azuread_client_config.current.object_id) = "Admin" }
+  allowed_users = keys(local.user_roles)
 }
 
 resource "azuread_application" "spa" {
