@@ -129,8 +129,9 @@ async def auth_middleware(request: Request, call_next):
         "oid": claims.get("oid"),
         "name": claims.get("name"),
         "upn": claims.get("preferred_username") or claims.get("upn"),
-        # App roles del API (CloudOps.Reader / Operator / Admin); ver app/core/authz.py.
+        # App roles del API y grupos de seguridad del usuario; ver app/core/authz.py.
         "roles": list(claims.get("roles") or []),
+        "groups": list(claims.get("groups") or []),
     }
     return await call_next(request)
 

@@ -66,3 +66,8 @@ output "api_identity_name" {
 output "collector_job_name" {
   value = azurerm_container_app_job.collector.name
 }
+
+output "role_groups" {
+  description = "Grupos de seguridad de Entra ID por rol."
+  value       = { for k, g in azuread_group.role : k => { name = g.display_name, object_id = g.object_id } }
+}

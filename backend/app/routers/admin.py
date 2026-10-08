@@ -34,8 +34,8 @@ def database_status():
             }
             ultimas = c.execute(
                 select(CollectorRun.collector, CollectorRun.status, CollectorRun.started_at,
-                       CollectorRun.finished_at, CollectorRun.items)
-                .order_by(CollectorRun.started_at.desc()).limit(10)
+                       CollectorRun.finished_at, CollectorRun.items, CollectorRun.error, CollectorRun.detail)
+                .order_by(CollectorRun.started_at.desc()).limit(25)
             ).all()
     except db.DatabaseUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))

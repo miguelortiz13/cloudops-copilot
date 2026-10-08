@@ -179,15 +179,17 @@ az containerapp logs show -g rg-cloudops-dev -n ca-cloudops-dev-api --follow
 
 ## Dar acceso a otra persona
 
-Agrégala a `user_roles` con su object id y su rol, y vuelve a aplicar:
+Agrégala al grupo de su rol en `role_members`, con su object id, y vuelve a aplicar:
 
 ```hcl
-user_roles = {
-  "<tu object id>"        = "Admin"
-  "<object id de Ana>"    = "Operator"
-  "<object id de Carlos>" = "Reader"
+role_members = {
+  Admin    = ["<tu object id>"]
+  Operator = ["<object id de Ana>"]
+  Reader   = ["<object id de Carlos>"]
 }
 ```
+
+Terraform la agrega al grupo de seguridad correspondiente y le da acceso al API y al panel.
 
 Sin asignación, Entra ID rechaza el inicio de sesión, tanto en el panel como desde la CLI. Qué permite cada rol está en [seguridad](security.md#autorización-por-rol). Un rol nuevo llega en el siguiente token, así que puede tardar hasta una hora o hasta volver a iniciar sesión.
 

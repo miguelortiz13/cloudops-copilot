@@ -13,10 +13,12 @@ import { SecOpsPage } from './modules/secops/SecOpsPage';
 import { IacPage } from './modules/iac/IacPage';
 import { IsoPage } from './modules/iso/IsoPage';
 import { ReportsPage } from './modules/reports/ReportsPage';
+import { AdminPage } from './modules/admin/AdminPage';
 
 const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.id, i.label])));
 const SUBVIEWS: Record<string, string> = {
   costos: 'Visión general', historial: 'Historial y comparación', ahorro: 'Optimización y ahorro', gestion: 'Gestión de hallazgos',
+  actividad: 'Actividad de usuarios', plataforma: 'Base y recolectores',
 };
 
 function Shell() {
@@ -35,7 +37,7 @@ function Shell() {
     setDockAgent(agente as 'finops' | 'secops' | 'inventory');
   }, [page, setDockAgent]);
 
-  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
+  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops' || page === 'admin') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
 
   return (
     <div className="shell">
@@ -52,6 +54,7 @@ function Shell() {
             {page === 'iac' && <IacPage />}
             {page === 'iso' && <IsoPage />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
+            {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}
           </SectionBoundary>
         </main>
       </div>

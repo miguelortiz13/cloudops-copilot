@@ -35,15 +35,25 @@ El panel obtiene el token con MSAL ([`frontend/src/auth.ts`](../frontend/src/aut
 
 ## Autorización por rol
 
-Autenticarse solo prueba quién eres. Lo que puedes hacer depende del **app role** con el que estás asignado al API en Entra ID (variable `user_roles` de Terraform). Viaja en el claim `roles` del token y lo traduce [`app/core/authz.py`](../backend/app/core/authz.py).
+Autenticarse solo prueba quién eres. Lo que puedes hacer depende del **grupo de seguridad de Entra ID** al que perteneces. Terraform crea un grupo por rol y define sus miembros con la variable `role_members`:
 
-| Rol | App role | Puede |
+| Grupo de Entra ID | Rol |
+|---|---|
+| `CloudOps Copilot <ambiente> - Administradores` | Administrador |
+| `CloudOps Copilot <ambiente> - Operadores` | Operador |
+| `CloudOps Copilot <ambiente> - Lectores` | Lector |
+
+El token del API lleva los grupos del usuario (claim `groups`, con `groupMembershipClaims = SecurityGroup`). [`app/core/authz.py`](../backend/app/core/authz.py) los traduce con los object ids que recibe en `AUTHZ_GROUP_ADMIN`, `AUTHZ_GROUP_OPERATOR` y `AUTHZ_GROUP_READER`. También cuentan los app roles `CloudOps.*` del token, y gana el rol mayor.
+
+**Por qué grupos y asignación por usuario a la vez.** El tenant está en Entra ID Free, que no permite asignar grupos a una aplicación (eso requiere P1 o P2). Por eso Terraform asigna al API (con el app role mínimo, Reader) y al panel a cada miembro de los grupos: la asignación abre la puerta y el grupo decide el rol. Si alguien se agrega a un grupo solo desde el portal, obtiene el rol pero no el acceso; hay que agregarlo en `role_members`. Con P1 se podría asignar el grupo directamente y quitar esa duplicación.
+
+| Rol | Grupo | Puede |
 |---|---|---|
-| Lector | `CloudOps.Reader` | Todo lo que lee: inventario, costos, seguridad, IaC, ISO y chat |
-| Operador | `CloudOps.Operator` | Además gestionar hallazgos (asumir, aceptar riesgos), ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
-| Administrador | `CloudOps.Admin` | Además ver el estado de la base y la auditoría, y reiniciar el cliente de Kubernetes |
+| Lector | Lectores | Todo lo que lee: inventario, costos, seguridad, IaC, ISO y chat |
+| Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
+| Administrador | Administradores | Además ver el estado de la base y la auditoría, y reiniciar el cliente de Kubernetes |
 
-- Un usuario asignado sin app role es **lector**: tener acceso nunca implica poder escribir.
+- Un usuario asignado sin grupo ni app role es **lector**: tener acceso nunca implica poder escribir. Un grupo que no esté configurado en `AUTHZ_GROUP_*` no da permisos.
 - El backend decide (403). El panel solo oculta o desactiva lo que el rol no permite, para no ofrecer acciones que fallarían.
 - Con `AUTH_ENABLED=false` (desarrollo local) todo el mundo es administrador, y el panel lo muestra como "sin autenticación".
 
@@ -51,7 +61,7 @@ Autenticarse solo prueba quién eres. Lo que puedes hacer depende del **app role
 
 Toda acción que cambia algo o actúa sobre la nube queda registrada: cambios de estado de hallazgos, sincronización, comandos del agente de Kubernetes, alertas de prueba a Teams y reinicio de clientes. Se guarda quién la hizo (UPN y object id del token), con qué rol, sobre qué objeto, con qué resultado y con qué detalle.
 
-- Va siempre al log como una línea JSON (`[audit] {...}`) y, si hay base, a la tabla `audit_log`. La consulta `GET /api/admin/audit` (solo administradores).
+- Va siempre al log como una línea JSON (`[audit] {...}`) y, si hay base, a la tabla `audit_log`. Los administradores la ven en **Administración → Actividad de usuarios** (`GET /api/admin/audit`).
 - La URL de un webhook de Teams es una credencial: solo se audita su host.
 - Un fallo al auditar no bloquea la acción; queda en el log.
 - Los intentos denegados (403) quedan en el log, no en la base, para que nadie pueda despertarla a voluntad con peticiones prohibidas.

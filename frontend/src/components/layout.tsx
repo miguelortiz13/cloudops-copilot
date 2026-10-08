@@ -18,7 +18,7 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
   mobileOpen: boolean;
   onNavigate: () => void;
 }) {
-  const { setDockOpen } = useApp();
+  const { setDockOpen, can } = useApp();
   return (
     <aside className={`sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
       <div className="brand">
@@ -32,7 +32,7 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
         {NAV.map((g) => (
           <div key={g.group}>
             <div className="nav-group-label">{g.group}</div>
-            {g.items.map((it) => (
+            {g.items.filter((it) => !it.role || can(it.role)).map((it) => (
               <a
                 key={it.id}
                 href={`#/${it.id}`}

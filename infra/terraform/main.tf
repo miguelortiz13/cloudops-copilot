@@ -239,6 +239,18 @@ resource "azurerm_container_app" "api" {
         value = azuread_application.api.client_id
       }
       env {
+        name  = "AUTHZ_GROUP_ADMIN"
+        value = azuread_group.role["Admin"].object_id
+      }
+      env {
+        name  = "AUTHZ_GROUP_OPERATOR"
+        value = azuread_group.role["Operator"].object_id
+      }
+      env {
+        name  = "AUTHZ_GROUP_READER"
+        value = azuread_group.role["Reader"].object_id
+      }
+      env {
         name  = "GEMINI_MODEL"
         value = var.gemini_model
       }

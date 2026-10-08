@@ -11,22 +11,38 @@
 # El acceso queda restringido a los usuarios asignados (por defecto, quien
 # ejecuta Terraform): el resto del tenant recibe un error al iniciar sesion.
 #
-# Autorizacion: cada usuario se asigna al API con un app role (Reader,
-# Operator, Admin) que viaja en el claim `roles` del token; el backend lo
-# traduce en app/core/authz.py.
+# Autorizacion: tres grupos de seguridad (Administradores, Operadores,
+# Lectores). El token del API lleva los grupos del usuario (claim `groups`) y
+# el backend los traduce a roles (app/core/authz.py). Los app roles siguen
+# definidos y tambien cuentan, pero la fuente es el grupo.
+#
+# Entra ID Free no permite asignar grupos a una aplicacion (requiere P1/P2):
+# por eso Terraform asigna al API y al panel a cada miembro de los grupos.
+# Agregar a alguien solo desde el portal le da el rol, pero no el acceso:
+# hay que agregarlo en `role_members`.
 
 resource "random_uuid" "scope_access_as_user" {}
 
 locals {
   app_roles = {
-    Reader   = { name = "Lector", description = "Ve inventario, costos, seguridad, IaC y cumplimiento." }
-    Operator = { name = "Operador", description = "Además gestiona hallazgos, sincroniza y usa el agente de Kubernetes." }
-    Admin    = { name = "Administrador", description = "Además ve el estado de la base y la auditoría." }
+    Reader   = { name = "Lector", plural = "Lectores", description = "Ve inventario, costos, seguridad, IaC y cumplimiento." }
+    Operator = { name = "Operador", plural = "Operadores", description = "Además gestiona hallazgos, sincroniza y usa el agente de Kubernetes." }
+    Admin    = { name = "Administrador", plural = "Administradores", description = "Además ve el estado de la base y la auditoría." }
   }
 }
 
 resource "random_uuid" "app_role" {
   for_each = local.app_roles
+}
+
+resource "azuread_group" "role" {
+  for_each         = local.app_roles
+  display_name     = "${var.app_display_name} ${var.environment} - ${each.value.plural}"
+  description      = "${each.value.description} Rol de ${var.app_display_name} (${var.environment}); administrado con Terraform."
+  security_enabled = true
+  owners           = [data.azuread_client_config.current.object_id]
+  # La membresia la define Terraform (role_members), no el portal.
+  members = lookup(local.role_members, each.key, [])
 }
 
 resource "azuread_application" "api" {
@@ -39,6 +55,9 @@ resource "azuread_application" "api" {
   lifecycle {
     ignore_changes = [identifier_uris]
   }
+
+  # Los grupos de seguridad del usuario viajan en el token (claim `groups`).
+  group_membership_claims = ["SecurityGroup"]
 
   dynamic "app_role" {
     for_each = local.app_roles
@@ -82,9 +101,11 @@ resource "azuread_service_principal" "api" {
   owners                       = [data.azuread_client_config.current.object_id]
 }
 
+# Acceso al API para todos los miembros de los grupos. El rol minimo
+# (Reader) solo abre la puerta; el grupo decide el rol efectivo.
 resource "azuread_app_role_assignment" "api_users" {
-  for_each            = local.user_roles
-  app_role_id         = random_uuid.app_role[each.value].result
+  for_each            = toset(local.allowed_users)
+  app_role_id         = random_uuid.app_role["Reader"].result
   principal_object_id = each.key
   resource_object_id  = azuread_service_principal.api.object_id
 
@@ -103,8 +124,8 @@ resource "azuread_application_pre_authorized" "azure_cli" {
 }
 
 locals {
-  user_roles    = length(var.user_roles) > 0 ? var.user_roles : { (data.azuread_client_config.current.object_id) = "Admin" }
-  allowed_users = keys(local.user_roles)
+  role_members  = length(var.role_members) > 0 ? var.role_members : { Admin = [data.azuread_client_config.current.object_id] }
+  allowed_users = distinct(flatten(values(local.role_members)))
 }
 
 resource "azuread_application" "spa" {
