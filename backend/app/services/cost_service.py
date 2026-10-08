@@ -878,6 +878,65 @@ class CostService:
                 return {**stale, "stale": True}
         return payload
 
+    def get_daily_cost_by_resource(
+        self,
+        subscription_ids: List[str],
+        days: int = DEFAULT_WINDOW_DAYS,
+        pace_seconds: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        Gasto real por dia, recurso y servicio: lo que guarda el recolector.
+
+        Sin cache: el recolector corre una vez al dia y necesita el dato fresco.
+        Devuelve `{"status", "rows", "coverage"}`, con una fila por
+        (suscripcion, dia, recurso, servicio). Los cargos sin recurso (soporte,
+        marketplace) llegan con `resource_id` vacio.
+        """
+        subscription_ids = [s for s in (subscription_ids or []) if s]
+        if not subscription_ids:
+            return {"status": "no_subscriptions", "rows": [], "coverage": dict(EMPTY_COVERAGE)}
+        token = self._token()
+        if not token:
+            return {"status": "offline", "rows": [], "coverage": dict(EMPTY_COVERAGE)}
+
+        results, coverage = self._run_per_subscription(
+            subscription_ids,
+            lambda sub_id, tok: self._query_grouped(
+                sub_id,
+                [{"type": "Dimension", "name": "ResourceId"}, {"type": "Dimension", "name": "ServiceName"}],
+                days, tok, granularity="Daily",
+            ),
+            token,
+            pace_seconds,
+        )
+
+        filas: List[Dict[str, Any]] = []
+        for sub_id in coverage["covered"]:
+            result = results[sub_id]
+            columns = result.get("columns", [])
+            cost_idx = self._cost_index(columns)
+            date_idx = self._index_of(columns, "UsageDate")
+            res_idx = self._index_of(columns, "ResourceId")
+            svc_idx = self._index_of(columns, "ServiceName")
+            cur_idx = self._index_of(columns, "Currency")
+            if cost_idx is None or date_idx is None:
+                continue
+            for row in result.get("rows", []):
+                try:
+                    raw_date = str(row[date_idx])
+                    filas.append({
+                        "subscription_id": sub_id,
+                        "date": f"{raw_date[0:4]}-{raw_date[4:6]}-{raw_date[6:8]}",
+                        "resource_id": str(row[res_idx] or "").lower() if res_idx is not None else "",
+                        "service_name": str(row[svc_idx] or "") if svc_idx is not None else "",
+                        "cost": float(row[cost_idx] or 0.0),
+                        "currency": str(row[cur_idx]) if cur_idx is not None and row[cur_idx] else "USD",
+                    })
+                except (IndexError, TypeError, ValueError):
+                    continue
+
+        return {"status": self._coverage_status(coverage), "rows": filas, "coverage": coverage}
+
     def cache_freshness(self, subscription_ids: List[str]) -> Dict[str, Any]:
         """
         Cuanto le queda de vigencia al gasto ya cacheado de este scope.

@@ -62,3 +62,7 @@ output "api_identity_name" {
   description = "Identidad administrada del API; entra a la base como usuario contenido (scripts/db-bootstrap.sh)."
   value       = azurerm_user_assigned_identity.api.name
 }
+
+output "collector_job_name" {
+  value = azurerm_container_app_job.collector.name
+}

@@ -154,3 +154,9 @@ variable "sql_location" {
   default     = "centralus"
 }
 
+
+variable "collector_cron" {
+  description = "Horario del recolector diario (cron, UTC). Por defecto 06:00 UTC: Cost Management ya consolidó el día anterior."
+  type        = string
+  default     = "0 6 * * *"
+}

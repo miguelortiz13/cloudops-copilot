@@ -312,7 +312,9 @@ class InventoryService:
     
     # --- Core Query ---
     
-    def _fetch_all_resources(self, subscription_ids: List[str], force_refresh: bool = False) -> Tuple[List[Dict[str, Any]], List[str]]:
+    def _fetch_all_resources(
+        self, subscription_ids: List[str], force_refresh: bool = False, strict: bool = False
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
         """Fetches all resources from ARG for the given subscriptions.
         Returns (normalized_resources, warnings).
         """
@@ -354,9 +356,14 @@ class InventoryService:
         )
         
         try:
-            raw_results = self.azure.query_azure_resource_graph(
-                kql, bypass_cache=force_refresh, subscriptions=subscription_ids
-            )
+            if strict:
+                raw_results = self.azure.query_azure_resource_graph(
+                    kql, bypass_cache=force_refresh, subscriptions=subscription_ids, raise_errors=True
+                )
+            else:
+                raw_results = self.azure.query_azure_resource_graph(
+                    kql, bypass_cache=force_refresh, subscriptions=subscription_ids
+                )
         except Exception as e:
             error_msg = str(e)
             logger.error(f"ARG query error: {error_msg}")

@@ -34,8 +34,10 @@ out() { terraform -chdir="$TF_DIR" output -raw "$1"; }
 API_URL=$(out api_url)
 FRONTEND_URL=$(out frontend_url)
 
-step "[2/4] Imagen del API: $API_IMAGE"
+step "[2/4] Imagen del API y del recolector: $API_IMAGE"
 az containerapp update --name "$(out api_container_app_name)" \
+  --resource-group "$(out resource_group_name)" --image "$API_IMAGE" --output none
+az containerapp job update --name "$(out collector_job_name)" \
   --resource-group "$(out resource_group_name)" --image "$API_IMAGE" --output none
 
 step "[3/4] Compilando el panel"

@@ -1,6 +1,6 @@
 # 0007 · Almacén de datos y recolectores programados
 
-**Estado:** aceptada. Base creada y esquema inicial aplicado; recolectores pendientes (fase 1 del [plan de evolución](../plan/README.md)).
+**Estado:** aceptada e implementada: base, esquema y recolector diario (fase 1 del [plan de evolución](../plan/README.md)).
 
 ## Contexto
 
@@ -30,3 +30,4 @@ La base serverless consume mientras está despierta. Un recolector horario la ma
 - **Oferta gratuita**: `azurerm` no expone `useFreeLimit` ni `freeLimitExhaustionBehavior`, así que la base se declara con `azapi`. Con `AutoPause` la oferta solo admite el retardo de pausa por defecto, 60 minutos.
 - **Región**: centralus. eastus2 y eastus rechazan servidores SQL nuevos en suscripciones de pago por uso.
 - **Pruebas**: el mismo esquema corre en SQLite; `alembic check` en las pruebas detecta un modelo cambiado sin migración.
+- **Recolectores** (`app/collectors/`): inventario, costos, hallazgos y KPIs reutilizan los servicios del panel. Usan el modo estricto de `AzureClient` (`raise_errors=True`): una consulta fallida aborta o deja el resultado como parcial, y nunca se interpreta como "sin resultados". Si no, un corte de Resource Graph marcaría como resueltos hallazgos que siguen abiertos.

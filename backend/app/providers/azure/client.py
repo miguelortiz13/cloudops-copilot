@@ -84,9 +84,25 @@ class AzureClient:
             self.azure_connected = False
             self.rg_client = None
 
-    def query_azure_resource_graph(self, query: str, bypass_cache: bool = False, subscriptions: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-        """Queries Azure Resource Graph in real-time using KQL, using cache if appropriate."""
+    def query_azure_resource_graph(
+        self,
+        query: str,
+        bypass_cache: bool = False,
+        subscriptions: Optional[List[str]] = None,
+        raise_errors: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Consulta Resource Graph con KQL, usando la cache si corresponde.
+
+        Por defecto un error devuelve `[]`: el panel prefiere una tabla vacia a
+        una pagina rota. Los recolectores pasan `raise_errors=True`, porque para
+        ellos "fallo" y "no hay resultados" significan cosas opuestas: un
+        hallazgo que no aparece se marca resuelto, y eso solo es cierto si la
+        consulta respondio.
+        """
         if not self.azure_connected or not self.rg_client:
+            if raise_errors:
+                raise RuntimeError("Sin conexion autenticada con Azure.")
             return []
             
         now = time.time()
@@ -129,6 +145,8 @@ class AzureClient:
                 self._cache[cache_key] = (now, all_results)
             return all_results
         except Exception as e:
+            if raise_errors:
+                raise
             print(f"Error querying Resource Graph: {e}")
             return []
 
