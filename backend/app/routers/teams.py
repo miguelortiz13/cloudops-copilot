@@ -7,7 +7,9 @@ from app.schemas.requests import *
 from app.core import config
 from urllib.parse import urlparse
 
+from app import llm
 from app.core.audit import auditar
+from app.llm import limits
 from app.core.authz import Usuario, requiere
 from app.core.deps import AgentDep, SecOpsDep
 from app.services.bot_auth import BOT_AUTH_ENABLED, BotAuthError, validate_bot_token
@@ -202,8 +204,15 @@ def teams_webhook(
         # Remove mention formatting if present
         clean_text = re.sub(r'<at>.*?</at>', '', text).strip()
         
-        # Process query
-        response = agent.ask(clean_text)
+        # Mismo limite por usuario que el panel; la identidad es la de Teams.
+        remitente = activity.get("from") or {}
+        quien = f"teams:{remitente.get('aadObjectId') or remitente.get('id') or 'desconocido'}"
+        try:
+            if llm.disponible():
+                limits.consumir(quien)
+            response = agent.ask(clean_text, usuario=quien)
+        except limits.LimiteExcedido as exc:
+            response = {"answer": f"{exc} Vuelve a intentarlo más tarde."}
         
         # Send reply in the background to avoid locking Teams SCM client
         background_tasks.add_task(send_reply_to_teams, activity, response["answer"])

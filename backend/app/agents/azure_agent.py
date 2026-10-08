@@ -1,24 +1,14 @@
-import os
 import re
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional
-import google.generativeai as genai
-
+from app import llm
 from app.core import config
 from app.providers.azure import AzureClient
 from app.services import cost_service, governance, kql, pricing
 
 # El .env lo carga app.core.config (respeta CLOUDOPS_SKIP_DOTENV).
-
-# Setup Gemini API if available
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    HAS_GEMINI = True
-else:
-    HAS_GEMINI = False
 
 # Instruccion que se añade a los tres agentes. El contexto viaja acotado (ver
 # `_acotar_contexto`), asi que el modelo tiene que saber distinguir una lista
@@ -953,9 +943,10 @@ class AzureInventoryAgent:
             resultados["consultas_incompletas"] = incompletas
         return resultados
 
-    def ask(self, question: str, agent_type: str = "inventory", subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Processes the natural language query using Gemini (RAG) or Fallback search."""
-        if not HAS_GEMINI:
+    def ask(self, question: str, agent_type: str = "inventory", subscriptions: Optional[List[str]] = None,
+            usuario: Optional[str] = None) -> Dict[str, Any]:
+        """Responde con el modelo de lenguaje y el contexto real; sin modelo, con el motor de reglas."""
+        if not llm.disponible():
             return self._responder_con_reglas(question, agent_type, subscriptions)
             
         try:
@@ -1327,23 +1318,16 @@ class AzureInventoryAgent:
                 f"INSTRUCCIÓN ADICIONAL: Si la pregunta del usuario hace referencia a un recurso específico (ej. VM-TestMediMigration) que no figura en la lista de recursos reales del contexto, menciónale de forma clara que el recurso no está registrado en el inventario de las suscripciones seleccionadas, pero a continuación ofrécele el diagnóstico detallado, causas comunes y comandos Azure CLI de remediación correspondientes a su tipo (ej. microsoft.compute/virtualmachines en estado Failed) de manera teórica."
             )
 
-            model = genai.GenerativeModel(
-                model_name=config.GEMINI_MODEL,
-                system_instruction=system_prompt
-            )
-            response = model.generate_content(
-                contents=[prompt],
-                generation_config=genai.types.GenerationConfig(temperature=0.2)
-            )
+            respuesta = llm.generar(f"chat.{agent_type}", system_prompt, prompt, temperatura=0.2, usuario=usuario)
 
             return {
-                "answer": response.text,
-                "mode": f"gemini_azure_live_{agent_type}",
+                "answer": respuesta.texto,
+                "mode": f"llm_{llm.proveedor().nombre}_{agent_type}",
                 "data": relevant_resources
             }
 
         except Exception as e:
-            print(f"Error calling Gemini API: {e}. Falling back to rule-based.")
+            print(f"El modelo no respondió ({e}); se responde con el motor de reglas.")
             return self._responder_con_reglas(question, agent_type, subscriptions)
 
     # get_finops_insights() se elimino al migrar el reporte a FinOpsService.

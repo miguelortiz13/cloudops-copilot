@@ -68,7 +68,7 @@ function Generator({ resource, onClose }: { resource: InventoryResource; onClose
       footer={
         <>
           <span className="muted" style={{ marginRight: 'auto', fontSize: 12.5 }}>
-            {result && <>Generado con {result.generation_mode.includes('gemini') ? 'Gemini' : 'plantillas locales'} · carpeta sugerida <code>{folder}</code></>}
+            {result && <>Generado con {result.generation_mode.startsWith('llm_') ? 'IA' : 'plantillas locales'} · carpeta sugerida <code>{folder}</code></>}
           </span>
           <button className="btn" onClick={onClose}>Cerrar</button>
         </>

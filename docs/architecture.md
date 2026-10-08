@@ -54,6 +54,7 @@ app/routers/*          ← traducen HTTP ↔ servicios; sin lógica de dominio
 app/providers/azure/*  ← acceso a Azure: credenciales y Resource Graph (ADR 0006)
 app/services/*         ← lógica de dominio
 app/agents/*           ← agente conversacional y generador de IaC
+app/llm/*              ← interfaz de modelos de lenguaje (Gemini con google-genai) y límite por usuario
 app/schemas/*          ← contratos Pydantic
 ```
 
@@ -145,7 +146,7 @@ Cost Management limita la tasa con dureza (`429`). La precarga va en segundo pla
 1. El router identifica el agente (`inventory`, `finops`, `secops`).
 2. El agente arma el contexto con consultas paralelas bajo un **presupuesto de tiempo único** (25 s); lo que no llega se declara en `consultas_incompletas`.
 3. Las listas viajan **acotadas** (`{muestra, total, truncado}`) para que el modelo diga "hay 212, te muestro 15".
-4. Si Gemini no está disponible o falla, responde el **motor de reglas** con los mismos datos.
+4. Si no hay modelo configurado o falla (`app/llm`), responde el **motor de reglas** con los mismos datos.
 
 ## Persistencia
 

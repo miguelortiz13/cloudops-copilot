@@ -56,7 +56,7 @@ gantt
 | Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management | Hecho con la API de consultas (un año de historia); el export FOCUS queda para costo amortizado |
 | Clasificación ISO en la base (sin Excel) | Cumplimiento | | |
 | Roles (lector, operador, administrador) y auditoría | Seguridad | App roles de Entra ID | Hecho, con grupos de seguridad por rol |
-| Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario | |
+| Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario | Hecho |
 | Administración: cuentas conectadas y estado de recolectores | Administración | Primera versión | En curso: actividad de usuarios y estado de base y recolectores; faltan las cuentas conectadas |
 | Pruebas de frontend (Vitest) y E2E con Playwright | Calidad | Capturas anonimizadas como regresión visual | |
 
