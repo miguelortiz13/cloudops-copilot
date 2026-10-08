@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional
 from app import llm
 from app.core import config
+from app.core.texto import normalizar
 from app.providers.azure import AzureClient
 from app.services import cost_service, governance, kql, pricing
 
@@ -547,10 +548,11 @@ class AzureInventoryAgent:
                 "data": []
             }
             
-        question_lower = question.lower()
+        # Sin tildes ni mayusculas: "cuántos" y "cuantos" son la misma pregunta.
+        question_lower = normalizar(question)
         
         # Rule: Questions about savings, technical debt lifecycle, and exceptions - disabled
-        if any(w in question_lower for w in ["deuda", "deuda técnica", "excepción", "excepciones", "remediado", "aprobado"]):
+        if any(normalizar(w) in question_lower for w in ["deuda", "deuda técnica", "excepción", "excepciones", "remediado", "aprobado"]):
             return {
                 "answer": "El módulo de Gestión de Recomendaciones y Deuda Operacional se encuentra inhabilitado en esta plataforma por decisión administrativa. Si deseas realizar optimizaciones, por favor consulta al equipo SRE.",
                 "mode": "azure_live_rule_fallback",
@@ -560,7 +562,7 @@ class AzureInventoryAgent:
         # 1. Ask about a specific resource name
         # El conector opcional (de/del/of) evita capturarlo como nombre del recurso:
         # "¿quién es el dueño de kv-x?" debe buscar `kv-x`, no `de`.
-        resource_match = re.search(r'(?:dueño|owner|detalles|dónde está|donde esta|recurso)(?:\s+(?:de|del|of))?\s+([a-zA-Z0-9\-_.]+)', question_lower)
+        resource_match = re.search(r'(?:dueno|owner|detalles|donde esta|recurso)(?:\s+(?:de|del|of))?\s+([a-zA-Z0-9\-_.]+)', question_lower)
         if resource_match:
             resource_name = resource_match.group(1)
             kql = f"resources | where name =~ '{resource_name}' | project name, type, resourceGroup, subscriptionId, location, tags"
@@ -588,7 +590,7 @@ class AzureInventoryAgent:
                 return {"answer": md_resp, "mode": "azure_live", "data": raw}
             else:
                 # Si el usuario pregunta por diagnóstico, fallos o remediación de red de un recurso que no existe
-                if any(w in question_lower for w in ["diagnosticar", "remediar", "failed", "fallado", "puerto", "nsg", "seguridad", "causas"]):
+                if any(normalizar(w) in question_lower for w in ["diagnosticar", "remediar", "failed", "fallado", "puerto", "nsg", "seguridad", "causas"]):
                     # Responder teóricamente según el tipo o contexto
                     if "nsg" in question_lower or "puerto" in question_lower:
                         md_resp = (
@@ -638,7 +640,7 @@ class AzureInventoryAgent:
                 }
 
         # 2. Tag Gaps / Policy violations
-        if any(w in question_lower for w in ["tags", "políticas", "politica", "compliance", "gaps", "incumplen", "cumplen", "sin tag"]):
+        if any(normalizar(w) in question_lower for w in ["tags", "políticas", "politica", "compliance", "gaps", "incumplen", "cumplen", "sin tag"]):
             kql_gaps = (
                 "resources "
                 + governance.kql_extends_tags_presentes(config.MANDATORY_TAGS)
@@ -674,7 +676,7 @@ class AzureInventoryAgent:
             return {"answer": md_resp, "mode": "azure_live", "data": raw_gaps}
 
         # 3. Terraform Adoption / Shadow IT
-        if any(w in question_lower for w in ["terraform", "importar", "por fuera", "portal", "manual", "shadow"]):
+        if any(normalizar(w) in question_lower for w in ["terraform", "importar", "por fuera", "portal", "manual", "shadow"]):
             # Mismo criterio que el panel: sin evidencia de IaC y sin ser un
             # recurso derivado de otro. La version anterior negaba dos claves
             # con `!=`, que en KQL ni siquiera es lo contrario de la condicion
@@ -708,7 +710,7 @@ class AzureInventoryAgent:
             return {"answer": md_resp, "mode": "azure_live", "data": raw_manual}
 
         # 4. Summary / Resumen
-        if any(w in question_lower for w in ["resumen", "estadisticas", "inventario", "cuantos recursos", "total"]):
+        if any(normalizar(w) in question_lower for w in ["resumen", "estadisticas", "inventario", "cuantos recursos", "total"]):
             stats = self.get_summary_stats()
             md_resp = (
                 f"### 📊 Resumen Ejecutivo del Inventario de Azure (Live)\n\n"

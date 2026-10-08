@@ -25,6 +25,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
 ### Corregido
+- El motor de reglas del chat no entendía preguntas con tildes ("¿Cuántos recursos tengo?" respondía "No logré interpretar tu pregunta"). Ahora pregunta y palabras clave se comparan sin tildes ni mayúsculas.
 - Algunas pruebas unitarias se conectaban a Azure con la sesión de `az login` de la máquina (al resolver los servicios reales antes de un 403). Ahora el cliente de Azure nunca se conecta en las pruebas unitarias.
 - El agente de Kubernetes sin clave de Gemini respondía "Error IA: GEMINI_API_KEY missing". Ahora muestra el estado del clúster.
 - La auditoría no guardaba en la base las acciones con fechas en el detalle (aceptar un riesgo con vencimiento): la columna JSON no serializa `date`. La acción se hacía y quedaba en el log, pero no en `audit_log`.

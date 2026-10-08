@@ -269,3 +269,21 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def test_las_tildes_no_cambian_la_pregunta():
+    """"¿Cuántos recursos tengo?" respondia "No logré interpretar tu pregunta"."""
+    from app.core.texto import normalizar
+
+    assert normalizar("¿Cuántos RECURSOS tiene el dueño?") == "¿cuantos recursos tiene el dueno?"
+    # Conectado (con Resource Graph simulado): desconectado, cualquier pregunta
+    # recibe el mismo aviso de conexion y la prueba no probaria nada.
+    azure = AzureClient(connect=False)
+    azure.azure_connected = True
+    azure.query_azure_resource_graph = lambda *a, **k: []
+    agente = AzureInventoryAgent(azure)
+    con = agente.ask_rule_based("¿Cuántos recursos tengo?")
+    sin = agente.ask_rule_based("cuantos recursos tengo")
+    assert con["answer"] == sin["answer"]
+    assert "Resumen Ejecutivo del Inventario" in con["answer"]
+    assert "No logré interpretar" in agente.ask_rule_based("¿qué tal el clima?")["answer"]
