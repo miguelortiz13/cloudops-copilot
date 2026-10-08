@@ -61,7 +61,7 @@ El acceso a datos se escribe con SQLAlchemy y migraciones de Alembic, sin SQL pr
 
 ### Presupuesto de cómputo de la base de datos
 
-La oferta gratuita incluye 100.000 vCore-segundos al mes. La base serverless consume mientras está activa y se pausa tras un periodo sin conexiones (del orden de una hora; el valor exacto se fija en la prueba de concepto). Con un mínimo de 0,5 vCore:
+La oferta gratuita incluye 100.000 vCore-segundos al mes. La base serverless consume mientras está activa y se pausa tras 60 minutos sin conexiones (con pausa automática al agotar el cupo, la oferta no admite otro valor). Con un mínimo de 0,5 vCore:
 
 | Patrón de uso | vCore-segundos/mes | ¿Cabe en el cupo? |
 |---|---|---|

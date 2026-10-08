@@ -14,7 +14,11 @@ La plataforma se despliega con un diseño de **costo cercano a cero**: el API es
 | Identidad de despliegue | `id-cloudops-dev-deploy` | Contributor solo sobre el grupo de recursos; credencial federada para GitHub Actions | $0 |
 | Storage Account + File Share | `stcloudopsdevdata` / `cloudops-data` (1 GB) | Montado en `/data` (`DATA_DIR`) | centavos |
 | Static Web App (panel) | `stapp-cloudops-dev` | SKU Free | $0 |
+| Servidor Azure SQL | `sql-cloudops-dev-<sufijo>` | **centralus** (ver nota). Solo Entra ID; TLS 1.2 | $0 |
+| Base de datos | `sqldb-cloudops-dev` | Serverless 0,5-1 vCore, 32 GB, **oferta gratuita** con pausa automática al agotar el cupo | $0 |
 | App registrations (Entra ID) | `CloudOps Copilot API (dev)` y `CloudOps Copilot (dev)` | Acceso solo para usuarios asignados | $0 |
+
+**Base de datos.** La oferta gratuita incluye 100.000 vCore-segundos y 32 GB al mes. Al agotarse, la base se pausa hasta el mes siguiente en lugar de facturar el excedente (`freeLimitExhaustionBehavior = AutoPause`), así que el costo no puede pasar de USD 0; la plataforma sigue respondiendo en vivo. Se pausa sola tras 60 minutos sin conexiones (la oferta no admite otro valor) y la primera conexión posterior tarda hasta un minuto. Sin la oferta, el mismo uso costaría USD 0,52 por vCore-hora más USD 0,115 por GB-mes. Está en **centralus** porque Azure restringe la creación de servidores SQL en eastus2 y eastus para suscripciones de pago por uso (`ProvisioningDisabled`); la región se cambia con `sql_location`.
 
 Fuera del grupo:
 
@@ -31,6 +35,7 @@ flowchart LR
     ID -->|Reader| SUBS[(Suscripciones observadas)]
     ID -->|Storage Blob Data Reader| TFS[(Cuentas de estados)]
     GHCR[(GHCR público)] -->|imagen| CA
+    ID -->|usuario de Entra ID| SQL[(sqldb-cloudops-dev<br/>Azure SQL gratuita)]
 ```
 
 ## Por qué Container Apps
@@ -125,7 +130,19 @@ API_IMAGE=ghcr.io/miguelortiz13/cloudops-copilot-api:<commit> make deploy   # un
 
 `scripts/deploy.sh` aplica Terraform, actualiza la imagen (por defecto, la última de `main`), compila y publica el panel y espera a que el API responda. Terraform ignora la imagen de la Container App después de crearla, para no deshacer lo que despliega el CD.
 
-### 4. Verificar
+### 4. Base de datos
+
+Después del primer `terraform apply`, y cada vez que haya migraciones nuevas:
+
+```bash
+./scripts/db-bootstrap.sh
+```
+
+Abre el firewall solo para tu IP, aplica las migraciones de Alembic, da acceso a la identidad del API (`CREATE USER ... FROM EXTERNAL PROVIDER` con lectura, escritura y DDL) y vuelve a cerrar el firewall aunque algo falle. Lo ejecuta el administrador de Entra ID del servidor, que es quien aplicó Terraform. No hay usuarios ni contraseñas de SQL.
+
+El estado se consulta con `GET /api/admin/database` (versión del esquema, filas por tabla y últimas ejecuciones de los recolectores). Despierta la base, así que no forma parte del health check.
+
+### 5. Verificar
 
 ```bash
 ./scripts/smoke-test.sh

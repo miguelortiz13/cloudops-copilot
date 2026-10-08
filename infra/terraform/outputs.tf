@@ -48,3 +48,17 @@ output "deploy_client_id" {
   description = "Client id de la identidad de despliegue (secreto AZURE_CLIENT_ID del ambiente de GitHub)."
   value       = azurerm_user_assigned_identity.deploy.client_id
 }
+
+output "sql_server_fqdn" {
+  description = "Servidor de Azure SQL (autenticación solo con Entra ID)."
+  value       = azurerm_mssql_server.sql.fully_qualified_domain_name
+}
+
+output "sql_database_name" {
+  value = azapi_resource.db.name
+}
+
+output "api_identity_name" {
+  description = "Identidad administrada del API; entra a la base como usuario contenido (scripts/db-bootstrap.sh)."
+  value       = azurerm_user_assigned_identity.api.name
+}

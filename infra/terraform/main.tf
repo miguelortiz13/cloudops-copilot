@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/azuread"
       version = "~> 3.10"
     }
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.13"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -30,6 +34,10 @@ provider "azurerm" {
 }
 
 provider "azuread" {}
+
+provider "azapi" {
+  subscription_id = var.subscription_id
+}
 
 data "azurerm_client_config" "current" {}
 data "azuread_client_config" "current" {}
@@ -244,6 +252,14 @@ resource "azurerm_container_app" "api" {
       }
       # La precarga de costos corre mientras haya una replica viva; con escala
       # a cero se apoya en la cache persistida en /data.
+      env {
+        name  = "DB_SERVER"
+        value = azurerm_mssql_server.sql.fully_qualified_domain_name
+      }
+      env {
+        name  = "DB_NAME"
+        value = azapi_resource.db.name
+      }
       env {
         name  = "COST_WARM_INITIAL_DELAY_SECONDS"
         value = "5"

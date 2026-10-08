@@ -1,6 +1,6 @@
 # 0007 · Almacén de datos y recolectores programados
 
-**Estado:** propuesta (fase 1 del [plan de evolución](../plan/README.md))
+**Estado:** aceptada. Base creada y esquema inicial aplicado; recolectores pendientes (fase 1 del [plan de evolución](../plan/README.md)).
 
 ## Contexto
 
@@ -23,3 +23,10 @@ La base serverless consume mientras está despierta. Un recolector horario la ma
 - Los datos de la base tienen hasta un día de antigüedad, y el panel debe mostrarlo.
 - El Excel deja de ser la fuente de las revisiones manuales y de ISO.
 - Aparece un componente con estado que necesita backups, migraciones y monitoreo.
+
+## Notas de implementación
+
+- **Driver**: `mssql-python` (el driver oficial de Microsoft, con el ODBC incluido) y el dialecto `mssql+mssqlpython` de SQLAlchemy 2.1. Autenticación `ActiveDirectoryMSI` con la identidad del API y `ActiveDirectoryDefault` (sesión de `az login`) en desarrollo.
+- **Oferta gratuita**: `azurerm` no expone `useFreeLimit` ni `freeLimitExhaustionBehavior`, así que la base se declara con `azapi`. Con `AutoPause` la oferta solo admite el retardo de pausa por defecto, 60 minutos.
+- **Región**: centralus. eastus2 y eastus rechazan servidores SQL nuevos en suscripciones de pago por uso.
+- **Pruebas**: el mismo esquema corre en SQLite; `alembic check` en las pruebas detecta un modelo cambiado sin migración.

@@ -106,6 +106,21 @@ IAC_STATE_KEY_PREFIX = os.getenv("IAC_STATE_KEY_PREFIX", "platform/azure").strip
 DEFAULT_LOCATION = os.getenv("DEFAULT_LOCATION", "eastus2")
 
 # ---------------------------------------------------------------------------
+# Base de datos (ADR 0007)
+# ---------------------------------------------------------------------------
+# DATABASE_URL tiene prioridad (por ejemplo `sqlite:///data/cloudops.db` en
+# desarrollo). Sin ella se arma la conexion a Azure SQL con DB_SERVER y
+# DB_NAME, autenticando con Entra ID: identidad administrada en Azure y la
+# sesion de `az login` en desarrollo. Sin ninguna, la base queda desactivada y
+# la plataforma responde como antes, en vivo.
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DB_SERVER = os.getenv("DB_SERVER", "").strip()
+DB_NAME = os.getenv("DB_NAME", "").strip()
+# Una base serverless pausada tarda hasta un minuto en reanudarse.
+DB_RESUME_TIMEOUT_SECONDS = int(os.getenv("DB_RESUME_TIMEOUT_SECONDS", "90"))
+AZURE_MANAGED_IDENTITY_CLIENT_ID = os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID", "").strip()
+
+# ---------------------------------------------------------------------------
 # Motor cognitivo
 # ---------------------------------------------------------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
