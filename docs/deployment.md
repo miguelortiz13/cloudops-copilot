@@ -147,7 +147,7 @@ El estado se consulta con `GET /api/admin/database` (versión del esquema, filas
 
 ### Recolector diario
 
-`caj-cloudops-dev-collector` ejecuta `python -m app.collectors.run`: migraciones, inventario, costos (30 días la primera vez, después una ventana móvil de 7), hallazgos con su ciclo de vida y KPIs. Cada recolector deja su ejecución en `collector_runs` y el job termina en error si alguno falla.
+`caj-cloudops-dev-collector` ejecuta `python -m app.collectors.run`: migraciones, inventario, costos (un año la primera vez, después una ventana móvil de 7 días), hallazgos con su ciclo de vida, KPIs y, al final, las vistas precalculadas del panel en el File Share (`/data/readmodel`), para que leerlas no despierte la base. Cada recolector deja su ejecución en `collector_runs` y el job termina en error si alguno falla.
 
 ```bash
 # Ejecutarlo ahora (despierta la base: consume cupo durante la hora siguiente)

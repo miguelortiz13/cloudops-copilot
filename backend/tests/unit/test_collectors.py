@@ -224,7 +224,7 @@ def test_costos_reemplazan_la_ventana_y_luego_usan_siete_dias():
     cost.filas = [fila_costo("2026-10-06", 1.0), fila_costo("2026-10-07", 3.0), fila_costo("2026-10-07", 0.5, "", "")]
     run.ejecutar("costs", costs.recolectar, contexto(DIA + timedelta(days=1), cost=cost))
 
-    assert cost.dias_pedidos == [30, 7]
+    assert cost.dias_pedidos == [costs.DIAS_INICIALES, costs.DIAS_MOVILES]
     with db.session_scope() as s:
         assert s.scalar(select(func.count()).select_from(CostDaily)) == 3
         assert float(s.scalar(select(func.sum(CostDaily.billed_cost)))) == pytest.approx(4.5)

@@ -41,11 +41,13 @@ function columnPath(x: number, y: number, w: number, h: number): string {
  * día), así que no lleva cuadro de leyenda: la distinción de periodos se nombra
  * en la leyenda mínima de abajo.
  */
-export function DailyCostChart({ data, currency, highlightLast = 30, height = 220 }: {
+export function DailyCostChart({ data, currency, highlightLast = 30, height = 220, currentLabel }: {
   data: { date: string; cost: number }[];
   currency: string;
   highlightLast?: number;
   height?: number;
+  /** Nombre del tramo resaltado en la leyenda; por defecto "Últimos N días". */
+  currentLabel?: string;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -143,16 +145,118 @@ export function DailyCostChart({ data, currency, highlightLast = 30, height = 22
           </div>
         </div>
       )}
-      <div className="legend" style={{ marginTop: 8 }}>
-        <span className="legend-item">
-          <span className="legend-swatch" style={{ background: 'var(--series-1)' }} />
-          Últimos {highlightLast} días
-        </span>
-        <span className="legend-item">
-          <span className="legend-swatch" style={{ background: 'var(--series-muted)' }} />
-          {highlightLast} días anteriores
-        </span>
-      </div>
+      {/* Con un solo tramo es una sola serie: el título de la tarjeta la nombra. */}
+      {cutoff > 0 && (
+        <div className="legend" style={{ marginTop: 8 }}>
+          <span className="legend-item">
+            <span className="legend-swatch" style={{ background: 'var(--series-1)' }} />
+            {currentLabel ?? `Últimos ${highlightLast} días`}
+          </span>
+          <span className="legend-item">
+            <span className="legend-swatch" style={{ background: 'var(--series-muted)' }} />
+            Periodo anterior
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function monthLabel(ym: string, long = false): string {
+  const [y, m] = ym.split('-').map(Number);
+  if (long) return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('es-CO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return `${MESES[m - 1]}${m === 1 ? ` ${String(y).slice(2)}` : ''}`;
+}
+
+/**
+ * Gasto por mes en columnas: la comparación mes a mes.
+ *
+ * Una sola serie. El mes en curso todavía no cierra, así que va en gris con su
+ * nombre en la leyenda: compararlo de frente con un mes completo engaña.
+ */
+export function MonthlyCostChart({ data, currency, partialLast = true, height = 200 }: {
+  data: { month: string; cost: number }[];
+  currency: string;
+  partialLast?: boolean;
+  height?: number;
+}) {
+  const [ref, width] = useWidth<HTMLDivElement>();
+  const [hover, setHover] = useState<number | null>(null);
+  const margin = { top: 12, right: 8, bottom: 26, left: 56 };
+  const plotW = Math.max(0, width - margin.left - margin.right);
+  const plotH = height - margin.top - margin.bottom;
+  const ticks = niceTicks(Math.max(0, ...data.map((d) => d.cost)));
+  const top = ticks[ticks.length - 1] || 1;
+  const slot = data.length ? plotW / data.length : 0;
+  const barW = Math.max(4, Math.min(40, slot * 0.6));
+  const isPartial = (i: number) => partialLast && i === data.length - 1;
+  const h = hover !== null ? data[hover] : null;
+  const prev = hover !== null && hover > 0 ? data[hover - 1] : null;
+  const change = h && prev && prev.cost > 0 ? ((h.cost - prev.cost) / prev.cost) * 100 : null;
+
+  return (
+    <div className="chart" ref={ref} onMouseLeave={() => setHover(null)}>
+      {width > 0 && (
+        <svg width={width} height={height} role="img" aria-label="Gasto por mes">
+          <g className="chart-grid">
+            {ticks.map((t) => {
+              const y = margin.top + plotH - (t / top) * plotH;
+              return <line key={t} x1={margin.left} x2={width - margin.right} y1={y} y2={y} />;
+            })}
+          </g>
+          <g className="chart-axis">
+            {ticks.map((t) => (
+              <text key={t} x={margin.left - 8} y={margin.top + plotH - (t / top) * plotH + 4} textAnchor="end">
+                {moneyAxis(t, currency)}
+              </text>
+            ))}
+            {data.map((d, i) => (
+              <text key={d.month} x={margin.left + i * slot + slot / 2} y={height - 6} textAnchor="middle">
+                {monthLabel(d.month)}
+              </text>
+            ))}
+          </g>
+          {data.map((d, i) => {
+            const bh = (d.cost / top) * plotH;
+            const x = margin.left + i * slot + (slot - barW) / 2;
+            return (
+              <g key={d.month}>
+                <path
+                  d={columnPath(x, margin.top + plotH - bh, barW, bh)}
+                  fill={isPartial(i) ? 'var(--series-muted)' : 'var(--series-1)'}
+                  opacity={hover === null || hover === i ? 1 : 0.55}
+                />
+                <rect x={margin.left + i * slot} y={margin.top} width={slot} height={plotH} fill="transparent"
+                  onMouseEnter={() => setHover(i)} tabIndex={-1} />
+              </g>
+            );
+          })}
+          <line className="chart-baseline" x1={margin.left} x2={width - margin.right} y1={margin.top + plotH} y2={margin.top + plotH} />
+        </svg>
+      )}
+      {h && hover !== null && (
+        <div className="chart-tooltip" style={{
+          left: Math.min(Math.max(margin.left + hover * slot + slot / 2, 90), width - 90),
+          top: margin.top + plotH - (h.cost / top) * plotH,
+        }}>
+          <div className="tt-value">{money(h.cost, currency)}</div>
+          <div className="tt-row">
+            <span className="tt-key" style={{ background: isPartial(hover) ? 'var(--series-muted)' : 'var(--series-1)' }} />
+            {monthLabel(h.month, true)}{isPartial(hover) ? ' (en curso)' : ''}
+          </div>
+          {change !== null && !isPartial(hover) && (
+            <div className="tt-row muted">{change >= 0 ? '+' : ''}{change.toLocaleString('es-CO', { maximumFractionDigits: 1 })} % vs. mes anterior</div>
+          )}
+        </div>
+      )}
+      {partialLast && data.length > 1 && (
+        <div className="legend" style={{ marginTop: 8 }}>
+          <span className="legend-item"><span className="legend-swatch" style={{ background: 'var(--series-1)' }} />Meses cerrados</span>
+          <span className="legend-item"><span className="legend-swatch" style={{ background: 'var(--series-muted)' }} />Mes en curso (parcial)</span>
+        </div>
+      )}
     </div>
   );
 }

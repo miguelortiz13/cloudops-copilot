@@ -51,9 +51,9 @@ gantt
 | Capa de proveedores con `AzureProvider` | Plataforma | Extraer de `services/` y `agents/azure_agent.py`; pruebas de contrato con fixtures | En curso: `AzureClient` extraído |
 | Job diario de recolección | Plataforma | inventory, costs, findings, iac_states, activity, kpis | Hecho: inventario (con estado IaC y creador como campos del recurso), costos, hallazgos y KPIs |
 | Inyección de dependencias con `Depends` | API | Reemplaza `get_services()[n]` | Hecho |
-| Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento | Automático hecho; falta la gestión manual (asumir, aceptar) |
+| Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento | Hecho: automático en el recolector y gestión en el panel (asumir, aceptar con vencimiento y justificación, reabrir) |
 | Catálogo de reglas con mapeo CIS / ISO | Seguridad / Cumplimiento | Las 7 reglas actuales, migradas | Iniciado: 7 reglas con id estable; falta el mapeo CIS/ISO |
-| Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management | |
+| Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management | Hecho con la API de consultas (un año de historia); el export FOCUS queda para costo amortizado |
 | Clasificación ISO en la base (sin Excel) | Cumplimiento | | |
 | Roles (lector, operador, administrador) y auditoría | Seguridad | App roles de Entra ID | |
 | Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario | |

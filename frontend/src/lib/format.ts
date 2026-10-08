@@ -70,3 +70,8 @@ export function dateRange(fromIso: string, toIso: string): string {
   const right = b.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
   return `${left} – ${right}`;
 }
+
+/** Fecha corta con año: "8 oct 2026". */
+export function day(iso: string): string {
+  return new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
+}

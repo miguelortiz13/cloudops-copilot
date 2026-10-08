@@ -3,7 +3,7 @@ Recolector de costos: gasto diario por recurso y servicio (FOCUS, ADR 0008).
 
 Cost Management consolida el gasto de los ultimos dias durante unas 72 horas,
 asi que cada ejecucion reemplaza una ventana movil en lugar de agregar solo el
-dia anterior. La primera ejecucion trae 30 dias.
+dia anterior. La primera ejecucion trae un año.
 
 Columnas FOCUS: `billed_cost` es el costo real facturado (ActualCost). Sin
 reservas ni planes de ahorro coincide con `effective_cost`; cuando existan, el
@@ -19,17 +19,21 @@ from sqlalchemy.orm import Session
 from app.collectors.common import Contexto, Resultado, account_uid, resource_uid
 from app.db.models import CollectorRun, CostDaily
 
-DIAS_INICIALES = 30
+# Carga inicial: un año, para que la comparacion mes a mes funcione desde el
+# primer dia. Es el maximo de una consulta de Cost Management, contando el dia
+# final (365 dias falla con "cannot exceed 1 year").
+DIAS_INICIALES = 364
 DIAS_MOVILES = 7
 FUENTE = "query"
 
 
 def recolectar(ctx: Contexto, session: Session) -> Resultado:
-    # Ventana movil si ya hubo una recoleccion de costos que respondio; las
-    # filas no sirven de señal porque una cuenta sin gasto nunca tiene filas.
-    previa = session.scalar(select(func.count()).select_from(CollectorRun).where(
+    # Ventana movil si alguna recoleccion ya hizo la carga inicial completa;
+    # las filas no sirven de señal porque una cuenta sin gasto nunca tiene filas.
+    previas = session.scalars(select(CollectorRun.detail).where(
         CollectorRun.collector == "costs", CollectorRun.status.in_(("ok", "parcial"))))
-    dias = DIAS_MOVILES if previa else DIAS_INICIALES
+    carga_hecha = any((d or {}).get("window_days", 0) >= DIAS_INICIALES for d in previas)
+    dias = DIAS_MOVILES if carga_hecha else DIAS_INICIALES
 
     datos = ctx.cost.get_daily_cost_by_resource(ctx.subscription_ids, days=dias, pace_seconds=2.0)
     cobertura = datos.get("coverage") or {}
