@@ -97,10 +97,18 @@ variable "showback_tags" {
 # ---------------------------------------------------------------------------
 # Acceso
 # ---------------------------------------------------------------------------
-variable "allowed_user_object_ids" {
-  description = "Object ids de los usuarios que pueden entrar al panel. Vacio = quien ejecuta Terraform."
-  type        = list(string)
-  default     = []
+variable "user_roles" {
+  description = <<-EOT
+    Usuarios con acceso y su rol: object id de Entra ID => Reader | Operator | Admin
+    (ver app/core/authz.py). Vacío = quien ejecuta Terraform, como Admin.
+  EOT
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for r in values(var.user_roles) : contains(["Reader", "Operator", "Admin"], r)])
+    error_message = "Cada rol debe ser Reader, Operator o Admin."
+  }
 }
 
 variable "allow_azure_cli" {

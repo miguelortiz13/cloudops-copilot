@@ -9,9 +9,11 @@ y el panel vuelve a las vistas en vivo.
 from datetime import date
 from typing import Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.core.audit import auditar
+from app.core.authz import Usuario, requiere
 from app.db import engine as db
 from app.readmodel import queries, service
 
@@ -75,12 +77,14 @@ class CambioDeEstado(BaseModel):
 
 
 @router.post("/api/findings/{finding_id}/status")
-def change_finding_status(finding_id: int, body: CambioDeEstado, request: Request):
+def change_finding_status(finding_id: int, body: CambioDeEstado, usuario: Usuario = requiere("operador")):
     _guardia()
-    usuario = getattr(request.state, "user", None) or {}
-    actor = usuario.get("upn") or usuario.get("name") or "anónimo (autenticación desactivada)"
     try:
-        return service.cambiar_estado(finding_id, body.status, actor, body.note, body.accepted_until, body.owner)
+        resultado = service.cambiar_estado(finding_id, body.status, usuario.actor, body.note, body.accepted_until, body.owner)
+        auditar(usuario, "hallazgo.estado", objetivo=resultado["resource_uid"], detalle={
+            "finding_id": finding_id, "rule": resultado["rule_id"], "status": body.status,
+            "accepted_until": body.accepted_until, "note": body.note})
+        return resultado
     except service.CambioInvalido as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except LookupError as exc:

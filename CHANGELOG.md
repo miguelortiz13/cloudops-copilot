@@ -10,6 +10,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `AzureClient` (`app/providers/azure/`): credenciales y Resource Graph salen del agente de chat. Los servicios y el generador de IaC dependen del cliente, no del agente; hay una sola instancia compartida.
 
 ### Añadido
+- **Roles**: los app roles de Entra ID `CloudOps.Reader`, `CloudOps.Operator` y `CloudOps.Admin`, asignados con la variable `user_roles` de Terraform. El backend los exige con `requiere()` y responde 403 si no alcanzan. Un usuario asignado sin rol es lector. `GET /api/me` devuelve el usuario y sus permisos, y el panel desactiva lo que el rol no permite.
+- **Auditoría**: la tabla `audit_log` (migración `0002`) y una línea JSON en el log por cada acción que cambia algo o actúa sobre la nube. `GET /api/admin/audit` la expone a los administradores.
 - **Base de datos**: Azure SQL Database con la oferta gratuita (pausa automática al agotar el cupo: USD 0), solo Entra ID, en centralus. Modelo canónico con SQLAlchemy (`app/db/models.py`: cuentas, recursos, costos diarios FOCUS, reglas, hallazgos con historial, KPIs diarios, ejecuciones de recolectores) y migraciones de Alembic.
 - **Recolector diario** (`app/collectors/`, Container Apps Job `caj-<base>-collector`, 06:00 UTC): inventario con altas y bajas, costo diario por recurso y servicio (30 días la primera vez, después ventana móvil de 7), hallazgos con ciclo de vida (detectado, resuelto solo al dejar de detectarse, reabierto, aceptación vencida) y KPIs diarios. Cada ejecución queda en `collector_runs`.
 - Modo estricto en `AzureClient.query_azure_resource_graph(raise_errors=True)` y `SecOpsService.build_report(strict=True)` (`failed_queries`): un error ya no se confunde con "sin resultados".
@@ -19,6 +21,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
 ### Corregido
+- `/api/admin/database` respondía 500 sobre una base sin migrar.
 - `azure_agent.py` cargaba el `.env` por su cuenta al importarse e ignoraba `CLOUDOPS_SKIP_DOTENV`.
 
 ## [2.4.2] — 2026-10-06

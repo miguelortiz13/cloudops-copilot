@@ -51,14 +51,28 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
           Agentes de IA
         </button>
       </nav>
-      <div className="sidebar-foot">
-        <div className="avatar">{USER_INITIALS}</div>
-        <div style={{ minWidth: 0 }}>
-          <div className="user-name truncate">{USER_NAME}</div>
-          <div className="user-role truncate">{USER_ROLE}</div>
+      <UserCard />
+    </aside>
+  );
+}
+
+const ROLE_LABEL = { lector: 'Lector', operador: 'Operador', administrador: 'Administrador' } as const;
+
+function UserCard() {
+  const { me } = useApp();
+  const name = me?.name || USER_NAME;
+  const initials = me?.name ? me.name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase() : USER_INITIALS;
+  return (
+    <div className="sidebar-foot" title={me?.upn || undefined}>
+      <div className="avatar">{initials}</div>
+      <div style={{ minWidth: 0 }}>
+        <div className="user-name truncate">{name}</div>
+        <div className="user-role truncate">
+          {me ? ROLE_LABEL[me.role] : USER_ROLE}
+          {me && !me.auth_enabled ? ' · sin autenticación' : ''}
         </div>
       </div>
-    </aside>
+    </div>
   );
 }
 
@@ -172,7 +186,7 @@ function HealthIndicator() {
 }
 
 export function Topbar({ trail, onMenu, onSync }: { trail: string[]; onMenu: () => void; onSync: () => void }) {
-  const { setDockOpen } = useApp();
+  const { setDockOpen, can } = useApp();
   return (
     <header className="topbar">
       <button className="btn btn-ghost btn-icon mobile-only" onClick={onMenu} aria-label="Menú"><Menu size={18} /></button>
@@ -187,7 +201,12 @@ export function Topbar({ trail, onMenu, onSync }: { trail: string[]; onMenu: () 
       <div className="topbar-actions">
         <HealthIndicator />
         <ScopeSelector />
-        <button className="btn" onClick={onSync} title="Ejecutar el pipeline de inventario">
+        <button
+          className="btn"
+          onClick={onSync}
+          disabled={!can('operador')}
+          title={can('operador') ? 'Ejecutar el pipeline de inventario' : 'Requiere el rol Operador'}
+        >
           <RefreshCw size={14} /> Sincronizar
         </button>
         <button className="btn" onClick={() => setDockOpen(true)}>
@@ -271,7 +290,7 @@ interface Message {
 const now = () => new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
 export function AgentDock() {
-  const { dockOpen, setDockOpen, dockAgent, setDockAgent, pendingQuestion, scope } = useApp();
+  const { dockOpen, setDockOpen, dockAgent, setDockAgent, pendingQuestion, scope, can } = useApp();
   const [histories, setHistories] = useState<Record<AgentType, Message[]>>({
     inventory: [], finops: [], secops: [], k8s: [],
   });
@@ -325,11 +344,21 @@ export function AgentDock() {
           <button className="btn btn-ghost btn-icon" onClick={() => setDockOpen(false)} aria-label="Cerrar"><X size={16} /></button>
         </div>
         <div className="segmented" role="tablist" aria-label="Agente">
-          {AGENTS.map((a) => (
-            <button key={a.id} className={dockAgent === a.id ? 'is-active' : ''} onClick={() => setDockAgent(a.id)}>
-              {a.label}
-            </button>
-          ))}
+          {AGENTS.map((a) => {
+            // El agente de Kubernetes ejecuta comandos en el clúster: solo operadores.
+            const bloqueado = a.id === 'k8s' && !can('operador');
+            return (
+              <button
+                key={a.id}
+                className={dockAgent === a.id ? 'is-active' : ''}
+                onClick={() => setDockAgent(a.id)}
+                disabled={bloqueado}
+                title={bloqueado ? 'Requiere el rol Operador' : undefined}
+              >
+                {a.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="dock-messages">

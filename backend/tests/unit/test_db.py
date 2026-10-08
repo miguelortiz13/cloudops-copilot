@@ -129,7 +129,9 @@ def test_estado_de_la_base(base_sqlite):
     r = TestClient(app).get("/api/admin/database")
     assert r.status_code == 200
     cuerpo = r.json()
-    assert cuerpo["revision"] == "0001"
+    from alembic.script import ScriptDirectory
+
+    assert cuerpo["revision"] == ScriptDirectory.from_config(_alembic()).get_current_head()
     assert cuerpo["rows"]["findings"] == 0
     assert cuerpo["recent_runs"] == []
 

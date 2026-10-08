@@ -15,7 +15,7 @@ function readWebhook(): string {
 }
 
 export function ReportsPage({ onSync }: { onSync: () => void }) {
-  const { toast } = useApp();
+  const { toast, can } = useApp();
   const snapshots = useApi<Snapshot[]>('snapshots', () => get('/api/inventory/snapshots'));
   const [webhook, setWebhook] = useState(readWebhook);
   const [kind, setKind] = useState<'all' | 'finops' | 'secops'>('all');
@@ -50,7 +50,7 @@ export function ReportsPage({ onSync }: { onSync: () => void }) {
       <div className="grid grid-2">
         <Section title="Inventario maestro" description="Excel con las revisiones manuales del equipo, actualizado por el pipeline de inventario.">
           <Card
-            footer={<><span>El pipeline también clasifica los activos para ISO 27001.</span><button className="btn btn-sm" onClick={onSync}>Ejecutar pipeline</button></>}
+            footer={<><span>El pipeline también clasifica los activos para ISO 27001.</span><button className="btn btn-sm" onClick={onSync} disabled={!can('operador')} title={can('operador') ? undefined : 'Requiere el rol Operador'}>Ejecutar pipeline</button></>}
           >
             <div className="spread">
               <div>

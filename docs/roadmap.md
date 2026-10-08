@@ -10,7 +10,7 @@ Lo que falta para llevar CloudOps Copilot de herramienta interna a producto desp
 - [x] Identidad administrada en lugar de client secrets.
 - [ ] Clave de Gemini desde Key Vault (referencia de secreto de Container Apps).
 - [x] Despliegue por **OIDC** desde GitHub Actions (workflow de CD con `environment`). Terraform sigue aplicándose a mano.
-- [ ] Autorización por rol (lector / operador) además de autenticación: el agente SRE y el pipeline solo para operadores.
+- [x] Autorización por rol (lector, operador, administrador) además de autenticación, con auditoría: el agente SRE y el pipeline solo para operadores.
 - [ ] Volver a aprovisionar el bot de Teams con la arquitectura de Container Apps (registro con credencial federada, sin secreto).
 - [ ] Límite de tasa en `/api/chat` y `/api/k8s/chat`.
 
