@@ -8,11 +8,12 @@ cada agente responde con los mismos servicios que alimentan su pestaña, de modo
 que el chat sin IA sigue siendo util y nunca contradice al panel.
 """
 
+from app.core.texto import normalizar
 from typing import Any, Dict, List, Optional
 
 from app.services.cost_overview_service import CostOverviewService
 
-AHORRO = ("ahorr", "huerf", "huérf", "optimiz", "desperdic", "reduc", "sin uso", "apagar")
+AHORRO = ("ahorr", "huerf", "optimiz", "desperdic", "reduc", "sin uso", "apagar")
 
 
 def _money(valor: Optional[float], moneda: str = "USD") -> str:
@@ -28,7 +29,7 @@ def _lista(titulo: str, filas: List[str]) -> str:
 
 
 def respuesta_finops(agente, pregunta: str, subs: Optional[List[str]]) -> Dict[str, Any]:
-    texto = pregunta.lower()
+    texto = normalizar(pregunta)
     costo = agente._get_cost()
 
     if any(p in texto for p in AHORRO) and getattr(agente, "_finops", None) is not None:
