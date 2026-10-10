@@ -24,6 +24,7 @@
 - [Inventario y gobernanza](modules/inventory-governance.md)
 - [FinOps](modules/finops.md)
 - [SecOps](modules/secops.md)
+- [Cumplimiento](modules/compliance.md)
 - [IaC y Terraform](modules/iac.md)
 - [Agentes de IA](modules/ai-agents.md)
 - [Kubernetes SRE](modules/kubernetes-sre.md)

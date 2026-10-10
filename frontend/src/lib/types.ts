@@ -325,6 +325,7 @@ export interface ManagedFinding {
   rule_id: string;
   title: string;
   remediation: string | null;
+  controls: Record<string, ControlRef[]>;
   severity: Severity;
   status: FindingStatus;
   resource_uid: string;
@@ -389,30 +390,104 @@ export type IacFile = 'main_tf' | 'providers_tf' | 'variables_tf' | 'outputs_tf'
 
 export type IacResult = Record<IacFile, string> & { generation_mode: string };
 
-// ---------------------------------------------------------------- ISO
+// ---------------------------------------------------------------- Cumplimiento
 
-export interface IsoAsset {
-  name: string;
-  resourceType: string;
-  subscription?: string;
-  custodio?: string;
-  confidencialidad: number;
-  integridad: number;
-  disponibilidad: number;
-  'Clasificación del activo': string;
-  'puntuación del activo': number;
-  'Gestión de riesgo (SI/NO)': string;
+export type ControlStatus = 'no_cumple' | 'sin_evidencia' | 'riesgo_aceptado' | 'cumple';
+export type MatchLevel = 'directa' | 'parcial';
+export type ControlRef = { control: string; match: MatchLevel };
+
+export interface ControlEvidence {
+  kind: 'rule' | 'classification';
+  rule_id?: string;
+  title: string;
+  match: MatchLevel;
+  status: ControlStatus;
+  active: number;
+  accepted: number;
 }
 
-export interface IsoReport {
-  data: IsoAsset[];
-  error?: string;
+export interface ComplianceControl {
+  id: string;
+  title: string;
+  status: ControlStatus;
+  direct: boolean;
+  active: number;
+  accepted: number;
+  evidence: ControlEvidence[];
+}
+
+export interface ComplianceFramework {
+  id: string;
+  name: string;
+  version: string;
+  url: string;
+  controls_evaluated: number;
+  summary: Record<ControlStatus, number>;
+  controls: ComplianceControl[];
+}
+
+export interface ComplianceRule {
+  id: string;
+  title: string;
+  severity_default: Severity;
+  description: string;
+  detection: string;
+  remediation: string;
+  references: string[];
+  frameworks: Record<string, ControlRef[]>;
+  status: ControlStatus;
+  evaluated: boolean;
+  active: number;
+  accepted: number;
+  resolved: number;
+  by_severity: Partial<Record<Severity, number>>;
+}
+
+export interface ComplianceStatus {
+  available: boolean;
+  frameworks: ComplianceFramework[];
+  rules: ComplianceRule[];
+  evaluated_at: string | null;
+  failed_rules: string[];
+  source?: 'cache' | 'database';
+}
+
+export type AssetClass = 'Confidencial' | 'Restringido' | 'Uso interno';
+
+export interface ClassifiedAsset {
+  uid: string;
+  name: string;
+  type: string;
+  group: string | null;
+  account: string | null;
+  environment: string | null;
+  classification: AssetClass | null;
+  confidentiality: number | null;
+  integrity: number | null;
+  availability: number | null;
+  score: number | null;
+  risk_required: boolean | null;
+  custodian: string | null;
+  method: 'automatica' | 'manual' | null;
+  reason: string | null;
+  updated_by: string | null;
+  updated_at: string | null;
+  open_findings: number;
+}
+
+export interface ClassifiedAssets {
+  available: boolean;
+  items: ClassifiedAsset[];
   stats: {
-    total_assets?: number;
-    classification_distribution?: Record<string, number>;
-    risk_management_distribution?: Record<string, number>;
-    average_criticality_score?: number;
+    total: number;
+    classified: number;
+    by_class: Partial<Record<AssetClass, number>>;
+    risk_required: number;
+    manual: number;
+    without_custodian: number;
+    average_score: number;
   };
+  collected_at: string | null;
 }
 
 export interface Snapshot {

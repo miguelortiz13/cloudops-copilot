@@ -37,7 +37,7 @@ Al terminar, si hay una conversación de Teams registrada o `TEAMS_WEBHOOK_URL`,
 | `09_analysis_master` | Registro maestro, una fila por recurso. **Protegida**: los pasos solo agregan o completan, no borran revisiones manuales |
 | `10_trazabilidad` | Altas y bajas respecto al snapshot anterior |
 | `11_matriz_priorizacion` | Prioridad de adopción de IaC por dominio y ambiente |
-| `12_inventario_iso` | Activos con triada C-I-D y puntuación (la lee `/api/governance/iso`) |
+| `12_inventario_iso` | Activos con triada C-I-D y puntuación. El panel ya no la lee: la clasificación vive en la base ([cumplimiento](compliance.md)) |
 | `13_historical_backup` | Recursos eliminados de Azure |
 
 ## Clasificación ISO 27001

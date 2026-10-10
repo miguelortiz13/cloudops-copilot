@@ -52,9 +52,9 @@ gantt
 | Job diario de recolección | Plataforma | inventory, costs, findings, iac_states, activity, kpis | Hecho: inventario (con estado IaC y creador como campos del recurso), costos, hallazgos y KPIs |
 | Inyección de dependencias con `Depends` | API | Reemplaza `get_services()[n]` | Hecho |
 | Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento | Hecho: automático en el recolector y gestión en el panel (asumir, aceptar con vencimiento y justificación, reabrir) |
-| Catálogo de reglas con mapeo CIS / ISO | Seguridad / Cumplimiento | Las 7 reglas actuales, migradas | Iniciado: 7 reglas con id estable; falta el mapeo CIS/ISO |
+| Catálogo de reglas con mapeo CIS / ISO | Seguridad / Cumplimiento | Las 7 reglas actuales, migradas | Hecho: mapeo a CIS Azure 2.0.0 (8 controles) e ISO 27001:2022 (10), con evidencia directa o parcial y estado por control en el panel |
 | Costos desde la base, selector de periodo, comparación mes a mes | Costos | Export FOCUS de Azure Cost Management | Hecho con la API de consultas (un año de historia); el export FOCUS queda para costo amortizado |
-| Clasificación ISO en la base (sin Excel) | Cumplimiento | | |
+| Clasificación ISO en la base (sin Excel) | Cumplimiento | | Hecho: paso `classification` del recolector, corrección manual auditada y exportación CSV |
 | Roles (lector, operador, administrador) y auditoría | Seguridad | App roles de Entra ID | Hecho, con grupos de seguridad por rol |
 | Interfaz de LLM y migración a `google-genai` | Agentes | Con límite de uso por usuario | Hecho |
 | Administración: cuentas conectadas y estado de recolectores | Administración | Primera versión | En curso: actividad de usuarios y estado de base y recolectores; faltan las cuentas conectadas |

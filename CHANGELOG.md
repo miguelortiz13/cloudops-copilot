@@ -24,6 +24,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `GET /api/admin/database`: versión del esquema, filas por tabla y últimas ejecuciones de los recolectores.
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
+- **Cumplimiento** (reemplaza a la sección ISO 27001 del panel): estado de los controles de CIS Azure Foundations 2.0.0 e ISO/IEC 27001:2022 que evidencian las reglas, con evidencia directa o parcial. Un control cuya regla no se pudo evaluar queda "sin evidencia", nunca "cumple". Ver [docs/modules/compliance.md](docs/modules/compliance.md).
+- **Catálogo de reglas** (`app/compliance/catalog.py`): una sola definición por regla, con descripción del riesgo, forma de detección, remediación, referencias y mapeo. El recolector la sincroniza en `rules`, y `SecOpsService` toma de ahí el título, la recomendación y los controles. Los hallazgos muestran los controles que incumplen.
+- **Clasificación ISO de activos en la base** (paso `classification` del recolector, tabla `asset_classifications`, migración `0003`): misma regla que el Excel, ahora con el motivo de cada clasificación y custodio desde las tags o el creador. Un operador puede fijarla a mano con un motivo; el recolector la respeta y queda auditada. Exportación CSV.
+
+### Eliminado
+- `GET /api/governance/iso`, que leía la hoja `12_inventario_iso` del Excel del pipeline: la reemplazan `/api/compliance` y `/api/compliance/assets`.
+
 ### Rendimiento
 - **Las vistas precalculadas vencían a los 58 minutos**: se calculaba "las 07:00 siguientes" y el recolector las escribe a las 06:02. Desde las 07:00 cada visita al panel despertaba la base (medido: 48 s y cupo gratuito consumido). Ahora valen hasta que termine la siguiente recolección, con la hora tomada de `collector_cron` (`COLLECTOR_HOUR_UTC`).
 - **El API ya no precarga costos en cada arranque en frío** (3 min de consultas a Cost Management, con la réplica encendida y riesgo de 429). Lo hace el recolector diario (paso `costcache`) en el almacenamiento compartido; el API considera la caché vigente 26 h y relee el disco antes de consultar Cost Management.

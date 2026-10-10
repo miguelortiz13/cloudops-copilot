@@ -121,7 +121,8 @@ def test_aceptar_un_riesgo_queda_auditado_con_su_fecha(cliente):
 
 @pytest.mark.parametrize("ruta,metodo", [
     ("/api/k8s/chat", "post"), ("/api/k8s/incidents", "post"), ("/api/sync", "post"),
-    ("/api/integration/test-webhook", "post"),
+    ("/api/integration/test-webhook", "post"), ("/api/compliance/assets/classification", "post"),
+    ("/api/compliance/assets/classification/restore", "post"),
 ])
 def test_acciones_de_operador(cliente, ruta, metodo):
     r = getattr(cliente, metodo)(ruta, headers=como("lector"), json={})

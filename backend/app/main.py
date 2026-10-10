@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.container import start_cost_warmer
 from app.routers import (
-    admin, chat, finops, history, iac, inventory, k8s, legacy, me, recommendations, secops, sync, teams,
+    admin, chat, compliance, finops, history, iac, inventory, k8s, legacy, me, recommendations, secops, sync, teams,
 )
 from app.services.auth import auth_middleware, startup_banner
 from app.services.bot_auth import startup_banner as bot_startup_banner
@@ -58,5 +58,6 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
-for modulo in (k8s, finops, secops, inventory, iac, sync, teams, recommendations, chat, admin, history, me, legacy):
+for modulo in (k8s, finops, secops, inventory, iac, sync, teams, recommendations, chat, admin, history, compliance, me,
+               legacy):
     app.include_router(modulo.router)

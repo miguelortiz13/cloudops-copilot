@@ -15,7 +15,7 @@ const InventoryPage = lazy(() => import('./modules/inventory/InventoryPage').the
 const FinOpsPage = lazy(() => import('./modules/finops/FinOpsPage').then((m) => ({ default: m.FinOpsPage })));
 const SecOpsPage = lazy(() => import('./modules/secops/SecOpsPage').then((m) => ({ default: m.SecOpsPage })));
 const IacPage = lazy(() => import('./modules/iac/IacPage').then((m) => ({ default: m.IacPage })));
-const IsoPage = lazy(() => import('./modules/iso/IsoPage').then((m) => ({ default: m.IsoPage })));
+const CompliancePage = lazy(() => import('./modules/compliance/CompliancePage').then((m) => ({ default: m.CompliancePage })));
 const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 
@@ -23,6 +23,7 @@ const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.i
 const SUBVIEWS: Record<string, string> = {
   costos: 'Visión general', historial: 'Historial y comparación', ahorro: 'Optimización y ahorro', gestion: 'Gestión de hallazgos',
   actividad: 'Actividad de usuarios', plataforma: 'Base y recolectores',
+  controles: 'Controles', reglas: 'Catálogo de reglas', activos: 'Clasificación de activos',
 };
 
 function Shell() {
@@ -30,7 +31,8 @@ function Shell() {
   const { toasts, setDockAgent } = useApp();
   const [mobileNav, setMobileNav] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  const page = LABELS[route[0]] ? route[0] : 'resumen';
+  // `iso` era la ruta anterior de Cumplimiento: los enlaces guardados siguen sirviendo.
+  const page = LABELS[route[0]] ? route[0] : route[0] === 'iso' ? 'cumplimiento' : 'resumen';
   const sub = route[1];
 
   useEffect(() => {
@@ -41,7 +43,7 @@ function Shell() {
     setDockAgent(agente as 'finops' | 'secops' | 'inventory');
   }, [page, setDockAgent]);
 
-  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops' || page === 'admin') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
+  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops' || page === 'admin' || page === 'cumplimiento') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
 
   return (
     <div className="shell">
@@ -57,7 +59,7 @@ function Shell() {
             {page === 'finops' && <FinOpsPage view={sub} onView={(v) => navigate(`finops/${v}`)} />}
             {page === 'secops' && <SecOpsPage view={sub} onView={(v) => navigate(`secops/${v}`)} />}
             {page === 'iac' && <IacPage />}
-            {page === 'iso' && <IsoPage />}
+            {page === 'cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`cumplimiento/${v}`)} onGo={navigate} />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}
             </Suspense>

@@ -18,7 +18,7 @@ export const NAV: { group: string; items: { id: string; label: string; icon: Rea
       { id: 'finops', label: 'Costos', icon: <CircleDollarSign size={16} /> },
       { id: 'secops', label: 'Seguridad', icon: <ShieldHalf size={16} /> },
       { id: 'iac', label: 'IaC y Terraform', icon: <FileCode2 size={16} /> },
-      { id: 'iso', label: 'ISO 27001', icon: <ShieldCheck size={16} /> },
+      { id: 'cumplimiento', label: 'Cumplimiento', icon: <ShieldCheck size={16} /> },
     ],
   },
   {
