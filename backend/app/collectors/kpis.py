@@ -21,6 +21,8 @@ GOBERNANZA = {
     "nonCompliantResources": "non_compliant_resources",
     "shadowItCandidates": "shadow_it_candidates",
     "resourcesWithoutOwnerCandidate": "resources_without_owner",
+    "productionResources": "production_resources",
+    "nonProductionResources": "non_production_resources",
 }
 
 

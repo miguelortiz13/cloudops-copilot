@@ -69,7 +69,8 @@ const FAMILIAS = [
 ] as const;
 
 const RECOLECTOR: Record<string, string> = {
-  inventory: 'Inventario', costs: 'Costos', findings: 'Hallazgos', kpis: 'KPIs', readmodel: 'Vistas del panel',
+  inventory: 'Inventario', costs: 'Costos', findings: 'Hallazgos', kpis: 'KPIs',
+  costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel',
 };
 
 function Outcome({ ok, label }: { ok: boolean; label?: string }) {

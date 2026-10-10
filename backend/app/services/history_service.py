@@ -193,3 +193,47 @@ class HistoryService:
             "deltas": deltas,
             "trackedFields": TRACKED_FIELDS,
         }
+
+
+# Metricas de kpi_daily (recolector diario) con su nombre en la serie del panel.
+DESDE_KPI = {
+    "resources_total": "totalResources",
+    "non_compliant_resources": "nonCompliantResources",
+    "tag_compliance_pct": "tagCompliancePercentage",
+    "shadow_it_candidates": "shadowItCandidates",
+    "resources_without_owner": "resourcesWithoutOwnerCandidate",
+    "production_resources": "productionResources",
+    "non_production_resources": "nonProductionResources",
+}
+
+
+def fusionar_con_kpis(serie: Dict[str, Any], kpis: Dict[str, Any], days: int = 90) -> Dict[str, Any]:
+    """
+    Une la serie del JSONL con la de la base.
+
+    La base tiene un punto por dia desde que corre el recolector, sin huecos;
+    el JSONL solo tiene los dias en que alguien abrio el resumen, pero puede
+    venir de antes. Por fecha gana la base; el JSONL rellena el pasado.
+    """
+    por_fecha: Dict[str, Dict[str, Any]] = {p["date"]: dict(p) for p in serie.get("points", []) if p.get("date")}
+    for metrica, campo in DESDE_KPI.items():
+        for punto in (kpis.get("metrics") or {}).get(metrica, []):
+            por_fecha.setdefault(punto["day"], {"date": punto["day"]})[campo] = punto["value"]
+    puntos = [por_fecha[f] for f in sorted(por_fecha)][-min(days, MAX_POINTS_RETURNED):]
+
+    deltas: Dict[str, Any] = {}
+    if len(puntos) >= 2:
+        for campo in TRACKED_FIELDS:
+            a, b = puntos[0].get(campo), puntos[-1].get(campo)
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+                deltas[campo] = round(b - a, 2)
+    return {
+        "points": puntos,
+        "available": len(puntos) >= 2,
+        "pointCount": len(puntos),
+        "firstDate": puntos[0]["date"] if puntos else None,
+        "lastDate": puntos[-1]["date"] if puntos else None,
+        "deltas": deltas,
+        "trackedFields": TRACKED_FIELDS,
+        "source": "kpi_daily+jsonl" if kpis.get("metrics") else "jsonl",
+    }

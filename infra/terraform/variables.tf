@@ -165,7 +165,12 @@ variable "sql_location" {
 
 
 variable "collector_cron" {
-  description = "Horario del recolector diario (cron, UTC). Por defecto 06:00 UTC: Cost Management ya consolidó el día anterior."
+  description = "Horario del recolector diario (cron, UTC). Por defecto 06:00 UTC: Cost Management ya consolidó el día anterior. Debe ser diario a una hora fija: el API calcula con esa hora cuándo vencen las vistas precalculadas."
   type        = string
   default     = "0 6 * * *"
+
+  validation {
+    condition     = can(regex("^[0-9]+ [0-9]+ \\* \\* \\*$", var.collector_cron))
+    error_message = "collector_cron debe ser diario a una hora fija, por ejemplo \"0 6 * * *\"."
+  }
 }
