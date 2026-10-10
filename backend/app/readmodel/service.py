@@ -1,8 +1,8 @@
 """
 Punto de entrada de las lecturas: cache primero, base despues.
 
-Tambien concentra las escrituras del panel (gestion de hallazgos), que
-invalidan la cache afectada.
+Tambien concentra las escrituras del panel (gestion de hallazgos y
+clasificacion de activos), que recalculan la cache afectada.
 """
 
 from datetime import date, datetime, timezone
@@ -11,8 +11,9 @@ from typing import Any, Callable, Dict, Optional
 from sqlalchemy.orm import Session
 
 from app.db import engine as db
-from app.db.models import Finding, FindingEvent
-from app.readmodel import cache, queries
+from app.compliance.classification import CLASES, clasificar, custodio
+from app.db.models import AssetClassification, Finding, FindingEvent, Resource
+from app.readmodel import cache, cumplimiento as vistas_cumplimiento, queries
 
 # Transiciones que una persona puede hacer. "resuelto" no esta: lo decide el
 # recolector cuando el problema deja de detectarse.
@@ -53,6 +54,14 @@ def kpis(dias: int) -> Dict[str, Any]:
     return _leer("kpis", {"days": dias}, lambda s: queries.kpis(s, dias))
 
 
+def cumplimiento() -> Dict[str, Any]:
+    return _leer("compliance", {}, vistas_cumplimiento.cumplimiento)
+
+
+def activos() -> Dict[str, Any]:
+    return _leer("assets", {}, vistas_cumplimiento.activos)
+
+
 def eventos(hallazgo_id: int):
     # Se abre poco (al desplegar un hallazgo) y cambia con cada gestion: sin cache.
     with db.session_scope() as s:
@@ -85,12 +94,72 @@ def cambiar_estado(hallazgo_id: int, estado: str, actor: str, nota: Optional[str
         s.add(FindingEvent(finding_id=f.id, at=datetime.now(timezone.utc), kind="estado",
                            from_status=anterior, to_status=estado, actor=actor, note=nota))
         s.flush()
-        cache.invalidar("findings")
-        # La base esta despierta: se recalcula la vista ahora y no en la
-        # siguiente visita.
+        # La base esta despierta: se recalculan las vistas afectadas ahora y
+        # no en la siguiente visita. El estado de los controles depende de los
+        # hallazgos aceptados o asumidos.
         datos = queries.hallazgos(s)
+        estado_de_controles = vistas_cumplimiento.cumplimiento(s)
+    # Despues del commit: la cache nunca muestra un cambio que no quedo guardado.
     cache.guardar(cache.clave("findings"), datos)
+    cache.guardar(cache.clave("compliance"), estado_de_controles)
     return next(h for h in datos["items"] if h["id"] == hallazgo_id)
+
+
+def _vistas_de_clasificacion(s: Session) -> Callable[[str], Dict[str, Any]]:
+    """Calcula las vistas con la base despierta; las guarda al llamar al resultado (tras el commit)."""
+    datos, estado_de_controles = vistas_cumplimiento.activos(s), vistas_cumplimiento.cumplimiento(s)
+
+    def publicar(uid: str) -> Dict[str, Any]:
+        cache.guardar(cache.clave("assets"), datos)
+        cache.guardar(cache.clave("compliance"), estado_de_controles)
+        return next(a for a in datos["items"] if a["uid"] == uid)
+
+    return publicar
+
+
+def clasificar_a_mano(uid: str, clase: str, confidencialidad: int, integridad: int, disponibilidad: int,
+                      analisis_de_riesgo: bool, motivo: Optional[str], responsable: Optional[str],
+                      actor: str) -> Dict[str, Any]:
+    """Fija una clasificacion que el recolector respetara."""
+    motivo = (motivo or "").strip()
+    if clase not in CLASES:
+        raise CambioInvalido(f"Clasificación desconocida: {clase}.")
+    if not motivo:
+        raise CambioInvalido("Cambiar la clasificación exige un motivo.")
+    with db.session_scope() as s:
+        recurso = s.get(Resource, uid)
+        if recurso is None or recurso.deleted_at is not None:
+            raise LookupError("El recurso no existe en el inventario.")
+        fila = s.get(AssetClassification, uid)
+        if fila is None:
+            fila = AssetClassification(resource_uid=uid)
+            s.add(fila)
+        fila.classification, fila.risk_required = clase, analisis_de_riesgo
+        fila.confidentiality, fila.integrity, fila.availability = confidencialidad, integridad, disponibilidad
+        fila.custodian = (responsable or "").strip() or fila.custodian or custodio(recurso.tags, recurso.created_by)
+        fila.method, fila.reason = "manual", motivo
+        fila.updated_by, fila.updated_at = actor, datetime.now(timezone.utc)
+        s.flush()
+        publicar = _vistas_de_clasificacion(s)
+    return publicar(uid)
+
+
+def restaurar_automatica(uid: str, actor: str) -> Dict[str, Any]:
+    """Devuelve el recurso a la regla automatica, recalculada en el acto."""
+    with db.session_scope() as s:
+        recurso = s.get(Resource, uid)
+        if recurso is None or recurso.deleted_at is not None:
+            raise LookupError("El recurso no existe en el inventario.")
+        c = clasificar(recurso.native_type, recurso.tags)
+        fila = s.get(AssetClassification, uid) or AssetClassification(resource_uid=uid)
+        s.add(fila)
+        fila.classification, fila.risk_required, fila.reason = c.classification, c.risk_required, c.reason
+        fila.confidentiality, fila.integrity, fila.availability = c.confidentiality, c.integrity, c.availability
+        fila.custodian = custodio(recurso.tags, recurso.created_by)
+        fila.method, fila.updated_by, fila.updated_at = "automatica", actor, datetime.now(timezone.utc)
+        s.flush()
+        publicar = _vistas_de_clasificacion(s)
+    return publicar(uid)
 
 
 def precalentar(s: Session) -> int:
@@ -101,4 +170,6 @@ def precalentar(s: Session) -> int:
         escritas += 1
     cache.guardar(cache.clave("findings"), queries.hallazgos(s))
     cache.guardar(cache.clave("kpis", days=queries.DIAS_KPI_POR_DEFECTO), queries.kpis(s, queries.DIAS_KPI_POR_DEFECTO))
-    return escritas + 2
+    cache.guardar(cache.clave("compliance"), vistas_cumplimiento.cumplimiento(s))
+    cache.guardar(cache.clave("assets"), vistas_cumplimiento.activos(s))
+    return escritas + 4

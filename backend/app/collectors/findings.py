@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.collectors.common import Contexto, Resultado, account_uid, resource_uid
-from app.collectors.rules import CONSULTA_DE_TIPO, REGLAS
+from app.compliance.catalog import CONSULTA_DE_TIPO, REGLAS, frameworks_json
 from app.db.models import Finding, FindingEvent, Rule
 
 ACTOR = "recolector"
@@ -36,14 +36,18 @@ def _uid_del_hallazgo(tipo: str, item: dict) -> str:
 
 
 def _sincronizar_reglas(session: Session) -> None:
+    """El catalogo (app/compliance/catalog.py) es la fuente de verdad de `rules`."""
     existentes = {r.id: r for r in session.scalars(select(Rule))}
     for regla in REGLAS.values():
+        campos = dict(capability=regla.capability, title=regla.title, severity_default=regla.severity_default,
+                      remediation=regla.remediation, description=regla.description, detection=regla.detection,
+                      frameworks=frameworks_json(regla), reference_urls=list(regla.references))
         fila = existentes.get(regla.id)
         if fila is None:
-            session.add(Rule(id=regla.id, capability=regla.capability, title=regla.title,
-                             severity_default=regla.severity_default, remediation=regla.remediation, frameworks={}))
+            session.add(Rule(id=regla.id, **campos))
         else:
-            fila.title, fila.severity_default, fila.remediation = regla.title, regla.severity_default, regla.remediation
+            for campo, valor in campos.items():
+                setattr(fila, campo, valor)
     session.flush()
 
 

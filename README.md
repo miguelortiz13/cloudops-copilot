@@ -74,6 +74,7 @@ Sin credenciales de Azure la plataforma arranca igual y responde en modo degrada
 | Inventario y gobernanza | KPIs agregados en Resource Graph, matriz de tags, Shadow IT con regla de cuatro señales, histórico diario | [inventory-governance.md](docs/modules/inventory-governance.md) |
 | Costos (FinOps) | Primero la visión global: gasto de 30 días, tendencia diaria, proyección y desgloses por servicio, grupo, suscripción, región y tag. Después, ahorro: recursos sin uso, right-sizing, reservas, presupuestos y anomalías | [finops.md](docs/modules/finops.md) |
 | SecOps | NSG, storage, Key Vault, SQL, HTTPS; exposición priorizada por severidad × gasto | [secops.md](docs/modules/secops.md) |
+| Cumplimiento | Estado de los controles de CIS Azure 2.0.0 e ISO 27001:2022 con su evidencia, catálogo de reglas y clasificación ISO de activos con corrección manual auditada | [compliance.md](docs/modules/compliance.md) |
 | IaC | Cobertura real desde los estados de Terraform y generador de HCL con `import {}` | [iac.md](docs/modules/iac.md) |
 | Agentes de IA | Chat de inventario, FinOps y SecOps con contexto acotado y reglas compartidas | [ai-agents.md](docs/modules/ai-agents.md) |
 | Kubernetes SRE | Salud, incidentes y logs de AKS con comandos validados | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |

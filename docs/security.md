@@ -49,8 +49,8 @@ El token del API lleva los grupos del usuario (claim `groups`, con `groupMembers
 
 | Rol | Grupo | Puede |
 |---|---|---|
-| Lector | Lectores | Todo lo que lee: inventario, costos, seguridad, IaC, ISO y chat |
-| Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
+| Lector | Lectores | Todo lo que lee: inventario, costos, seguridad, IaC, cumplimiento y chat |
+| Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), clasificar activos a mano, ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
 | Administrador | Administradores | Además ver el estado de la base y la auditoría, y reiniciar el cliente de Kubernetes |
 
 - Un usuario asignado sin grupo ni app role es **lector**: tener acceso nunca implica poder escribir. Un grupo que no esté configurado en `AUTHZ_GROUP_*` no da permisos.
@@ -59,7 +59,7 @@ El token del API lleva los grupos del usuario (claim `groups`, con `groupMembers
 
 ## Auditoría
 
-Toda acción que cambia algo o actúa sobre la nube queda registrada: cambios de estado de hallazgos, sincronización, comandos del agente de Kubernetes, alertas de prueba a Teams y reinicio de clientes. Se guarda quién la hizo (UPN y object id del token), con qué rol, sobre qué objeto, con qué resultado y con qué detalle.
+Toda acción que cambia algo o actúa sobre la nube queda registrada: cambios de estado de hallazgos, clasificaciones manuales de activos, sincronización, comandos del agente de Kubernetes, alertas de prueba a Teams y reinicio de clientes. Se guarda quién la hizo (UPN y object id del token), con qué rol, sobre qué objeto, con qué resultado y con qué detalle.
 
 - Va siempre al log como una línea JSON (`[audit] {...}`) y, si hay base, a la tabla `audit_log`. Los administradores la ven en **Administración → Actividad de usuarios** (`GET /api/admin/audit`).
 - La URL de un webhook de Teams es una credencial: solo se audita su host.

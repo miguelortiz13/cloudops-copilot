@@ -32,6 +32,7 @@ for Cloud.
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
+from app.compliance import catalog
 from app.services import kql
 
 SEVERIDAD_ORDEN = {"critica": 0, "alta": 1, "media": 2, "info": 3}
@@ -106,52 +107,28 @@ class SecOpsService:
 
         hallazgos: List[Dict[str, Any]] = []
 
-        def agregar(items, tipo, titulo, severidad_fn, recomendacion):
+        # Titulo, recomendacion y controles salen del catalogo de reglas
+        # (app/compliance/catalog.py): la misma definicion que guarda la base.
+        def agregar(items, tipo, severidad_fn):
+            regla = catalog.REGLAS[tipo]
             for item in items:
-                sev = severidad_fn(item)
                 hallazgos.append({
                     **item,
                     "tipo": tipo,
-                    "titulo": titulo,
-                    "severidad": sev,
-                    "recomendacion": recomendacion,
+                    "regla": regla.id,
+                    "titulo": regla.title,
+                    "severidad": severidad_fn(item),
+                    "recomendacion": regla.remediation,
+                    "controles": catalog.frameworks_json(regla),
                 })
 
-        agregar(
-            crudos["nsgs"], "nsg", "Puerto de administración abierto a internet",
-            lambda i: "critica" if (i.get("asociado") and hay_ips_publicas) else "alta",
-            "Restringir el origen a rangos corporativos o usar Azure Bastion / Just-In-Time.",
-        )
-        agregar(
-            crudos["storage"], "storage", "Cuenta de almacenamiento con blobs públicos",
-            lambda i: "critica" if i.get("sinFirewall") else "alta",
-            "Deshabilitar allowBlobPublicAccess o restringir con reglas de red.",
-        )
-        agregar(
-            crudos["keyvaults"], "keyvault", "Key Vault alcanzable desde red pública",
-            lambda i: "critica" if i.get("sinFirewall") else "alta",
-            "Añadir private endpoint o limitar networkAcls a redes conocidas.",
-        )
-        agregar(
-            crudos["sql"], "sql", "SQL Server con acceso público habilitado",
-            lambda i: "alta",
-            "Deshabilitar publicNetworkAccess y acceder por private endpoint.",
-        )
-        agregar(
-            crudos["https"], "https", "App Service sin HTTPS obligatorio",
-            lambda i: "alta",
-            "Activar httpsOnly para impedir tráfico en claro.",
-        )
-        agregar(
-            crudos["discos"], "disco", "Disco sin cifrado con llave gestionada por el cliente",
-            lambda i: "media",
-            "Asociar un Disk Encryption Set si la política de datos lo exige.",
-        )
-        agregar(
-            crudos["failed"], "failed", "Recurso en estado de aprovisionamiento fallido",
-            lambda i: "media",
-            "Revisar el despliegue: un recurso en Failed puede quedar a medio configurar.",
-        )
+        agregar(crudos["nsgs"], "nsg", lambda i: "critica" if (i.get("asociado") and hay_ips_publicas) else "alta")
+        agregar(crudos["storage"], "storage", lambda i: "critica" if i.get("sinFirewall") else "alta")
+        agregar(crudos["keyvaults"], "keyvault", lambda i: "critica" if i.get("sinFirewall") else "alta")
+        agregar(crudos["sql"], "sql", lambda i: "alta")
+        agregar(crudos["https"], "https", lambda i: "alta")
+        agregar(crudos["discos"], "disco", lambda i: "media")
+        agregar(crudos["failed"], "failed", lambda i: "media")
 
         hallazgos.sort(key=lambda h: SEVERIDAD_ORDEN.get(h["severidad"], 9))
 

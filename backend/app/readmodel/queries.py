@@ -160,6 +160,7 @@ def _hallazgo(f: Finding, regla: Optional[Rule], recurso: Optional[Resource], cu
         "rule_id": f.rule_id,
         "title": regla.title if regla else f.rule_id,
         "remediation": regla.remediation if regla else None,
+        "controls": (regla.frameworks or {}) if regla else {},
         "severity": f.severity,
         "status": f.status,
         "resource_uid": f.resource_uid,

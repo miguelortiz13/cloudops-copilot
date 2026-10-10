@@ -7,6 +7,7 @@ import { useApp } from '../../state/hooks';
 import {
   Card, Drawer, Empty, ErrorState, Loading, Notice, Section, Segmented, SeverityBadge, StatTile,
 } from '../../components/ui';
+import { ControlRefs } from '../compliance/controls';
 
 type Filter = 'activos' | 'aceptado' | 'resuelto' | 'todos';
 
@@ -244,6 +245,7 @@ function FindingDrawer({ finding: f, onClose, onChanged, onAsk }: {
         <dt>Visto por última vez</dt><dd>{dateTime(f.last_seen)}</dd>
         {f.owner && <><dt>Responsable</dt><dd>{f.owner}</dd></>}
         {f.accepted_until && <><dt>Aceptado hasta</dt><dd>{day(f.accepted_until)}</dd></>}
+        {f.controls && Object.keys(f.controls).length > 0 && <><dt>Controles</dt><dd><ControlRefs frameworks={f.controls} /></dd></>}
       </dl>
 
       {f.remediation && (

@@ -93,9 +93,13 @@ class Rule(Base):
     capability: Mapped[str] = mapped_column(String(32))
     title: Mapped[str] = mapped_column(Unicode(300))
     severity_default: Mapped[str] = mapped_column(String(16))
-    # {"CIS Azure 2.1": ["3.7"], "ISO 27001:2022": ["A.8.20"]}
+    # {"cis-azure-2.0.0": [{"control": "3.7", "match": "directa"}], "iso-27001-2022": [...]}
     frameworks: Mapped[dict[str, Any]] = mapped_column(default=dict)
     remediation: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    # Que riesgo representa y como se detecta (app/compliance/catalog.py).
+    description: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    detection: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    reference_urls: Mapped[Optional[list[Any]]] = mapped_column(default=list)
 
 
 class Finding(Base):
@@ -119,6 +123,29 @@ class Finding(Base):
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class AssetClassification(Base):
+    """
+    Clasificacion ISO 27001 de un recurso (app/compliance/classification.py).
+
+    `method` es "automatica" (la recalcula el recolector cada dia) o "manual"
+    (la fijo un operador y el recolector no la toca).
+    """
+
+    __tablename__ = "asset_classifications"
+
+    resource_uid: Mapped[str] = mapped_column(ForeignKey("resources.uid"), primary_key=True)
+    classification: Mapped[str] = mapped_column(Unicode(32))
+    confidentiality: Mapped[int]
+    integrity: Mapped[int]
+    availability: Mapped[int]
+    risk_required: Mapped[bool]
+    custodian: Mapped[Optional[str]] = mapped_column(Unicode(320))
+    method: Mapped[str] = mapped_column(String(16), default="automatica")
+    reason: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    updated_by: Mapped[str] = mapped_column(Unicode(320))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class FindingEvent(Base):

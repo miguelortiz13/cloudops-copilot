@@ -20,7 +20,6 @@ La especificación OpenAPI completa y navegable está en `/docs` (Swagger) y `/r
 | `POST` | `/api/inventory/export` | CSV UTF-8 con BOM generado en memoria |
 | `GET` | `/api/inventory/snapshots` | Snapshots del pipeline de inventario |
 | `GET` | `/api/inventory/download/{filename}` | Descarga de un snapshot o del Excel maestro |
-| `GET` | `/api/governance/iso` | Clasificación de activos ISO 27001 (desde el Excel del pipeline) |
 
 Ejemplo:
 
@@ -30,6 +29,18 @@ curl -s -X POST localhost:8000/api/inventory/resources \
   -d '{"subscriptionIds": [], "page": 1, "pageSize": 25,
        "filters": {"onlyNonCompliant": true}}'
 ```
+
+## Cumplimiento
+
+Detalle en [modules/compliance.md](modules/compliance.md). Leen de la base (vista precalculada por el recolector); sin base responden 503.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/compliance` | Estado de cada control de CIS Azure 2.0.0 e ISO 27001:2022 con su evidencia, y catálogo de reglas |
+| `GET` | `/api/compliance/assets` | Activos con clasificación ISO, tríada C-I-D, custodio y hallazgos activos |
+| `GET` | `/api/compliance/assets/export` | El inventario clasificado en CSV |
+| `POST` | `/api/compliance/assets/classification` | **Operador.** Clasificación manual con motivo (auditada) |
+| `POST` | `/api/compliance/assets/classification/restore` | **Operador.** Vuelve a la clasificación automática (auditada) |
 
 ## FinOps
 

@@ -4,7 +4,7 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario -> costos -> hallazgos -> KPIs -> cache de la
+Orden: migraciones -> inventario -> clasificacion ISO -> costos -> hallazgos -> KPIs -> cache de la
 vision general de costos -> vistas precalculadas para el panel (app/readmodel). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
@@ -22,7 +22,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, Dict, List
 
-from app.collectors import costs, findings, inventory, kpis
+from app.collectors import classification, costs, findings, inventory, kpis
 from app.collectors.common import Contexto, Resultado, ahora
 from app.db import engine as db
 from app.db.models import CollectorRun
@@ -48,6 +48,7 @@ def precalcular_vistas(ctx: Contexto, session) -> Resultado:
 
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
+    "classification": classification.recolectar,
     "costs": costs.recolectar,
     "findings": findings.recolectar,
     "kpis": kpis.recolectar,

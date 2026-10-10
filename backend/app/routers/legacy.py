@@ -76,62 +76,6 @@ def get_resources(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/governance/iso")
-def get_iso_governance_report():
-    import openpyxl
-    
-    excel_path = config.INVENTORY_EXCEL
-    if not excel_path.exists():
-        return {"error": "El archivo de inventario no ha sido generado todavía.", "data": [], "stats": {}}
-        
-    try:
-        # Load in read-only to be fast and safe
-        wb = openpyxl.load_workbook(excel_path, read_only=True)
-        if "12_inventario_iso" not in wb.sheetnames:
-            return {"error": "La clasificación ISO no ha sido generada todavía.", "data": [], "stats": {}}
-            
-        ws = wb["12_inventario_iso"]
-        rows = list(ws.iter_rows(values_only=True))
-        if not rows or len(rows) < 2:
-            return {"error": "La hoja ISO está vacía.", "data": [], "stats": {}}
-            
-        headers = rows[0]
-        data = []
-        for r in rows[1:]:
-            if not r[0]:  # Skip if name is empty
-                continue
-            data.append({headers[i]: r[i] for i in range(len(headers))})
-            
-        # Calculate summaries for statistics
-        classification_counts = {}
-        risk_counts = {"SI": 0, "NO": 0}
-        score_sum = 0
-        total_assets = len(data)
-        
-        for item in data:
-            c = item.get("Clasificación del activo") or "Uso Interno"
-            classification_counts[c] = classification_counts.get(c, 0) + 1
-            
-            r = item.get("Gestión de riesgo (SI/NO)") or "NO"
-            risk_counts[r] = risk_counts.get(r, 0) + 1
-            
-            score_sum += int(item.get("puntuación del activo") or 3)
-            
-        avg_score = round(score_sum / total_assets, 2) if total_assets > 0 else 0
-        
-        return {
-            "data": data,
-            "stats": {
-                "total_assets": total_assets,
-                "classification_distribution": classification_counts,
-                "risk_management_distribution": risk_counts,
-                "average_criticality_score": avg_score
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/api/subscriptions")
 def get_subscriptions(azure: AzureDep):
     """Queries Azure Resource Graph to list all subscriptions accessible to the Service Principal."""
