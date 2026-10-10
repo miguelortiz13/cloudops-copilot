@@ -11,9 +11,10 @@ from typing import Any, Optional
 
 from app.core import config
 
-# Hora UTC a partir de la cual se espera una recoleccion nueva. El recolector
-# corre a las 06:00 y tarda minutos; una hora de margen.
-HORA_RENOVACION = int(os.getenv("READMODEL_REFRESH_HOUR_UTC", "7"))
+# Hora UTC del recolector diario (collector_cron) y margen para que termine.
+# Una vista vale hasta que la *siguiente* recoleccion haya terminado.
+HORA_RECOLECCION = int(os.getenv("COLLECTOR_HOUR_UTC", "6"))
+MARGEN = timedelta(hours=1)
 
 
 def directorio() -> Path:
@@ -21,9 +22,19 @@ def directorio() -> Path:
 
 
 def proxima_renovacion(ahora: Optional[datetime] = None) -> datetime:
+    """
+    Cuando habra datos nuevos: la proxima recoleccion que todavia no empezo,
+    mas el margen.
+
+    Antes se calculaba como "las 07:00 siguientes": una vista escrita por el
+    recolector a las 06:02 vencia a las 07:00, y desde ahi cada visita al
+    panel despertaba la base.
+    """
     ahora = ahora or datetime.now(timezone.utc)
-    hoy = ahora.replace(hour=HORA_RENOVACION, minute=0, second=0, microsecond=0)
-    return hoy if ahora < hoy else hoy + timedelta(days=1)
+    corrida = ahora.replace(hour=HORA_RECOLECCION, minute=0, second=0, microsecond=0)
+    if corrida <= ahora:
+        corrida += timedelta(days=1)
+    return corrida + MARGEN
 
 
 def clave(nombre: str, **params: Any) -> str:

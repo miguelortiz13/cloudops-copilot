@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Cloud } from 'lucide-react';
 import { authEnabled, initAuth, login } from './auth';
 import { AppProvider } from './state/AppContext';
@@ -6,14 +6,18 @@ import { useApp, useRoute } from './state/hooks';
 import { AgentDock, Sidebar, SyncDialog, Topbar } from './components/layout';
 import { NAV } from './components/nav';
 import { SectionBoundary } from './components/SectionBoundary';
-import { OverviewPage } from './modules/overview/OverviewPage';
-import { InventoryPage } from './modules/inventory/InventoryPage';
-import { FinOpsPage } from './modules/finops/FinOpsPage';
-import { SecOpsPage } from './modules/secops/SecOpsPage';
-import { IacPage } from './modules/iac/IacPage';
-import { IsoPage } from './modules/iso/IsoPage';
-import { ReportsPage } from './modules/reports/ReportsPage';
-import { AdminPage } from './modules/admin/AdminPage';
+import { Loading } from './components/ui';
+
+// Cada sección se descarga al abrirla: la carga inicial no paga por módulos
+// que el usuario quizá no visite (gráficos, tablas, gestión, administración).
+const OverviewPage = lazy(() => import('./modules/overview/OverviewPage').then((m) => ({ default: m.OverviewPage })));
+const InventoryPage = lazy(() => import('./modules/inventory/InventoryPage').then((m) => ({ default: m.InventoryPage })));
+const FinOpsPage = lazy(() => import('./modules/finops/FinOpsPage').then((m) => ({ default: m.FinOpsPage })));
+const SecOpsPage = lazy(() => import('./modules/secops/SecOpsPage').then((m) => ({ default: m.SecOpsPage })));
+const IacPage = lazy(() => import('./modules/iac/IacPage').then((m) => ({ default: m.IacPage })));
+const IsoPage = lazy(() => import('./modules/iso/IsoPage').then((m) => ({ default: m.IsoPage })));
+const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 
 const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.id, i.label])));
 const SUBVIEWS: Record<string, string> = {
@@ -47,6 +51,7 @@ function Shell() {
         <Topbar trail={trail} onMenu={() => setMobileNav(true)} onSync={() => setSyncOpen(true)} />
         <main className="content">
           <SectionBoundary name={LABELS[page]} key={page}>
+            <Suspense fallback={<Loading />}>
             {page === 'resumen' && <OverviewPage />}
             {page === 'inventario' && <InventoryPage />}
             {page === 'finops' && <FinOpsPage view={sub} onView={(v) => navigate(`finops/${v}`)} />}
@@ -55,6 +60,7 @@ function Shell() {
             {page === 'iso' && <IsoPage />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}
+            </Suspense>
           </SectionBoundary>
         </main>
       </div>

@@ -124,10 +124,14 @@ def test_la_vista_precalculada_no_abre_la_base(monkeypatch):
 
 
 def test_la_cache_vence_en_la_siguiente_recoleccion():
-    antes = datetime(2026, 10, 8, 5, 0, tzinfo=timezone.utc)
-    despues = datetime(2026, 10, 8, 9, 0, tzinfo=timezone.utc)
-    assert cache.proxima_renovacion(antes) == datetime(2026, 10, 8, 7, 0, tzinfo=timezone.utc)
-    assert cache.proxima_renovacion(despues) == datetime(2026, 10, 9, 7, 0, tzinfo=timezone.utc)
+    def vence(h, m=0):
+        return cache.proxima_renovacion(datetime(2026, 10, 8, h, m, tzinfo=timezone.utc))
+
+    # Antes de la corrida de hoy: vale hasta que termine la de hoy.
+    assert vence(5) == datetime(2026, 10, 8, 7, 0, tzinfo=timezone.utc)
+    # Escrita por el recolector al terminar (06:02): vale hasta mañana, no 58 minutos.
+    assert vence(6, 2) == datetime(2026, 10, 9, 7, 0, tzinfo=timezone.utc)
+    assert vence(23) == datetime(2026, 10, 9, 7, 0, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------- gestion de hallazgos
@@ -192,3 +196,30 @@ def test_sin_base_las_vistas_responden_503(monkeypatch):
         monkeypatch.setattr(config, nombre, "")
     r = TestClient(app).get("/api/history/costs")
     assert r.status_code == 503
+
+
+# ---------------------------------------------------------------- tendencia del inventario
+
+def test_la_tendencia_une_la_base_con_el_jsonl():
+    from app.services.history_service import fusionar_con_kpis
+
+    jsonl = {"points": [
+        {"date": "2026-10-05", "totalResources": 30, "tagCompliancePercentage": 80.0},
+        {"date": "2026-10-08", "totalResources": 99},  # la base tiene ese dia: gana la base
+    ]}
+    kpis = {"metrics": {
+        "resources_total": [{"day": "2026-10-08", "value": 35}, {"day": "2026-10-09", "value": 36}],
+        "tag_compliance_pct": [{"day": "2026-10-08", "value": 87.5}, {"day": "2026-10-09", "value": 88.0}],
+    }}
+    r = fusionar_con_kpis(jsonl, kpis)
+    assert [p["date"] for p in r["points"]] == ["2026-10-05", "2026-10-08", "2026-10-09"]
+    assert r["points"][1]["totalResources"] == 35
+    assert r["deltas"] == {"totalResources": 6, "tagCompliancePercentage": 8.0}
+    assert r["available"] is True and r["source"] == "kpi_daily+jsonl"
+
+
+def test_sin_kpis_queda_el_jsonl():
+    from app.services.history_service import fusionar_con_kpis
+
+    r = fusionar_con_kpis({"points": [{"date": "2026-10-05", "totalResources": 30}]}, {"metrics": {}})
+    assert r["pointCount"] == 1 and r["available"] is False and r["source"] == "jsonl"

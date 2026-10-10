@@ -5,6 +5,10 @@ from app.schemas.inventory import *
 from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
+from app.db import engine as db
+from app.readmodel import queries
+from app.readmodel import service as readmodel
+from app.services.history_service import fusionar_con_kpis
 from app.core.deps import AzureDep, HistoryDep, InventoryDep
 import os
 from pydantic import BaseModel
@@ -159,12 +163,18 @@ def inventory_history(history: HistoryDep, req: InventoryHistoryRequest):
     suficientes puntos para dibujar una tendencia.
     """
     try:
-        return history.get_series(
-            subscription_ids=req.subscriptionIds or [],
-            days=req.days or 90,
-        )
+        serie = history.get_series(subscription_ids=req.subscriptionIds or [], days=req.days or 90)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # Con todas las suscripciones, la serie diaria del recolector (kpi_daily)
+    # completa los dias sin visitas. Sale de la vista precalculada: no despierta
+    # la base. Si no hay base, se queda con el JSONL.
+    if not req.subscriptionIds and db.is_configured():
+        try:
+            return fusionar_con_kpis(serie, readmodel.kpis(queries.DIAS_KPI_POR_DEFECTO), req.days or 90)
+        except db.DatabaseUnavailable as exc:
+            print(f"[inventario] Serie diaria no disponible, se usa el JSONL: {exc}")
+    return serie
 
 
 

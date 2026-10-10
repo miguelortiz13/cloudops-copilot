@@ -204,6 +204,7 @@ class CostService:
         # detectarse solo.
         self._denied: Dict[str, float] = {}
         self._cache_dir = self._resolve_cache_dir(cache_dir)
+        self._ultima_sincronizacion = 0.0
         self._load_from_disk()
 
     # ------------------------------------------------------------------
@@ -274,8 +275,37 @@ class CostService:
                 except Exception:
                     pass
 
+        self._ultima_sincronizacion = ahora
         if cargadas:
             print(f"[CostService] {cargadas} entrada(s) de costo recuperadas del almacenamiento.")
+
+    # El recolector diario escribe la cache en el mismo almacenamiento. Una
+    # replica del API que siguio viva despues de esa escritura tiene en memoria
+    # la version anterior: antes de ir a Cost Management se relee el disco, y
+    # como mucho cada SINCRONIZACION_SEGUNDOS para no recorrer el File Share en
+    # cada peticion.
+    SINCRONIZACION_SEGUNDOS = 300
+
+    def _sincronizar_con_disco(self) -> None:
+        if self._cache_dir is None or time.time() - self._ultima_sincronizacion < self.SINCRONIZACION_SEGUNDOS:
+            return
+        self._ultima_sincronizacion = time.time()
+        try:
+            archivos = list(self._cache_dir.glob("*.json"))
+        except Exception:
+            return
+        for archivo in archivos:
+            try:
+                with open(archivo, "r", encoding="utf-8") as fh:
+                    registro = json.load(fh)
+                clave = self._deserializar_clave(registro["key"])
+                guardado = float(registro["saved_at"])
+                with self._lock:
+                    actual = self._cache.get(clave)
+                    if actual is None or guardado > actual[0]:
+                        self._cache[clave] = (guardado, registro["payload"])
+            except Exception:
+                continue
 
     @staticmethod
     def _serializar_clave(key: Tuple) -> List[Any]:
@@ -319,10 +349,14 @@ class CostService:
     # ------------------------------------------------------------------
 
     def _get_cached(self, key: Tuple) -> Optional[Any]:
-        with self._lock:
-            entry = self._cache.get(key)
-            if entry and (time.time() - entry[0]) < self._ttl:
-                return entry[1]
+        for intento in range(2):
+            with self._lock:
+                entry = self._cache.get(key)
+                if entry and (time.time() - entry[0]) < self._ttl:
+                    return entry[1]
+            if intento == 0:
+                # Vencida o ausente en memoria: quiza el recolector ya dejo una mas nueva.
+                self._sincronizar_con_disco()
         return None
 
     def _get_stale(self, key: Tuple) -> Optional[Any]:
@@ -734,6 +768,7 @@ class CostService:
         una vez al dia. Solo se consulta a la API lo que ninguna entrada cubra.
         """
         pedidas = {str(s).lower() for s in (subscription_ids or []) if s}
+        self._sincronizar_con_disco()
         if not pedidas:
             return {"status": "no_subscriptions", "currency": "USD",
                     "window_days": DEFAULT_WINDOW_DAYS, "costs": {},

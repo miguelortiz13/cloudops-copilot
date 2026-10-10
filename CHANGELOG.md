@@ -24,6 +24,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `GET /api/admin/database`: versión del esquema, filas por tabla y últimas ejecuciones de los recolectores.
 - Pruebas de routers con servicios sustituidos (`tests/unit/test_routers.py`), incluidos el generador de IaC y el chat.
 
+### Rendimiento
+- **Las vistas precalculadas vencían a los 58 minutos**: se calculaba "las 07:00 siguientes" y el recolector las escribe a las 06:02. Desde las 07:00 cada visita al panel despertaba la base (medido: 48 s y cupo gratuito consumido). Ahora valen hasta que termine la siguiente recolección, con la hora tomada de `collector_cron` (`COLLECTOR_HOUR_UTC`).
+- **El API ya no precarga costos en cada arranque en frío** (3 min de consultas a Cost Management, con la réplica encendida y riesgo de 429). Lo hace el recolector diario (paso `costcache`) en el almacenamiento compartido; el API considera la caché vigente 26 h y relee el disco antes de consultar Cost Management.
+- **Panel por secciones**: cada módulo se descarga al abrirlo (`React.lazy`). La carga inicial baja de 177 a 156 KB comprimidos; las secciones pesan de 1,5 a 6 KB.
+- **Tendencia del inventario completa**: une la serie diaria de la base (recolector, sin huecos) con el JSONL anterior, que solo tenía los días con visitas. Sale de la vista precalculada, sin despertar la base. Los KPIs diarios incluyen además recursos productivos y no productivos.
+
 ### Corregido
 - El motor de reglas del chat no entendía preguntas con tildes ("¿Cuántos recursos tengo?" respondía "No logré interpretar tu pregunta"). Ahora pregunta y palabras clave se comparan sin tildes ni mayúsculas.
 - Algunas pruebas unitarias se conectaban a Azure con la sesión de `az login` de la máquina (al resolver los servicios reales antes de un 403). Ahora el cliente de Azure nunca se conecta en las pruebas unitarias.

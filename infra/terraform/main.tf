@@ -239,6 +239,12 @@ resource "azurerm_container_app" "api" {
         value = azuread_application.api.client_id
       }
       env {
+        # Las vistas precalculadas valen hasta que termine la siguiente
+        # recoleccion: el API necesita saber a que hora corre (collector_cron).
+        name  = "COLLECTOR_HOUR_UTC"
+        value = split(" ", var.collector_cron)[1]
+      }
+      env {
         name  = "AUTHZ_GROUP_ADMIN"
         value = azuread_group.role["Admin"].object_id
       }
@@ -272,9 +278,16 @@ resource "azurerm_container_app" "api" {
         name  = "DB_NAME"
         value = azapi_resource.db.name
       }
+      # La cache de la vision general de costos la deja el recolector diario en
+      # /data (paso costcache): el API no precarga al arrancar y la considera
+      # vigente hasta la siguiente recoleccion (26 h).
       env {
-        name  = "COST_WARM_INITIAL_DELAY_SECONDS"
-        value = "5"
+        name  = "COST_WARM_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "COST_CACHE_TTL_SECONDS"
+        value = "93600"
       }
     }
   }

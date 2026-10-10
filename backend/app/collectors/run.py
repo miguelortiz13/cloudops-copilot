@@ -4,8 +4,8 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario -> costos -> hallazgos -> KPIs -> vistas
-precalculadas para el panel (app/readmodel). Cada
+Orden: migraciones -> inventario -> costos -> hallazgos -> KPIs -> cache de la
+vision general de costos -> vistas precalculadas para el panel (app/readmodel). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
 de salida es 1 si alguno termino en error, para que Container Apps lo marque
@@ -27,6 +27,18 @@ from app.collectors.common import Contexto, Resultado, ahora
 from app.db import engine as db
 from app.db.models import CollectorRun
 
+def precalentar_costos_en_vivo(ctx: Contexto, session) -> Resultado:
+    """
+    Deja lista la cache de la vision general de costos (consulta en vivo a Cost
+    Management) en el almacenamiento compartido con el API. Asi el API no
+    precarga en cada arranque en frio ni hace esperar al usuario.
+    """
+    r = ctx.cost.warm(ctx.subscription_ids, pace_seconds=2.5)
+    faltan = len(ctx.subscription_ids) - (r.get("covered") or 0)
+    return Resultado(items=r.get("covered") or 0, status="parcial" if faltan else "ok",
+                     detail={"subscriptions": len(ctx.subscription_ids), "recovered_on_retry": r.get("recovered_on_retry")})
+
+
 def precalcular_vistas(ctx: Contexto, session) -> Resultado:
     """Deja las vistas por defecto del panel en la cache compartida (app/readmodel)."""
     from app.readmodel.service import precalentar
@@ -39,6 +51,7 @@ RECOLECTORES: Dict[str, Callable] = {
     "costs": costs.recolectar,
     "findings": findings.recolectar,
     "kpis": kpis.recolectar,
+    "costcache": precalentar_costos_en_vivo,
     "readmodel": precalcular_vistas,
 }
 
