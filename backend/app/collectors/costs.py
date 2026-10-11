@@ -10,6 +10,7 @@ reservas ni planes de ahorro coincide con `effective_cost`; cuando existan, el
 costo efectivo vendra de los exports FOCUS (fase 1, costos desde la base).
 """
 
+import time
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -25,6 +26,29 @@ from app.db.models import CollectorRun, CostDaily
 DIAS_INICIALES = 364
 DIAS_MOVILES = 7
 FUENTE = "query"
+# Cost Management corta con 429 cuando se agota la cuota de la ventana. Las
+# suscripciones que fallaron se reintentan una vez, mas despacio, tras esperar
+# a que se libere (la misma estrategia que la precarga de costos).
+ESPERA_REINTENTO_SEGUNDOS = 60
+PAUSA = 2.0
+
+
+def _consultar(ctx: Contexto, dias: int):
+    datos = ctx.cost.get_daily_cost_by_resource(ctx.subscription_ids, days=dias, pace_seconds=PAUSA)
+    cobertura = {k: list(v) for k, v in (datos.get("coverage") or {}).items()}
+    filas = list(datos.get("rows") or [])
+    fallidas = cobertura.get("failed") or []
+    if not fallidas:
+        return datos, filas, cobertura, 0
+    print(f"[recolector] costos: reintentando {len(fallidas)} suscripcion(es) en {ESPERA_REINTENTO_SEGUNDOS:.0f} s.")
+    time.sleep(ESPERA_REINTENTO_SEGUNDOS)
+    segunda = ctx.cost.get_daily_cost_by_resource(fallidas, days=dias, pace_seconds=PAUSA * 2)
+    recuperadas = (segunda.get("coverage") or {}).get("covered") or []
+    filas += [f for f in segunda.get("rows") or [] if f.get("subscription_id") in recuperadas]
+    cobertura["covered"] = (cobertura.get("covered") or []) + recuperadas
+    cobertura["failed"] = [s for s in fallidas if s not in recuperadas]
+    cobertura["denied"] = (cobertura.get("denied") or []) + ((segunda.get("coverage") or {}).get("denied") or [])
+    return datos, filas, cobertura, len(recuperadas)
 
 
 def recolectar(ctx: Contexto, session: Session) -> Resultado:
@@ -35,9 +59,8 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
     carga_hecha = any((d or {}).get("window_days", 0) >= DIAS_INICIALES for d in previas)
     dias = DIAS_MOVILES if carga_hecha else DIAS_INICIALES
 
-    datos = ctx.cost.get_daily_cost_by_resource(ctx.subscription_ids, days=dias, pace_seconds=2.0)
-    cobertura = datos.get("coverage") or {}
-    cubiertas = [s for s in cobertura.get("covered", [])]
+    datos, filas_crudas, cobertura, recuperadas = _consultar(ctx, dias)
+    cubiertas = list(cobertura.get("covered", []))
     if not cubiertas:
         raise RuntimeError(f"Cost Management no respondio para ninguna suscripcion ({datos.get('status')}).")
 
@@ -45,9 +68,11 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
     # Una fila por clave unica: Cost Management puede repetir combinaciones
     # (por ejemplo, el mismo recurso con distinta capitalizacion).
     filas = {}
-    for f in datos["rows"]:
+    # Solo las suscripciones cubiertas: de las demas no se borro la ventana, y
+    # sus filas se duplicarian con las que ya estan.
+    for f in filas_crudas:
         dia = date.fromisoformat(f["date"])
-        if dia < desde:
+        if dia < desde or f["subscription_id"] not in cubiertas:
             continue
         clave = (dia, account_uid(f["subscription_id"]), resource_uid(f["resource_id"]) if f["resource_id"] else "",
                  f["service_name"][:200])
@@ -72,5 +97,5 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
         status="parcial" if faltantes else "ok",
         detail={"window_days": dias, "since": desde.isoformat(), "covered": len(cubiertas),
                 "denied": cobertura.get("denied", []), "failed": cobertura.get("failed", []),
-                "total": float(total or 0)},
+                "recovered_on_retry": recuperadas, "total": float(total or 0)},
     )

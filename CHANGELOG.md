@@ -38,6 +38,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **Tendencia del inventario completa**: une la serie diaria de la base (recolector, sin huecos) con el JSONL anterior, que solo tenía los días con visitas. Sale de la vista precalculada, sin despertar la base. Los KPIs diarios incluyen además recursos productivos y no productivos.
 
 ### Corregido
+- El recolector de costos dejaba "parcial" la ejecución cuando Cost Management respondía 429 para una suscripción (pasó dos días seguidos, con una suscripción distinta cada vez). Ahora la reintenta una vez tras 60 s, igual que la precarga de costos. Además solo guarda filas de las suscripciones cubiertas, cuya ventana sí se reemplazó.
 - El motor de reglas del chat no entendía preguntas con tildes ("¿Cuántos recursos tengo?" respondía "No logré interpretar tu pregunta"). Ahora pregunta y palabras clave se comparan sin tildes ni mayúsculas.
 - Algunas pruebas unitarias se conectaban a Azure con la sesión de `az login` de la máquina (al resolver los servicios reales antes de un 403). Ahora el cliente de Azure nunca se conecta en las pruebas unitarias.
 - El agente de Kubernetes sin clave de Gemini respondía "Error IA: GEMINI_API_KEY missing". Ahora muestra el estado del clúster.

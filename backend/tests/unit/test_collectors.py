@@ -232,6 +232,42 @@ def test_costos_reemplazan_la_ventana_y_luego_usan_siete_dias():
         assert float(sin_recurso.billed_cost) == pytest.approx(0.5)
 
 
+def test_costos_reintentan_las_suscripciones_que_fallan(monkeypatch):
+    """Un 429 de Cost Management no deja la suscripcion sin dato hasta el dia siguiente."""
+    monkeypatch.setattr(costs, "ESPERA_REINTENTO_SEGUNDOS", 0)
+    otra, rota = "22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"
+
+    class Limitado:
+        def __init__(self):
+            self.pedidos = []
+
+        def get_daily_cost_by_resource(self, subs, days=30, pace_seconds=0.0):
+            self.pedidos.append(list(subs))
+            primera = len(self.pedidos) == 1
+            cubiertas = [s for s in subs if s == SUB or (s == otra and not primera)]
+            filas = [{**fila_costo("2026-10-07", 1.0), "subscription_id": s} for s in subs]
+            return {"status": "success", "rows": filas,
+                    "coverage": {"covered": cubiertas, "denied": [], "failed": [s for s in subs if s not in cubiertas]}}
+
+    # La suscripcion que falla dos veces conserva lo que ya tenia.
+    with db.session_scope() as s:
+        s.add(CollectorRun(collector="costs", started_at=DIA, finished_at=DIA, status="ok", items=1,
+                           detail={"window_days": costs.DIAS_INICIALES}))
+        s.add(CostDaily(charge_date=date(2026, 10, 6), account_uid=f"azure:sub/{rota}", resource_uid="",
+                        service_name="Previo", billed_cost=7, effective_cost=7, currency="USD", source="query"))
+    cost = Limitado()
+    ctx = contexto(cost=cost)
+    ctx.subscription_ids = [SUB, otra, rota]
+    r = correr(costs, ctx)
+
+    assert cost.pedidos == [[SUB, otra, rota], [otra, rota]]
+    assert r.status == "parcial" and r.detail["recovered_on_retry"] == 1
+    assert r.detail["covered"] == 2 and r.detail["failed"] == [rota]
+    with db.session_scope() as s:
+        cuentas = sorted(c for (c,) in s.execute(select(CostDaily.account_uid)).all())
+    assert cuentas == [f"azure:sub/{SUB}", f"azure:sub/{otra}", f"azure:sub/{rota}"]
+
+
 # ---------------------------------------------------------------- KPIs y ejecucion
 
 def test_kpis_del_dia_son_idempotentes():
