@@ -51,7 +51,8 @@ app/core/config.py     ← única fuente de configuración (lee .env)
 app/core/container.py  ← crea los servicios una vez y los comparte; precarga de costos
 app/core/deps.py       ← servicios como dependencias tipadas de FastAPI (Depends)
 app/routers/*          ← traducen HTTP ↔ servicios; sin lógica de dominio
-app/providers/azure/*  ← acceso a Azure: credenciales y Resource Graph (ADR 0006)
+app/providers/base.py  ← contrato por capacidad y modelo canónico (ADR 0006)
+app/providers/azure/*  ← AzureClient (credenciales, Resource Graph) y AzureProvider (el contrato sobre Azure)
 app/services/*         ← lógica de dominio
 app/agents/*           ← agente conversacional y generador de IaC
 app/llm/*              ← interfaz de modelos de lenguaje (Gemini con google-genai) y límite por usuario

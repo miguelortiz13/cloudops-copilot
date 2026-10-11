@@ -44,7 +44,11 @@ def _ultima(s: Session, recolector: str) -> Optional[CollectorRun]:
 def _reglas_sin_evidencia(corrida: Optional[CollectorRun]) -> Set[str]:
     if corrida is None:
         return {r.id for r in catalog.REGLAS.values()}
-    fallidas = set((corrida.detail or {}).get("failed_queries") or [])
+    detalle = corrida.detail or {}
+    if "rules_without_evidence" in detalle:
+        return set(detalle["rules_without_evidence"])
+    # Ejecuciones anteriores a la capa de proveedores guardaban las consultas de Azure.
+    fallidas = set(detalle.get("failed_queries") or [])
     return {catalog.REGLAS[t].id for t, consulta in catalog.CONSULTA_DE_TIPO.items() if consulta in fallidas}
 
 

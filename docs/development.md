@@ -54,6 +54,9 @@ make test-integration   # backend/tests/integration — contra un tenant real
 | `test_contexto_agente.py` | Presupuesto de contexto y tags nulas |
 | `test_risk_exposure.py` | Priorización severidad × dinero |
 | `test_seguridad_endpoints.py` | Webhook de Teams y validación de comandos de Kubernetes |
+| `test_collectors.py` | Ciclo de vida de hallazgos, bajas solo con inventario completo, ventana de costos y que los recolectores no dependan de Azure |
+| `contract/test_contrato.py` | El contrato de la capa de proveedores, igual para `AzureProvider` (respuestas grabadas) y el proveedor en memoria |
+| `contract/test_azure_grabado.py` | Lo propio de Azure: reglas de NSG, paginación y 403 de Cost Management, reintento, tags nulas |
 | `integration/test_inventory_kpis.py` | Equivalencia exacta entre KPIs en KQL y en memoria |
 
 Las pruebas unitarias sustituyen al agente de Azure por dobles en memoria, y también se pueden ejecutar como scripts: `.venv/bin/python tests/unit/test_shadow_it.py`.
@@ -88,6 +91,13 @@ La CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) ejecuta en cad
 2. Regístrala en `consultas` y llama a `agregar(...)` con tipo, título, función de severidad y recomendación.
 3. Si el costo del recurso es atribuible al hallazgo, no hay que hacer nada más: `RiskService` lo cruza solo. Si no lo es (como en los NSG), márcalo `not_applicable` en `risk_service.py`.
 4. Agrega un caso en `tests/unit/test_risk_exposure.py`.
+
+### Añadir una nube
+
+1. Implementa en `app/providers/<nube>/` las interfaces de `app/providers/base.py` que soporte y declara sus capacidades: lo que no soporte debe lanzar `CapacidadNoSoportada`, nunca devolver vacío.
+2. Graba respuestas reales anonimizadas de su API en `tests/contract/grabaciones/<nube>/` y escribe su fábrica en `tests/contract/proveedores.py` (escenarios normal, inventario roto, regla sin evidencia y sin IaC).
+3. Agrégala a `FABRICAS` en `tests/contract/test_contrato.py`: tiene que pasar la batería sin cambiarla. Lo propio de esa nube va en su propio archivo de pruebas, como `test_azure_grabado.py`.
+4. Los recolectores no se tocan.
 
 ### Añadir un endpoint
 

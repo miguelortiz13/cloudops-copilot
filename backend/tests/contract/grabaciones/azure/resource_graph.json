@@ -1,0 +1,45 @@
+{
+  "_nota": "Respuestas de Azure Resource Graph con la forma real de cada consulta (columnas proyectadas por services/kql.py, inventory_service y governance.KQL_CREACIONES). Datos ficticios.",
+  "suscripciones": [
+    {"subscriptionId": "00000000-0000-4000-8000-0000000000a1", "displayName": "Laboratorio (contrato)", "state": "Enabled", "tenantId": "00000000-0000-4000-8000-0000000000f0"},
+    {"subscriptionId": "00000000-0000-4000-8000-0000000000a2", "displayName": "Sin costos (contrato)", "state": "Enabled", "tenantId": "00000000-0000-4000-8000-0000000000f0"}
+  ],
+  "recursos": [
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.KeyVault/vaults/kv-lab", "name": "kv-lab", "type": "microsoft.keyvault/vaults", "kind": null, "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "resourceGroup": "rg-lab", "location": "eastus2", "tags": {"Environment": "prod", "Owner": "plataforma"}, "managedBy": null, "sku": {"name": "standard", "family": "A"}, "provisioningState": "Succeeded", "createdTime": "2026-08-01T10:00:00Z", "changedTime": "2026-09-01T10:00:00Z"},
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Network/networkSecurityGroups/nsg-lab", "name": "nsg-lab", "type": "microsoft.network/networksecuritygroups", "kind": null, "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "resourceGroup": "rg-lab", "location": "eastus2", "tags": {}, "managedBy": null, "sku": null, "provisioningState": "Succeeded", "createdTime": "2026-08-01T10:00:00Z", "changedTime": "2026-08-01T10:00:00Z"},
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Compute/disks/disk-lab", "name": "disk-lab", "type": "microsoft.compute/disks", "kind": null, "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "resourceGroup": "rg-lab", "location": "eastus2", "tags": {"Environment": null, "Owner": "datos"}, "managedBy": null, "sku": {"name": "StandardSSD_LRS", "tier": "Standard"}, "provisioningState": "Succeeded", "createdTime": "2026-09-20T10:00:00Z", "changedTime": "2026-09-20T10:00:00Z"},
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Custom/widgets/w1", "name": "w1", "type": "microsoft.custom/widgets", "kind": null, "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "resourceGroup": "rg-lab", "location": "global", "tags": null, "managedBy": null, "sku": null, "provisioningState": "Succeeded", "createdTime": null, "changedTime": null},
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a2/resourceGroups/rg-web/providers/Microsoft.Web/sites/app-web", "name": "app-web", "type": "microsoft.web/sites", "kind": "app,linux", "subscriptionId": "00000000-0000-4000-8000-0000000000a2", "resourceGroup": "rg-web", "location": "centralus", "tags": {"Environment": "dev"}, "managedBy": null, "sku": null, "provisioningState": "Succeeded", "createdTime": "2026-09-30T10:00:00Z", "changedTime": "2026-09-30T10:00:00Z"}
+  ],
+  "creaciones": [
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Compute/disks/disk-lab", "tipoRecurso": "microsoft.compute/disks", "quien": "ana@contoso.example", "cuando": "2026-09-20T10:00:00Z", "esPersona": true},
+    {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a2/resourceGroups/rg-web/providers/Microsoft.Web/sites/app-web", "tipoRecurso": "microsoft.web/sites", "quien": "11111111-2222-4333-8444-555555555555", "cuando": "2026-09-30T10:00:00Z", "esPersona": false}
+  ],
+  "seguridad": {
+    "nsgs": [
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Network/networkSecurityGroups/nsg-lab", "name": "nsg-lab", "resourceGroup": "rg-lab", "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "port": "22", "source": "*", "ruleName": "allow-ssh", "asociado": true},
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Network/networkSecurityGroups/nsg-lab", "name": "nsg-lab", "resourceGroup": "rg-lab", "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "port": "3389", "source": "Internet", "ruleName": "allow-rdp", "asociado": true}
+    ],
+    "storage": [],
+    "keyvaults": [
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.KeyVault/vaults/kv-lab", "name": "kv-lab", "resourceGroup": "rg-lab", "location": "eastus2", "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "sinPrivateEndpoint": true, "sinFirewall": false}
+    ],
+    "public_ips": [
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Network/publicIPAddresses/pip-lab", "name": "pip-lab", "resourceGroup": "rg-lab", "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "ipAddress": "203.0.113.20", "location": "eastus2", "sku": "Standard"}
+    ],
+    "https": [
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a2/resourceGroups/rg-web/providers/Microsoft.Web/sites/app-web", "name": "app-web", "resourceGroup": "rg-web", "subscriptionId": "00000000-0000-4000-8000-0000000000a2", "location": "centralus", "kind": "app,linux", "defaultHostName": "app-web.azurewebsites.net"}
+    ],
+    "sql": [],
+    "failed": [],
+    "discos": [
+      {"id": "/subscriptions/00000000-0000-4000-8000-0000000000a1/resourceGroups/rg-lab/providers/Microsoft.Compute/disks/disk-lab", "name": "disk-lab", "resourceGroup": "rg-lab", "subscriptionId": "00000000-0000-4000-8000-0000000000a1", "location": "eastus2", "sizeGB": 64}
+    ]
+  },
+  "terraform": {
+    "available": true,
+    "managed_ids": ["/subscriptions/00000000-0000-4000-8000-0000000000a1/resourcegroups/rg-lab/providers/microsoft.keyvault/vaults/kv-lab"],
+    "states_read": 1,
+    "states_failed": 0
+  }
+}

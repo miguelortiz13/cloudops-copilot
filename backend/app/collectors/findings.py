@@ -11,8 +11,9 @@ Estados: abierto -> asumido -> resuelto, o aceptado (riesgo aceptado hasta
   (evento "resuelto"). Solo si la consulta de su regla respondio: una consulta
   fallida no es evidencia de que el problema desaparecio.
 
-Cada hallazgo es unico por (regla, recurso). En los NSG el recurso es la regla
-de seguridad concreta, porque un mismo NSG puede tener varias reglas abiertas.
+Cada hallazgo es unico por (regla, recurso). El proveedor decide que es "el
+recurso" (en Azure, la regla de seguridad concreta de un NSG) y que reglas no
+pudo evaluar: el recolector no sabe de que nube vienen.
 """
 
 from typing import Dict, Tuple
@@ -20,19 +21,13 @@ from typing import Dict, Tuple
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.collectors.common import Contexto, Resultado, account_uid, resource_uid
-from app.compliance.catalog import CONSULTA_DE_TIPO, REGLAS, frameworks_json
+from app.collectors.common import Contexto, Resultado
+from app.compliance.catalog import POR_ID, REGLAS, frameworks_json
 from app.db.models import Finding, FindingEvent, Rule
+from app.providers.base import Hallazgo
 
 ACTOR = "recolector"
 ACTIVOS = ("abierto", "asumido", "aceptado")
-CAMPOS_DETALLE = ("name", "resourceGroup", "location", "port", "source", "ruleName", "asociado", "sinFirewall", "type")
-
-
-def _uid_del_hallazgo(tipo: str, item: dict) -> str:
-    if tipo == "nsg" and item.get("ruleName"):
-        return resource_uid(f"{item['id']}/securityRules/{item['ruleName']}")
-    return resource_uid(item.get("id", ""))
 
 
 def _sincronizar_reglas(session: Session) -> None:
@@ -56,18 +51,15 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
     hoy = momento.date()
     _sincronizar_reglas(session)
 
-    reporte = ctx.secops.build_report(ctx.subscription_ids, strict=True)
-    fallidas = set(reporte.get("failed_queries") or [])
-    reglas_sin_evidencia = {REGLAS[t].id for t, consulta in CONSULTA_DE_TIPO.items() if consulta in fallidas}
+    resultado = ctx.proveedor.evaluar_reglas(ctx.cuentas_uid)
+    reglas_sin_evidencia = set(resultado.reglas_sin_evidencia)
 
-    detectados: Dict[Tuple[str, str], dict] = {}
-    for item in reporte.get("findings") or []:
-        regla = REGLAS.get(item.get("tipo"))
-        if regla is None or not item.get("id"):
-            continue
-        detectados[(regla.id, _uid_del_hallazgo(item["tipo"], item))] = item
+    detectados: Dict[Tuple[str, str], Hallazgo] = {}
+    for h in resultado.hallazgos:
+        if h.rule_id in POR_ID:
+            detectados[(h.rule_id, h.resource_uid)] = h
 
-    cuentas = [account_uid(s) for s in ctx.subscription_ids]
+    cuentas = ctx.cuentas_uid
     existentes: Dict[Tuple[str, str], Finding] = {
         (f.rule_id, f.resource_uid): f
         for f in session.scalars(select(Finding).where(Finding.account_uid.in_(cuentas)))
@@ -80,11 +72,11 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
                                  to_status=hasta, actor=ACTOR, note=nota))
 
     for (regla_id, uid), item in detectados.items():
-        detalle = {k: item[k] for k in CAMPOS_DETALLE if item.get(k) is not None}
+        detalle = dict(item.details)
         hallazgo = existentes.get((regla_id, uid))
         if hallazgo is None:
-            hallazgo = Finding(rule_id=regla_id, resource_uid=uid, account_uid=account_uid(item.get("subscriptionId", "")),
-                               severity=item.get("severidad") or "media", status="abierto", details=detalle,
+            hallazgo = Finding(rule_id=regla_id, resource_uid=uid, account_uid=item.account_uid,
+                               severity=item.severity, status="abierto", details=detalle,
                                first_seen=momento, last_seen=momento)
             session.add(hallazgo)
             session.flush()
@@ -93,7 +85,7 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
             continue
 
         hallazgo.last_seen = momento
-        hallazgo.severity = item.get("severidad") or hallazgo.severity
+        hallazgo.severity = item.severity or hallazgo.severity
         hallazgo.details = detalle
         if hallazgo.status == "resuelto":
             evento(hallazgo, "reabierto", "resuelto", "abierto")
@@ -119,6 +111,6 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
         Finding.account_uid.in_(cuentas), Finding.status.in_(("abierto", "asumido"))))
     return Resultado(
         items=len(detectados),
-        status="parcial" if fallidas else "ok",
-        detail={**conteo, "failed_queries": sorted(fallidas), "open": abiertos},
+        status="parcial" if reglas_sin_evidencia else "ok",
+        detail={**conteo, "rules_without_evidence": sorted(reglas_sin_evidencia), "open": abiertos},
     )

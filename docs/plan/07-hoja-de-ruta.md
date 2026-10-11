@@ -48,7 +48,7 @@ gantt
 | Entregable | Módulo | Detalle | Estado |
 |---|---|---|---|
 | Base de datos (Azure SQL gratuita) con SQLAlchemy y Alembic | Plataforma | Esquema del [modelo canónico](02-arquitectura-objetivo.md#modelo-canónico) | Hecho |
-| Capa de proveedores con `AzureProvider` | Plataforma | Extraer de `services/` y `agents/azure_agent.py`; pruebas de contrato con fixtures | En curso: `AzureClient` extraído |
+| Capa de proveedores con `AzureProvider` | Plataforma | Extraer de `services/` y `agents/azure_agent.py`; pruebas de contrato con fixtures | Hecho para los recolectores: `AzureProvider` (inventario, costos, seguridad, IaC, actividad) con contrato sobre respuestas grabadas; el chat y las vistas en vivo siguen sobre los servicios |
 | Job diario de recolección | Plataforma | inventory, costs, findings, iac_states, activity, kpis | Hecho: inventario (con estado IaC y creador como campos del recurso), costos, hallazgos y KPIs |
 | Inyección de dependencias con `Depends` | API | Reemplaza `get_services()[n]` | Hecho |
 | Ciclo de vida de hallazgos | Seguridad / Hallazgos | Abierto, asumido, resuelto, aceptado con vencimiento | Hecho: automático en el recolector y gestión en el panel (asumir, aceptar con vencimiento y justificación, reabrir) |
