@@ -88,13 +88,17 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     for c in cuentas:
         visible = bool(desde_ultima and _aware(c.last_seen) >= desde_ultima)
+        estado_costos = _estado_de_costos(c, costos)
         monto, moneda = gasto.get(c.uid, (None, None))
+        if monto is None and estado_costos == "con_permiso":
+            # Cubierta y sin filas: Cost Management respondió y no hubo gasto. Es cero, no desconocido.
+            monto = 0.0
         items.append({
             "uid": c.uid, "provider": c.provider, "native_id": c.native_id, "name": c.name, "parent": c.parent,
             "first_seen": _iso(c.first_seen), "last_seen": _iso(c.last_seen), "visible": visible,
             "resources": recursos.get(c.uid, 0), "open_findings": hallazgos.get(c.uid, 0),
             "cost_30d": round(monto, 2) if monto is not None else None, "currency": moneda,
-            "cost_status": _estado_de_costos(c, costos),
+            "cost_status": estado_costos,
         })
 
     detalle = (inventario.detail or {}) if inventario else {}

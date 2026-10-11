@@ -44,6 +44,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **Tendencia del inventario completa**: une la serie diaria de la base (recolector, sin huecos) con el JSONL anterior, que solo tenía los días con visitas. Sale de la vista precalculada, sin despertar la base. Los KPIs diarios incluyen además recursos productivos y no productivos.
 
 ### Corregido
+- Cuentas conectadas mostraba "—" como gasto de una cuenta con permiso de costos y sin consumo en el periodo: si Cost Management respondió y no hubo filas, el gasto es cero.
 - En un teléfono la ruta de navegación se montaba sobre el indicador de conexión (lo detectó la captura de regresión visual). Ahora muestra solo la sección actual.
 - Administración mostraba con su código interno las acciones de clasificación de activos (`activo.clasificacion`). Ahora tienen su texto y su filtro.
 - Los paneles laterales y los modales no tenían nombre accesible: ahora los lectores de pantalla anuncian su título.

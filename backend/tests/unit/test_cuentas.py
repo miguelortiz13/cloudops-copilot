@@ -129,3 +129,13 @@ def test_endpoint_sin_base(monkeypatch):
     for nombre in ("DATABASE_URL", "DB_SERVER", "DB_NAME"):
         monkeypatch.setattr(config, nombre, "")
     assert TestClient(app).get("/api/admin/accounts").json() == {"configured": False, "providers": [], "accounts": []}
+
+
+def test_una_cuenta_cubierta_sin_filas_gasto_cero():
+    """Con permiso de costos y sin filas, el gasto es cero; sin permiso, es desconocido."""
+    proveedor = FabricaMemoria().normal()
+    proveedor.filas_costo = [f for f in proveedor.filas_costo if f.account_uid != A]
+    recolectar(proveedor)
+    cuentas = {c["uid"]: c for c in vista()["accounts"]}
+    assert (cuentas[A]["cost_status"], cuentas[A]["cost_30d"]) == ("con_permiso", 0.0)
+    assert (cuentas[B]["cost_status"], cuentas[B]["cost_30d"]) == ("sin_permiso", None)
