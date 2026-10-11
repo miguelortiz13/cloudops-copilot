@@ -19,9 +19,10 @@ from sqlalchemy import func, select  # noqa: E402
 
 from app.collectors import costs, findings, inventory, kpis, run  # noqa: E402
 from app.collectors.common import Contexto  # noqa: E402
+from app.providers.azure.provider import AzureProvider  # noqa: E402
 from app.core import config  # noqa: E402
 from app.db import engine as db  # noqa: E402
-from app.db.models import Base, CollectorRun, CostDaily, Finding, FindingEvent, KpiDaily, Resource  # noqa: E402
+from app.db.models import Account, Base, CollectorRun, CostDaily, Finding, FindingEvent, KpiDaily, Resource  # noqa: E402
 
 SUB = "11111111-1111-1111-1111-111111111111"
 RG = f"/subscriptions/{SUB}/resourceGroups/rg"
@@ -59,7 +60,7 @@ class Inventario:
         return list(self.recursos), list(self.avisos)
 
     def get_manual_creations(self, subs, limit=100):
-        return {"manualCreations": [{"id": KV, "createdBy": "ana@contoso.com"}]}
+        return {"manualCreations": [{"id": KV, "createdBy": "ana@contoso.com"}], "available": True}
 
     def get_summary(self, subs, force_refresh=False):
         return {"tagCompliancePercentage": 87.5, "nonCompliantResources": 4,
@@ -78,9 +79,11 @@ class Costos:
 
 
 def contexto(momento=DIA, **kw):
-    return Contexto(azure=None, inventory=kw.get("inv", Inventario()), cost=kw.get("cost", Costos()),
-                    secops=kw.get("sec", SecOps()), subscription_ids=[SUB],
-                    subscription_names={SUB: "lab"}, momento=momento)
+    """Dobles de los servicios de Azure envueltos en un AzureProvider real: prueban el mapeo y el recolector juntos."""
+    inv, cost, sec = kw.get("inv", Inventario()), kw.get("cost", Costos()), kw.get("sec", SecOps())
+    proveedor = AzureProvider(inv, cost, sec, getattr(inv, "_tfstate", None), espera_reintento=0)
+    return Contexto(azure=None, inventory=inv, cost=cost, secops=sec, subscription_ids=[SUB],
+                    subscription_names={SUB: "lab"}, momento=momento, proveedor=proveedor)
 
 
 def correr(modulo, ctx):
@@ -232,9 +235,8 @@ def test_costos_reemplazan_la_ventana_y_luego_usan_siete_dias():
         assert float(sin_recurso.billed_cost) == pytest.approx(0.5)
 
 
-def test_costos_reintentan_las_suscripciones_que_fallan(monkeypatch):
+def test_costos_reintentan_las_suscripciones_que_fallan():
     """Un 429 de Cost Management no deja la suscripcion sin dato hasta el dia siguiente."""
-    monkeypatch.setattr(costs, "ESPERA_REINTENTO_SEGUNDOS", 0)
     otra, rota = "22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"
 
     class Limitado:
@@ -256,13 +258,14 @@ def test_costos_reintentan_las_suscripciones_que_fallan(monkeypatch):
         s.add(CostDaily(charge_date=date(2026, 10, 6), account_uid=f"azure:sub/{rota}", resource_uid="",
                         service_name="Previo", billed_cost=7, effective_cost=7, currency="USD", source="query"))
     cost = Limitado()
-    ctx = contexto(cost=cost)
-    ctx.subscription_ids = [SUB, otra, rota]
+    ctx = Contexto(azure=None, inventory=None, cost=cost, secops=None, subscription_ids=[SUB, otra, rota],
+                   momento=DIA, proveedor=AzureProvider(None, cost, None, espera_reintento=0))
     r = correr(costs, ctx)
 
     assert cost.pedidos == [[SUB, otra, rota], [otra, rota]]
     assert r.status == "parcial" and r.detail["recovered_on_retry"] == 1
-    assert r.detail["covered"] == 2 and r.detail["failed"] == [rota]
+    # El detalle usa cuentas canónicas, no ids de suscripción.
+    assert r.detail["covered"] == 2 and r.detail["failed"] == [f"azure:sub/{rota}"]
     with db.session_scope() as s:
         cuentas = sorted(c for (c,) in s.execute(select(CostDaily.account_uid)).all())
     assert cuentas == [f"azure:sub/{SUB}", f"azure:sub/{otra}", f"azure:sub/{rota}"]
@@ -304,3 +307,58 @@ def test_el_cliente_estricto_no_confunde_error_con_vacio():
     assert cliente.query_azure_resource_graph("resources") == []
     with pytest.raises(RuntimeError):
         cliente.query_azure_resource_graph("resources", raise_errors=True)
+
+
+# ---------------------------------------------------------------- independencia de la nube
+
+def test_los_recolectores_no_dependen_de_azure():
+    """El mismo camino con otra nube: el proveedor en memoria cumple el contrato (tests/contract)."""
+    from tests.contract.proveedores import FabricaMemoria
+
+    proveedor = FabricaMemoria().normal()
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA,
+                   proveedor=proveedor, cuentas=proveedor.cuentas())
+    assert run.ejecutar("inventory", inventory.recolectar, ctx) == "ok"
+    assert run.ejecutar("costs", costs.recolectar, ctx) == "parcial"  # la cuenta b no tiene permiso de costos
+    assert run.ejecutar("findings", findings.recolectar, ctx) == "ok"
+
+    with db.session_scope() as s:
+        assert {(a.uid, a.provider, a.parent) for a in s.scalars(select(Account))} == {
+            ("memoria:acct/a", "memoria", None), ("memoria:acct/b", "memoria", "memoria:org/1")}
+        recursos = {r.uid: r for r in s.scalars(select(Resource))}
+        assert recursos["memoria:res/a/vault-1"].in_iac_state is True
+        assert recursos["memoria:res/a/thing"].in_iac_state is False
+        assert recursos["memoria:res/b/app"].created_by == "ana@contoso.example"
+        assert {c.account_uid for c in s.scalars(select(CostDaily))} == {"memoria:acct/a"}
+        assert sorted(f.rule_id for f in s.scalars(select(Finding))) == [
+            "secrets.vault-public-network", "web.https-not-enforced"]
+
+
+def test_sin_iac_ni_actividad_el_inventario_sigue_y_no_inventa():
+    from app.providers.base import Capacidad
+    from tests.contract.proveedores import FabricaMemoria
+
+    proveedor = FabricaMemoria().normal()
+    proveedor.soporta = frozenset({Capacidad.INVENTARIO})
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA,
+                   proveedor=proveedor, cuentas=proveedor.cuentas())
+    r = correr(inventory, ctx)
+    assert r.detail["iac_index"] is False and r.detail["known_creators"] == 0
+    with db.session_scope() as s:
+        # "No se sabe" (None), no "no gestionado" (False).
+        assert {r.in_iac_state for r in s.scalars(select(Resource))} == {None}
+
+
+def test_una_regla_sin_evidencia_no_resuelve_sus_hallazgos_en_ninguna_nube():
+    from tests.contract.proveedores import FabricaMemoria
+
+    fabrica = FabricaMemoria()
+    proveedor = fabrica.normal()
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA,
+                   proveedor=proveedor, cuentas=proveedor.cuentas())
+    correr(findings, ctx)
+    proveedor.reglas_sin_evidencia = {fabrica.regla_que_puede_fallar}
+    r = correr(findings, Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA + timedelta(days=1),
+                                  proveedor=proveedor, cuentas=proveedor.cuentas()))
+    assert r.status == "parcial" and r.detail["rules_without_evidence"] == [fabrica.regla_que_puede_fallar]
+    assert r.detail["resueltos"] == 0

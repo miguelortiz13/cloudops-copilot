@@ -97,24 +97,26 @@ def ejecutar(nombre: str, funcion: Callable, ctx: Contexto) -> str:
 
 
 def construir_contexto() -> Contexto:
+    """
+    El proveedor configurado (hoy Azure) y sus cuentas. Los recolectores del
+    modelo canonico solo usan `proveedor` y `cuentas`; los servicios quedan para
+    los pasos propios de Azure (KPIs de gobernanza y cache de costos del panel).
+    """
     from app.providers.azure import AzureClient
-    from app.services.cost_service import CostService
-    from app.services.inventory_service import InventoryService
-    from app.services.secops_service import SecOpsService
-    from app.services.tfstate_service import TfStateService
+    from app.providers.azure.provider import AzureProvider
 
     azure = AzureClient()
     if not azure.azure_connected:
         raise RuntimeError("Sin conexion autenticada con Azure.")
-    inventario = InventoryService(azure)
-    inventario.attach_tfstate(TfStateService(azure))
-    subs, avisos = inventario.list_accessible_subscriptions()
-    if not subs:
-        raise RuntimeError("La identidad no ve ninguna suscripcion: " + "; ".join(avisos))
+    proveedor = AzureProvider.desde_cliente(azure)
+    cuentas = proveedor.cuentas()
+    if not cuentas:
+        raise RuntimeError("La identidad no ve ninguna suscripcion.")
     return Contexto(
-        azure=azure, inventory=inventario, cost=CostService(azure), secops=SecOpsService(azure),
-        subscription_ids=[s["subscriptionId"] for s in subs],
-        subscription_names={s["subscriptionId"]: s.get("displayName") or s["subscriptionId"] for s in subs},
+        azure=azure, inventory=proveedor._inventory, cost=proveedor._cost, secops=proveedor._secops,
+        subscription_ids=[c.native_id for c in cuentas],
+        subscription_names={c.native_id: c.name for c in cuentas},
+        proveedor=proveedor, cuentas=cuentas,
     )
 
 

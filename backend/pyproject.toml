@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["tests/unit"]
+testpaths = ["tests/unit", "tests/contract"]
 markers = [
     "integration: requiere credenciales reales de Azure (se ejecuta con `make test-integration`)",
 ]

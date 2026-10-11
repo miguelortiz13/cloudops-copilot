@@ -9,13 +9,11 @@ def ahora() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def account_uid(subscription_id: str) -> str:
-    return f"azure:sub/{(subscription_id or '').lower()}"
-
-
-def resource_uid(resource_id: str) -> str:
-    """uid universal de un recurso de Azure: prefijo de proveedor e id en minusculas."""
-    return f"azure:{(resource_id or '').lower()}"
+# Identificadores de Azure, para los pasos que todavía son propios de Azure
+# (KPIs de gobernanza, caché de costos en vivo). Los recolectores del modelo
+# canónico usan los uids que entrega el proveedor.
+from app.providers.azure.provider import account_uid, resource_uid  # noqa: E402,F401
+from app.providers.base import Cuenta  # noqa: E402
 
 
 @dataclass
@@ -31,7 +29,14 @@ class Resultado:
 
 @dataclass
 class Contexto:
-    """Servicios y alcance compartidos por los recolectores de una ejecucion."""
+    """
+    Proveedor, alcance y servicios compartidos por los recolectores de una ejecucion.
+
+    Inventario, costos y hallazgos solo hablan con `proveedor` (app/providers):
+    no saben de que nube vienen los datos. `inventory` y `cost` quedan para los
+    pasos que aun son propios de Azure (KPIs de gobernanza y cache de costos del
+    panel en vivo).
+    """
 
     azure: Any
     inventory: Any
@@ -41,7 +46,18 @@ class Contexto:
     subscription_names: Dict[str, str] = field(default_factory=dict)
     # Fecha de la ejecucion; las pruebas la fijan.
     momento: Optional[datetime] = None
+    proveedor: Any = None
+    # Cuentas del alcance, en el modelo canonico. Si no se dan, salen de las
+    # suscripciones (Azure).
+    cuentas: List[Cuenta] = field(default_factory=list)
 
     def __post_init__(self):
         if self.momento is None:
             self.momento = ahora()
+        if not self.cuentas and self.subscription_ids:
+            self.cuentas = [Cuenta(uid=account_uid(s), provider="azure", native_id=s,
+                                   name=self.subscription_names.get(s) or s) for s in self.subscription_ids]
+
+    @property
+    def cuentas_uid(self) -> List[str]:
+        return [c.uid for c in self.cuentas]

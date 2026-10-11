@@ -1,6 +1,6 @@
 # 0006 · Abstracción de proveedores de nube
 
-**Estado:** aceptada, en implementación. Primer paso hecho: `AzureClient` extraído del agente (fase 1 del [plan de evolución](../plan/README.md)).
+**Estado:** aceptada, en implementación (fase 1 del [plan de evolución](../plan/README.md)). Hecho: `AzureClient` extraído del agente; contrato en `app/providers/base.py` con `AzureProvider` y un proveedor en memoria, verificados por la misma batería de contrato (`tests/contract/`); los recolectores del modelo canónico (inventario, costos, hallazgos) ya solo hablan con el proveedor. Pendiente: llevar las vistas en vivo y el chat a la capa, y `KubernetesProvider`.
 
 ## Contexto
 
@@ -16,5 +16,6 @@ Las reglas se definen una vez en un catálogo por capacidad (`storage.public-acc
 
 - El resto del sistema (API, recolectores, panel, agentes) no conoce KQL, ARN ni SDK de ninguna nube.
 - La primera tarea es extraer `AzureProvider` sin cambiar comportamiento; las pruebas de contrato y la prueba de fidelidad KQL lo verifican.
-- Cada nube nueva es una implementación más, con sus pruebas de contrato sobre respuestas grabadas.
+- Cada nube nueva es una implementación más, con sus pruebas de contrato sobre respuestas grabadas: una fábrica en `tests/contract/proveedores.py` y la misma batería (`test_contrato.py`) sin cambios.
+- Lo propio de una nube vive en su proveedor y no en los recolectores: en Azure, el uid de las reglas de NSG, qué consulta KQL evidencia cada regla y el reintento ante el 429 de Cost Management.
 - Hay un costo de indirección: una capacidad muy específica de una nube necesita un lugar en la interfaz o queda como extensión del proveedor.

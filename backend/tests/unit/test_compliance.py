@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.collectors import classification, findings  # noqa: E402
 from app.collectors.common import Contexto  # noqa: E402
+from app.providers.azure.provider import AzureProvider  # noqa: E402
 from app.compliance import catalog  # noqa: E402
 from app.compliance.classification import clasificar, custodio  # noqa: E402
 from app.core import config  # noqa: E402
@@ -60,7 +61,8 @@ def base(tmp_path, monkeypatch):
 
 
 def ctx(momento=T0, secops=None):
-    return Contexto(azure=None, inventory=None, cost=None, secops=secops, subscription_ids=[SUB], momento=momento)
+    return Contexto(azure=None, inventory=None, cost=None, secops=secops, subscription_ids=[SUB], momento=momento,
+                    proveedor=AzureProvider(None, None, secops))
 
 
 def correr(nombre, detalle=None, estado="ok"):

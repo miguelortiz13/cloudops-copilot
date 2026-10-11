@@ -30,6 +30,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 - **Pruebas del panel**: Vitest para formato, caché de datos, cliente del API y la lógica de Cumplimiento y Gestión de hallazgos (permisos por rol, validaciones y lo que se envía al API). Playwright sobre el build de producción con el API simulado: todas las secciones, roles, flujos, errores y teléfono, y regresión visual con 12 capturas de datos ficticios generadas en la imagen oficial de Playwright. Nuevo job de CI `Frontend E2E (Playwright)`.
 
+- **Capa de proveedores** (ADR 0006): contrato por capacidad en `app/providers/base.py` (modelo canónico; un fallo es un error, nunca un vacío; capacidades declaradas) y `AzureProvider`. Los recolectores de inventario, costos y hallazgos solo hablan con el proveedor; lo propio de Azure (uid de las reglas de NSG, consultas por regla, reintento ante el 429) vive en él. Pruebas de contrato (`tests/contract/`): la misma batería contra `AzureProvider` sobre respuestas grabadas de Resource Graph y Cost Management y contra un proveedor en memoria, que es el doble de las pruebas de los recolectores.
+
 ### Eliminado
 - `GET /api/governance/iso`, que leía la hoja `12_inventario_iso` del Excel del pipeline: la reemplazan `/api/compliance` y `/api/compliance/assets`.
 
