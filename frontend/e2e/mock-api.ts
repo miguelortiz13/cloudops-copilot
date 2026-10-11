@@ -72,6 +72,7 @@ function rutas(role: Role): Record<string, Handler> {
     'GET /api/compliance/assets/export': () => new Respuesta(200, 'Activo,Clasificación\nkv-pagos-prod,Confidencial\n'),
     'GET /api/admin/database': () => (role === 'administrador' ? fx.adminDatabase : new Respuesta(403, { detail: 'Requiere administrador.' })),
     'GET /api/admin/audit': () => (role === 'administrador' ? auditoria : new Respuesta(403, { detail: 'Requiere administrador.' })),
+    'GET /api/admin/accounts': () => (role === 'administrador' ? fx.connectedAccounts() : new Respuesta(403, { detail: 'Requiere administrador.' })),
 
     'POST /api/compliance/assets/classification': (_req, b) => {
       if (!operador()) return prohibido;

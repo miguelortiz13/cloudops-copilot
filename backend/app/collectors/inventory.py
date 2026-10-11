@@ -7,14 +7,14 @@ se limpia. Solo se marcan bajas cuando la consulta respondio: un inventario
 incompleto (ProveedorError) aborta el recolector sin tocar nada.
 """
 
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.collectors.common import Contexto, Resultado
 from app.db.models import Account, Resource
-from app.providers.base import CapacidadNoSoportada, ProveedorError
+from app.providers.base import CapacidadNoSoportada, ProveedorError, resumen_capacidades
 
 
 def recolectar(ctx: Contexto, session: Session) -> Resultado:
@@ -33,8 +33,8 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
 
     # Si no respondio entero, ProveedorError aborta aqui, antes de marcar bajas.
     recursos = ctx.proveedor.recursos(list(cuentas))
-    indice_iac = _indice_iac(ctx)
-    creadores = _creadores(ctx)
+    indice_iac, motivo_iac = _indice_iac(ctx)
+    creadores, motivo_actividad = _creadores(ctx)
 
     existentes: Dict[str, Resource] = {
         r.uid: r for r in session.scalars(select(Resource).where(Resource.account_uid.in_(cuentas)))
@@ -75,26 +75,30 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
             recurso.deleted_at = momento
             bajas += 1
 
+    # Proveedor, capacidades y por que falta una: lo muestra Administracion
+    # (cuentas conectadas) sin consultar la nube.
     return Resultado(items=len(vistos), detail={
-        "accounts": len(cuentas), "new": nuevos, "deleted": bajas,
+        "accounts": len(cuentas), "new": nuevos, "deleted": bajas, "seen_at": momento.isoformat(),
         "iac_index": indice_iac is not None, "known_creators": len(creadores),
+        "provider": ctx.proveedor.nombre, "capabilities": resumen_capacidades(ctx.proveedor),
+        "unavailable": {k: v for k, v in (("iac", motivo_iac), ("actividad", motivo_actividad)) if v},
     })
 
 
-def _indice_iac(ctx: Contexto) -> Optional[Set[str]]:
-    """uids gestionados por Terraform, o None si no se sabe (sin estados legibles)."""
+def _indice_iac(ctx: Contexto) -> Tuple[Optional[Set[str]], Optional[str]]:
+    """uids gestionados por Terraform, o None (no se sabe) con el motivo."""
     try:
-        return set(ctx.proveedor.recursos_gestionados())
+        return set(ctx.proveedor.recursos_gestionados()), None
     except (CapacidadNoSoportada, ProveedorError) as exc:
         print(f"[recolector] Indice de Terraform no disponible: {exc}")
-        return None
+        return None, str(exc)
 
 
-def _creadores(ctx: Contexto) -> Dict[str, str]:
-    """Quien creo cada recurso creado a mano, en la ventana que conserve la nube."""
+def _creadores(ctx: Contexto) -> Tuple[Dict[str, str], Optional[str]]:
+    """Quien creo cada recurso creado a mano (en la ventana que conserve la nube), o el motivo de no saberlo."""
     try:
         actividad = ctx.proveedor.creaciones(ctx.cuentas_uid)
     except (CapacidadNoSoportada, ProveedorError) as exc:
         print(f"[recolector] Historial de creaciones no disponible: {exc}")
-        return {}
-    return {c.resource_uid: c.actor for c in actividad.creaciones if c.por_persona}
+        return {}, str(exc)
+    return {c.resource_uid: c.actor for c in actividad.creaciones if c.por_persona}, None

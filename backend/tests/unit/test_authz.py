@@ -129,7 +129,7 @@ def test_acciones_de_operador(cliente, ruta, metodo):
     assert r.status_code == 403
 
 
-@pytest.mark.parametrize("ruta", ["/api/admin/database", "/api/admin/audit"])
+@pytest.mark.parametrize("ruta", ["/api/admin/database", "/api/admin/audit", "/api/admin/accounts"])
 def test_administracion_solo_para_administradores(cliente, ruta):
     assert cliente.get(ruta, headers=como("operador")).status_code == 403
     assert cliente.get(ruta, headers=como("admin")).status_code == 200

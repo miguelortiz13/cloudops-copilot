@@ -32,6 +32,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 - **Capa de proveedores** (ADR 0006): contrato por capacidad en `app/providers/base.py` (modelo canónico; un fallo es un error, nunca un vacío; capacidades declaradas) y `AzureProvider`. Los recolectores de inventario, costos y hallazgos solo hablan con el proveedor; lo propio de Azure (uid de las reglas de NSG, consultas por regla, reintento ante el 429) vive en él. Pruebas de contrato (`tests/contract/`): la misma batería contra `AzureProvider` sobre respuestas grabadas de Resource Graph y Cost Management y contra un proveedor en memoria, que es el doble de las pruebas de los recolectores.
 
+- **Cuentas conectadas** (Administración): qué ve la plataforma de cada nube y con qué permisos efectivos, según lo que el recolector logró leer y sin consultar la nube. Por cuenta: si sigue visible en el inventario, si entrega su gasto o le falta el rol de lectura de costos, recursos, hallazgos activos y gasto de 30 días. Por proveedor: capacidades activas, las que faltan con su motivo (por ejemplo, sin cuentas de estado de Terraform configuradas) y la identidad con la que se conecta. `GET /api/admin/accounts`.
+
 ### Eliminado
 - `GET /api/governance/iso`, que leía la hoja `12_inventario_iso` del Excel del pipeline: la reemplazan `/api/compliance` y `/api/compliance/assets`.
 

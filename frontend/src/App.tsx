@@ -22,7 +22,7 @@ const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ 
 const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.id, i.label])));
 const SUBVIEWS: Record<string, string> = {
   costos: 'Visión general', historial: 'Historial y comparación', ahorro: 'Optimización y ahorro', gestion: 'Gestión de hallazgos',
-  actividad: 'Actividad de usuarios', plataforma: 'Base y recolectores',
+  actividad: 'Actividad de usuarios', cuentas: 'Cuentas conectadas', plataforma: 'Base y recolectores',
   controles: 'Controles', reglas: 'Catálogo de reglas', activos: 'Clasificación de activos',
 };
 

@@ -61,7 +61,7 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
     return Resultado(
         items=len(filas),
         status="parcial" if faltantes else "ok",
-        detail={"window_days": dias, "since": desde.isoformat(), "covered": len(cubiertas),
+        detail={"window_days": dias, "since": desde.isoformat(), "covered": len(cubiertas), "covered_accounts": cubiertas,
                 "denied": cobertura.denegadas, "failed": cobertura.fallidas,
                 "recovered_on_retry": cobertura.recuperadas, "total": float(total or 0)},
     )
