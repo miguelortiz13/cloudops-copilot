@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Pruebas
+coverage
+dist-e2e
+test-results
+playwright-report
+blob-report

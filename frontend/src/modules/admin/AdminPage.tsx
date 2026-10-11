@@ -51,6 +51,8 @@ const ORIGEN: Record<string, string> = {
 /** Acciones auditadas (app/core/audit.py) en lenguaje de persona. */
 const ACCION: Record<string, string> = {
   'hallazgo.estado': 'Cambió el estado de un hallazgo',
+  'activo.clasificacion': 'Clasificó un activo a mano',
+  'activo.clasificacion_automatica': 'Devolvió un activo a la clasificación automática',
   'inventario.sincronizar': 'Ejecutó la sincronización del inventario',
   'k8s.chat': 'Consultó al agente de Kubernetes',
   'k8s.incidencias': 'Pidió las incidencias de un clúster',
@@ -63,6 +65,7 @@ const ACCION: Record<string, string> = {
 const FAMILIAS = [
   { id: 'todas', label: 'Todas' },
   { id: 'hallazgo', label: 'Hallazgos' },
+  { id: 'activo', label: 'Clasificación' },
   { id: 'k8s', label: 'Kubernetes' },
   { id: 'inventario', label: 'Sincronización' },
   { id: 'teams', label: 'Teams' },
@@ -87,6 +90,8 @@ function resumen(a: AuditItem): string {
   const d = a.detail ?? {};
   const partes: string[] = [];
   if (d.status) partes.push(`→ ${String(d.status)}`);
+  if (d.classification) partes.push(`→ ${String(d.classification)}`);
+  if (d.reason) partes.push(`“${String(d.reason)}”`);
   if (d.accepted_until) partes.push(`hasta ${String(d.accepted_until)}`);
   if (d.note) partes.push(`“${String(d.note)}”`);
   if (d.pregunta) partes.push(`“${String(d.pregunta)}”`);

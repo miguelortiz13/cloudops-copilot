@@ -10,6 +10,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  */
 const cache = new Map<string, unknown>();
 
+/** Vacía la caché (pruebas: cada una empieza sin datos de la anterior). */
+export function clearApiCache(): void {
+  cache.clear();
+}
+
 export interface ApiState<T> {
   data: T | null;
   error: string | null;

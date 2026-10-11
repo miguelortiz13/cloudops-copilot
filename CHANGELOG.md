@@ -28,6 +28,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **Catálogo de reglas** (`app/compliance/catalog.py`): una sola definición por regla, con descripción del riesgo, forma de detección, remediación, referencias y mapeo. El recolector la sincroniza en `rules`, y `SecOpsService` toma de ahí el título, la recomendación y los controles. Los hallazgos muestran los controles que incumplen.
 - **Clasificación ISO de activos en la base** (paso `classification` del recolector, tabla `asset_classifications`, migración `0003`): misma regla que el Excel, ahora con el motivo de cada clasificación y custodio desde las tags o el creador. Un operador puede fijarla a mano con un motivo; el recolector la respeta y queda auditada. Exportación CSV.
 
+- **Pruebas del panel**: Vitest para formato, caché de datos, cliente del API y la lógica de Cumplimiento y Gestión de hallazgos (permisos por rol, validaciones y lo que se envía al API). Playwright sobre el build de producción con el API simulado: todas las secciones, roles, flujos, errores y teléfono, y regresión visual con 12 capturas de datos ficticios generadas en la imagen oficial de Playwright. Nuevo job de CI `Frontend E2E (Playwright)`.
+
 ### Eliminado
 - `GET /api/governance/iso`, que leía la hoja `12_inventario_iso` del Excel del pipeline: la reemplazan `/api/compliance` y `/api/compliance/assets`.
 
@@ -38,6 +40,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - **Tendencia del inventario completa**: une la serie diaria de la base (recolector, sin huecos) con el JSONL anterior, que solo tenía los días con visitas. Sale de la vista precalculada, sin despertar la base. Los KPIs diarios incluyen además recursos productivos y no productivos.
 
 ### Corregido
+- En un teléfono la ruta de navegación se montaba sobre el indicador de conexión (lo detectó la captura de regresión visual). Ahora muestra solo la sección actual.
+- Administración mostraba con su código interno las acciones de clasificación de activos (`activo.clasificacion`). Ahora tienen su texto y su filtro.
+- Los paneles laterales y los modales no tenían nombre accesible: ahora los lectores de pantalla anuncian su título.
 - El recolector de costos dejaba "parcial" la ejecución cuando Cost Management respondía 429 para una suscripción (pasó dos días seguidos, con una suscripción distinta cada vez). Ahora la reintenta una vez tras 60 s, igual que la precarga de costos. Además solo guarda filas de las suscripciones cubiertas, cuya ventana sí se reemplazó.
 - El motor de reglas del chat no entendía preguntas con tildes ("¿Cuántos recursos tengo?" respondía "No logré interpretar tu pregunta"). Ahora pregunta y palabras clave se comparan sin tildes ni mayúsculas.
 - Algunas pruebas unitarias se conectaban a Azure con la sesión de `az login` de la máquina (al resolver los servicios reales antes de un 403). Ahora el cliente de Azure nunca se conecta en las pruebas unitarias.

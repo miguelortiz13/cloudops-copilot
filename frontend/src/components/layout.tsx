@@ -192,8 +192,8 @@ export function Topbar({ trail, onMenu, onSync }: { trail: string[]; onMenu: () 
       <button className="btn btn-ghost btn-icon mobile-only" onClick={onMenu} aria-label="Menú"><Menu size={18} /></button>
       <div className="breadcrumb">
         {trail.map((t, i) => (
-          <span key={i} className="row" style={{ gap: 8 }}>
-            {i > 0 && <span aria-hidden="true">/</span>}
+          <span key={i} className="row crumb" style={{ gap: 8 }}>
+            {i > 0 && <span className="crumb-sep" aria-hidden="true">/</span>}
             {i === trail.length - 1 ? <strong>{t}</strong> : <span>{t}</span>}
           </span>
         ))}

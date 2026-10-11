@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, type ReactNode } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Minus, X } from 'lucide-react';
 import type { Severity } from '../lib/types';
 
@@ -261,13 +261,14 @@ export function Drawer({ title, subtitle, onClose, children, footer }: {
   footer?: ReactNode;
 }) {
   useEscape(onClose);
+  const titleId = useId();
   return (
     <>
       <div className="overlay" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true">
+      <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="drawer-head">
           <div style={{ minWidth: 0 }}>
-            <div className="card-title" style={{ fontSize: 16 }}>{title}</div>
+            <div className="card-title" id={titleId} style={{ fontSize: 16 }}>{title}</div>
             {subtitle && <div className="card-subtitle">{subtitle}</div>}
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Cerrar"><X size={16} /></button>
@@ -287,13 +288,14 @@ export function Modal({ title, subtitle, onClose, children, footer }: {
   footer?: ReactNode;
 }) {
   useEscape(onClose);
+  const titleId = useId();
   return (
     <>
       <div className="overlay" onClick={onClose} />
-      <div className="modal" role="dialog" aria-modal="true">
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="drawer-head">
           <div style={{ minWidth: 0 }}>
-            <div className="card-title" style={{ fontSize: 16 }}>{title}</div>
+            <div className="card-title" id={titleId} style={{ fontSize: 16 }}>{title}</div>
             {subtitle && <div className="card-subtitle">{subtitle}</div>}
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Cerrar"><X size={16} /></button>

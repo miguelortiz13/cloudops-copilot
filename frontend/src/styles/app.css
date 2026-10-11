@@ -230,6 +230,23 @@ code,
   color: var(--text-primary);
   font-weight: 600;
 }
+.breadcrumb .crumb {
+  white-space: nowrap;
+  min-width: 0;
+}
+.breadcrumb .crumb:last-child,
+.breadcrumb .crumb:last-child strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* En un teléfono la ruta completa no cabe junto a las acciones: solo la
+   sección actual. */
+@media (max-width: 960px) {
+  .breadcrumb .crumb:not(:last-child),
+  .breadcrumb .crumb-sep {
+    display: none;
+  }
+}
 .topbar-actions {
   margin-left: auto;
   display: flex;
