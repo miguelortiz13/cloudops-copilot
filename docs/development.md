@@ -58,6 +58,19 @@ make test-integration   # backend/tests/integration — contra un tenant real
 
 Las pruebas unitarias sustituyen al agente de Azure por dobles en memoria, y también se pueden ejecutar como scripts: `.venv/bin/python tests/unit/test_shadow_it.py`.
 
+### Panel
+
+```bash
+make test-web          # Vitest + E2E funcionales (Chromium local)
+make test-e2e-docker   # todas las E2E, con regresión visual, en la imagen de Playwright
+cd frontend && npm run test:e2e:update   # aceptar un cambio visual intencional
+```
+
+- **Vitest** (`src/**/*.test.ts(x)`, jsdom): formato es-CO, la caché de `useApi` (incluida la respuesta tardía que se descarta), el cliente del API y la lógica de los componentes con reglas: permisos por rol, validaciones (aceptar un riesgo exige fecha y justificación; clasificar a mano, un motivo) y lo que se envía al API.
+- **Playwright** (`e2e/`): el build de producción con el API simulado en `e2e/mock-api.ts`. Recorre todas las secciones, los roles, los flujos de Cumplimiento y de hallazgos, los estados de error y la vista de teléfono. Una prueba falla si el panel pide un endpoint sin simular o si hay un error en la consola.
+- **Datos de prueba** en `src/test/fixtures.ts`, compartidos por Vitest y Playwright y tipados contra `lib/types.ts`: si un contrato cambia, `tsc` falla. Son ficticios (el repositorio es público).
+- **Regresión visual** (`e2e/visual.spec.ts`, `@visual`): 12 capturas de las vistas principales, con tema oscuro y teléfono, con reloj y zona horaria fijos. Se generan y comparan dentro de la imagen oficial de Playwright (la misma que usa la CI), porque fuera de ella el renderizado de fuentes cambia. El umbral es de 20 píxeles: el renderizado es determinista y un umbral relativo dejaba pasar cambios de texto visibles. Para aceptar un cambio de diseño, regenerarlas y revisarlas en el diff del PR.
+
 ## Calidad
 
 ```bash
@@ -65,7 +78,7 @@ make lint          # ruff (backend) + eslint (frontend)
 make tf-validate   # terraform validate
 ```
 
-La CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) ejecuta en cada push y PR: ruff y pytest, eslint y build del panel, `terraform fmt -check` y `validate`, gitleaks, `pip-audit` y `npm audit`, y el build de ambas imágenes con escaneo de Trivy. El despliegue continuo está en [`cd.yml`](../.github/workflows/cd.yml) (ver [despliegue](deployment.md#3-desplegar)), y Dependabot propone actualizaciones cada semana.
+La CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) ejecuta en cada push y PR: ruff y pytest, eslint, Vitest y build del panel, las E2E de Playwright con regresión visual, `terraform fmt -check` y `validate`, gitleaks, `pip-audit` y `npm audit`, y el build de ambas imágenes con escaneo de Trivy. El despliegue continuo está en [`cd.yml`](../.github/workflows/cd.yml) (ver [despliegue](deployment.md#3-desplegar)), y Dependabot propone actualizaciones cada semana.
 
 ## Recetas
 
@@ -97,7 +110,8 @@ frontend/src/
 ├── lib/                    cliente del API con caché (useApi), tipos de los contratos, formato es-CO, markdown
 ├── state/                  contexto global: alcance de suscripciones, tema, avisos, consola de agentes
 ├── components/             ui (tarjetas, KPIs, tablas, drawer, modal), charts (SVG), layout, nav
-└── modules/<sección>/      una página por sección: overview, inventory, finops, secops, iac, iso, reports
+├── test/                   datos ficticios tipados y render con contexto, para Vitest y Playwright
+└── modules/<sección>/      una página por sección: overview, inventory, finops, secops, iac, compliance, reports, admin
 ```
 
 - **Sin valores sueltos de color**: todo sale de `tokens.css`. El modo oscuro redefine tokens; no hay una segunda hoja de estilos.

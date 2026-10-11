@@ -7,7 +7,7 @@ FRONTEND := frontend
 TF := infra/terraform
 PY := $(BACKEND)/.venv/bin/python
 
-.PHONY: help setup setup-backend setup-frontend dev test test-integration lint build \
+.PHONY: help setup setup-backend setup-frontend dev test test-web test-e2e-docker test-integration lint build \
         docker-up docker-down tf-fmt tf-validate smoke deploy destroy clean
 
 help: ## Muestra esta ayuda
@@ -27,6 +27,12 @@ dev: ## Levanta backend (:8000) y frontend (:5173)
 
 test: ## Pruebas unitarias del backend (no tocan Azure)
 	cd $(BACKEND) && .venv/bin/python -m pytest
+
+test-web: ## Pruebas del panel: Vitest y E2E con Playwright (sin capturas)
+	cd $(FRONTEND) && npm test && npm run test:e2e
+
+test-e2e-docker: ## E2E completas con regresión visual, en la imagen de Playwright (Docker)
+	cd $(FRONTEND) && npm run test:e2e:docker
 
 test-integration: ## Prueba de fidelidad KQL contra un tenant real (requiere credenciales)
 	cd $(BACKEND) && .venv/bin/python tests/integration/test_inventory_kpis.py
