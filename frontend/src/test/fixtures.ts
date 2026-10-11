@@ -7,7 +7,7 @@
  * público y las capturas de regresión visual salen de aquí).
  */
 import type {
-  ClassifiedAsset, ClassifiedAssets, ComplianceStatus, CostHistory, CostOverview, FindingEvent, FinOpsReport,
+  ClassifiedAsset, ClassifiedAssets, ComplianceStatus, ConnectedAccounts, CostHistory, CostOverview, FindingEvent, FinOpsReport,
   HistorySeries, InventoryPage, InventoryResource, InventorySummary, ManagedFinding, ManagedFindings, ManualCreations,
   Me, RiskExposure, Role, SecOpsReport, Snapshot, Subscription, SyncStatus, TagCompliance, TerraformCoverage,
 } from '../lib/types';
@@ -413,3 +413,24 @@ export const adminAudit: { configured: boolean; items: AuditRow[] } = {
     { at: '2026-10-08T10:41:00Z', actor: 'luis@contoso.example', role: 'administrador', action: 'k8s.reiniciar_cliente', target: null, outcome: 'ok', detail: {} },
   ],
 };
+
+export function connectedAccounts(): ConnectedAccounts {
+  return {
+    configured: true,
+    inventory_at: '2026-10-10T06:01:11Z',
+    costs_at: '2026-10-10T06:01:48Z',
+    cost_days: 30,
+    providers: [{
+      name: 'azure', label: 'Microsoft Azure',
+      capabilities: { inventario: true, costos: true, seguridad: true, iac: false, actividad: true },
+      unavailable: { iac: 'No hay cuentas de estado de Terraform configuradas (TFSTATE_ACCOUNT).' },
+      identity: { kind: 'identidad_administrada', client_id: '00000000-0000-4000-8000-0000000000c1' },
+      cost_role: 'Cost Management Reader', accounts: 3, visible: 2, cost_denied: 1,
+    }],
+    accounts: [
+      { uid: `azure:sub/${SUB_PROD}`, provider: 'azure', native_id: SUB_PROD, name: 'Producción (demo)', parent: null, first_seen: '2026-08-01T06:00:00Z', last_seen: '2026-10-10T06:00:00Z', visible: true, resources: 21, open_findings: 2, cost_30d: 71.4, currency: 'USD', cost_status: 'con_permiso' },
+      { uid: `azure:sub/${SUB_LAB}`, provider: 'azure', native_id: SUB_LAB, name: 'Laboratorio (demo)', parent: null, first_seen: '2026-08-01T06:00:00Z', last_seen: '2026-10-10T06:00:00Z', visible: true, resources: 27, open_findings: 0, cost_30d: null, currency: null, cost_status: 'sin_permiso' },
+      { uid: 'azure:sub/00000000-0000-4000-8000-000000000003', provider: 'azure', native_id: '00000000-0000-4000-8000-000000000003', name: 'Retirada (demo)', parent: null, first_seen: '2026-08-01T06:00:00Z', last_seen: '2026-09-15T06:00:00Z', visible: false, resources: 0, open_findings: 0, cost_30d: 0.4, currency: 'USD', cost_status: 'con_permiso' },
+    ],
+  };
+}

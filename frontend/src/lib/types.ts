@@ -502,3 +502,45 @@ export interface SyncStatus {
   logs: string;
   error: string | null;
 }
+
+// ---------------------------------------------------------------- Administración: cuentas conectadas
+
+export type Capability = 'inventario' | 'costos' | 'seguridad' | 'iac' | 'actividad';
+export type CostAccess = 'con_permiso' | 'sin_permiso' | 'fallo' | 'sin_dato';
+
+export interface ConnectedProvider {
+  name: string;
+  label: string;
+  capabilities: Record<Capability, boolean> | null;
+  unavailable: Partial<Record<Capability, string>>;
+  identity: { kind: 'identidad_administrada' | 'credencial_por_defecto'; client_id: string | null } | null;
+  cost_role: string | null;
+  accounts: number;
+  visible: number;
+  cost_denied: number;
+}
+
+export interface ConnectedAccount {
+  uid: string;
+  provider: string;
+  native_id: string;
+  name: string;
+  parent: string | null;
+  first_seen: string;
+  last_seen: string;
+  visible: boolean;
+  resources: number;
+  open_findings: number;
+  cost_30d: number | null;
+  currency: string | null;
+  cost_status: CostAccess;
+}
+
+export interface ConnectedAccounts {
+  configured: boolean;
+  inventory_at?: string | null;
+  costs_at?: string | null;
+  cost_days?: number;
+  providers: ConnectedProvider[];
+  accounts: ConnectedAccount[];
+}

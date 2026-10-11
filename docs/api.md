@@ -42,6 +42,16 @@ Detalle en [modules/compliance.md](modules/compliance.md). Leen de la base (vist
 | `POST` | `/api/compliance/assets/classification` | **Operador.** Clasificación manual con motivo (auditada) |
 | `POST` | `/api/compliance/assets/classification/restore` | **Operador.** Vuelve a la clasificación automática (auditada) |
 
+## Administración
+
+Solo para el rol administrador. Abren la base (la despiertan si estaba pausada): se consultan cuando alguien los pide, nunca desde una sonda.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/admin/audit` | Últimas acciones auditadas |
+| `GET` | `/api/admin/accounts` | Cuentas conectadas por proveedor: visibles en la última recolección, permiso de costos (con permiso, sin permiso, falló), recursos, hallazgos activos y gasto de 30 días; capacidades del proveedor con el motivo de las que faltan, e identidad con la que se conecta |
+| `GET` | `/api/admin/database` | Versión del esquema, filas por tabla y últimas ejecuciones de los recolectores |
+
 ## FinOps
 
 | Método | Ruta | Descripción |

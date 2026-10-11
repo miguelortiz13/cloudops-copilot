@@ -22,6 +22,7 @@ const VISTAS: [ruta: string, titulo: string, archivo: string][] = [
   ['cumplimiento/reglas', 'Cumplimiento', 'cumplimiento-reglas'],
   ['cumplimiento/activos', 'Cumplimiento', 'cumplimiento-activos'],
   ['admin/plataforma', 'Administración', 'admin-plataforma'],
+  ['admin/cuentas', 'Administración', 'admin-cuentas'],
 ];
 
 test.describe('@visual', () => {

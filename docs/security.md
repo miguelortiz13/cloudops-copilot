@@ -51,7 +51,7 @@ El token del API lleva los grupos del usuario (claim `groups`, con `groupMembers
 |---|---|---|
 | Lector | Lectores | Todo lo que lee: inventario, costos, seguridad, IaC, cumplimiento y chat |
 | Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), clasificar activos a mano, ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
-| Administrador | Administradores | Además ver el estado de la base y la auditoría, y reiniciar el cliente de Kubernetes |
+| Administrador | Administradores | Además ver la auditoría, las cuentas conectadas con sus permisos efectivos y el estado de la base, y reiniciar el cliente de Kubernetes |
 
 - Un usuario asignado sin grupo ni app role es **lector**: tener acceso nunca implica poder escribir. Un grupo que no esté configurado en `AUTHZ_GROUP_*` no da permisos.
 - El backend decide (403). El panel solo oculta o desactiva lo que el rol no permite, para no ofrecer acciones que fallarían.

@@ -61,3 +61,17 @@ def audit_log(limit: int = 100):
     except db.DatabaseUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     return {"configured": True, "items": items}
+
+
+@router.get("/api/admin/accounts")
+def connected_accounts():
+    """Cuentas conectadas por proveedor, con sus permisos efectivos según la última recolección (abre la base)."""
+    if not db.is_configured():
+        return {"configured": False, "providers": [], "accounts": []}
+    from app.readmodel.cuentas import cuentas_conectadas
+
+    try:
+        with db.session_scope() as s:
+            return cuentas_conectadas(s)
+    except db.DatabaseUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

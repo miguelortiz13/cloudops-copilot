@@ -8,8 +8,9 @@ import { useApp } from '../../state/hooks';
 import {
   Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, StatTile, Tabs,
 } from '../../components/ui';
+import { AccountsView } from './AccountsView';
 
-type View = 'actividad' | 'plataforma';
+type View = 'actividad' | 'cuentas' | 'plataforma';
 
 interface AuditItem {
   at: string;
@@ -109,7 +110,7 @@ function resumen(a: AuditItem): string {
  */
 export function AdminPage({ view, onView }: { view: string | undefined; onView: (v: View) => void }) {
   const { can, me } = useApp();
-  const active: View = view === 'plataforma' ? 'plataforma' : 'actividad';
+  const active: View = view === 'plataforma' || view === 'cuentas' ? view : 'actividad';
 
   if (me && !can('administrador')) {
     return (
@@ -124,17 +125,18 @@ export function AdminPage({ view, onView }: { view: string | undefined; onView: 
     <>
       <PageHeader
         title="Administración"
-        description="Quién hizo qué en la plataforma, quién tiene acceso y cómo están la base de datos y los recolectores."
+        description="Quién hizo qué en la plataforma, qué cuentas de cada nube están conectadas y con qué permisos, y cómo están la base de datos y los recolectores."
       />
       <Tabs<View>
         value={active}
         onChange={onView}
         tabs={[
           { id: 'actividad', label: 'Actividad de usuarios' },
+          { id: 'cuentas', label: 'Cuentas conectadas' },
           { id: 'plataforma', label: 'Base y recolectores' },
         ]}
       />
-      {active === 'actividad' ? <Activity /> : <Platform />}
+      {active === 'actividad' ? <Activity /> : active === 'cuentas' ? <AccountsView /> : <Platform />}
     </>
   );
 }
