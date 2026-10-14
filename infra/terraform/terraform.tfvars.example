@@ -30,3 +30,9 @@ showback_tags  = ["Project", "Environment"]
 #   Operator = []
 #   Reader   = []
 # }
+
+# AWS (opcional, fase 2): cuenta que observa la plataforma. La identidad
+# administrada entra por federación OIDC, sin llaves (aws.tf). El apply necesita
+# una sesión de AWS: AWS_PROFILE=<perfil SSO> terraform apply.
+# aws_account_id = "000000000000"
+# aws_region     = "us-east-1"

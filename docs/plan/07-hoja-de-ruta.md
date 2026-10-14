@@ -78,7 +78,7 @@ gantt
 
 | Paso | Entregable | Puerta |
 |---|---|---|
-| 1 | **Prueba de concepto de federación**: la identidad administrada asume un rol de AWS por OIDC | Si falla, se replantea la autenticación antes de seguir |
+| 1 | **Prueba de concepto de federación**: la identidad administrada asume un rol de AWS por OIDC | **Cumplido** (14-oct-2026): asumió el rol de lectura desde el job, sin llaves; registrado en CloudTrail |
 | 2 | Módulo `infra/aws-onboarding` (OIDC, rol hub, StackSet, CUR 2.0, Resource Explorer) | Se aplica sobre una organización de laboratorio |
 | 3 | `AwsProvider.inventory` con tipos canónicos | Inventario multinube en las vistas |
 | 4 | `AwsProvider.costs` sobre CUR 2.0 FOCUS + Athena | El total de un mes coincide con la factura (±1 %) |

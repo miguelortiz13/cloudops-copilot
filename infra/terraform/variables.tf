@@ -174,3 +174,23 @@ variable "collector_cron" {
     error_message = "collector_cron debe ser diario a una hora fija, por ejemplo \"0 6 * * *\"."
   }
 }
+
+# ---------------------------------------------------------------------------
+# AWS (fase 2)
+# ---------------------------------------------------------------------------
+variable "aws_account_id" {
+  description = "Cuenta de AWS que observa la plataforma (federación OIDC, aws.tf). Vacío = sin AWS."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^([0-9]{12})?$", var.aws_account_id))
+    error_message = "aws_account_id debe tener 12 dígitos o estar vacío."
+  }
+}
+
+variable "aws_region" {
+  description = "Región de AWS para los recursos de la plataforma. us-east-1: ahí viven la facturación y los exports de costos."
+  type        = string
+  default     = "us-east-1"
+}
