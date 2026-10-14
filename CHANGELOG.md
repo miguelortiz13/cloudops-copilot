@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Cambiado
+- `azure_agent.py` se divide (1.346 → 399 líneas) sin cambiar su comportamiento: `contexto.py` (datos y presupuesto del contexto), `prompts.py` (instrucciones de cada agente, verificadas idénticas), `estadisticas.py` (KPIs en vivo, búsqueda y costo de un grupo) y el motor de reglas general en `rule_answers.py`. La clase conserva sus métodos como delegados. Se elimina el autotest `__main__`, que estaba roto.
 - Los endpoints reciben sus servicios por `Depends` con tipos (`app/core/deps.py`) en lugar de la tupla posicional `get_services()[n]`; el contenedor es un dataclass con nombres.
 
 - `AzureClient` (`app/providers/azure/`): credenciales y Resource Graph salen del agente de chat. Los servicios y el generador de IaC dependen del cliente, no del agente; hay una sola instancia compartida.

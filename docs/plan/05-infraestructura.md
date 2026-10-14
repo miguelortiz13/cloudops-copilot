@@ -72,6 +72,22 @@ La oferta gratuita incluye 100.000 vCore-segundos al mes. La base serverless con
 
 Por eso: ventana diaria única, inventario en vivo para la vista y **lecturas del panel sin abrir la base**. El recolector, al terminar, deja calculadas las vistas por defecto (costos del mes en curso, del mes anterior y de 30 días; hallazgos; KPIs de 90 días) en el File Share que también monta el API, y el API las sirve desde ahí hasta que termina la siguiente recolección (`app/readmodel`; la hora sale de `collector_cron`). Solo despiertan la base una consulta fuera de esas vistas (por ejemplo, el periodo de 90 días) o un cambio de estado de un hallazgo, y cada una consume como máximo una hora de 0,5 vCore (1.800 vCore-segundos). Cuando el uso supere el cupo hay dos salidas sin cambiar código: pagar el excedente al precio serverless o pasar a PostgreSQL B1ms (~USD 13/mes, sin pausas). La cifra exacta se valida en la fase 1 midiendo el consumo real durante dos semanas.
 
+#### Consumo medido (octubre de 2026)
+
+Métricas `free_amount_consumed` y `free_amount_remaining` de la base (`az monitor metrics list`), acumuladas desde el día 1 del mes:
+
+| Día | Consumido en el día (vCore-s) | Qué pasó |
+|---|---|---|
+| 8 de octubre | — | Acumulado del mes: 5.270 (aprovisionamiento, migraciones y pruebas) |
+| 9 | 334 | Solo el recolector diario |
+| 10 | 1.726 | Recolector + dos ejecuciones manuales de verificación |
+| 11 | 2.071 | Recolector + dos ejecuciones manuales de verificación |
+| 12 | 415 | Solo el recolector diario y el panel |
+| 13 | 494 | Solo el recolector diario y el panel |
+| 14 | 820 | Recolector y uso del panel |
+
+El 14 de octubre llevaba **11.130 de 100.000** (11 %). Un día normal consume entre 300 y 800 vCore-s, muy por debajo de la estimación de 1.800 por despertar: la recolección dura unos 3 minutos y la base se pausa al cabo de la hora sin conexiones, pero el cobro serverless real resultó menor que el mínimo teórico. Proyección del mes con el ritmo actual: ~25.000 (25 % del cupo). **Decisión: se mantiene la oferta gratuita**; hay margen para unas 50 sesiones de uso de una hora además del recolector.
+
 El consumo se controla además con recolectores incrementales (solo cambios), agregados diarios precalculados y retención: costos diarios durante 13 meses y eventos de actividad durante 12 meses.
 
 ## Ambientes
