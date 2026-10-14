@@ -23,6 +23,12 @@ locals {
     # (app/readmodel), para que leerlas no despierte la base.
     DATA_DIR = local.data_mount_path
   }
+  # Federación con AWS (aws.tf): rol a asumir y audiencia del token de Entra.
+  aws_env = local.aws_enabled ? {
+    AWS_ROLE_ARN       = aws_iam_role.reader[0].arn
+    AWS_ENTRA_AUDIENCE = azuread_application_identifier_uri.aws_federation[0].identifier_uri
+    AWS_DEFAULT_REGION = var.aws_region
+  } : {}
 }
 
 resource "azurerm_container_app_job" "collector" {
@@ -65,7 +71,7 @@ resource "azurerm_container_app_job" "collector" {
       }
 
       dynamic "env" {
-        for_each = local.collector_env
+        for_each = merge(local.collector_env, local.aws_env)
         content {
           name  = env.key
           value = env.value

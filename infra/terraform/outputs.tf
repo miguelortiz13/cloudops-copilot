@@ -71,3 +71,8 @@ output "role_groups" {
   description = "Grupos de seguridad de Entra ID por rol."
   value       = { for k, g in azuread_group.role : k => { name = g.display_name, object_id = g.object_id } }
 }
+
+output "aws_reader_role_arn" {
+  description = "Rol de AWS que asume la identidad administrada (vacío sin AWS)."
+  value       = local.aws_enabled ? aws_iam_role.reader[0].arn : null
+}

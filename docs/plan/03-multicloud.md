@@ -27,7 +27,7 @@ sequenceDiagram
     participant HUB as Rol hub<br/>(cuenta de seguridad)
     participant MEM as Rol de lectura<br/>(cada cuenta miembro)
 
-    CA->>ENTRA: token para la audiencia "api://cloudops-aws"
+    CA->>ENTRA: token para la audiencia "api://<CLIENT_ID_FEDERACION>"
     ENTRA-->>CA: JWT firmado (sub = identidad administrada)
     CA->>STS: AssumeRoleWithWebIdentity(rol hub, JWT)
     STS->>STS: valida firma, emisor, audiencia y sub
@@ -47,7 +47,7 @@ Política de confianza del rol hub (ejemplo):
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": {
-        "sts.windows.net/<TENANT_ID>/:aud": "api://cloudops-aws",
+        "sts.windows.net/<TENANT_ID>/:aud": "api://<CLIENT_ID_FEDERACION>",
         "sts.windows.net/<TENANT_ID>/:sub": "<OBJECT_ID_DE_LA_IDENTIDAD_ADMINISTRADA>"
       }
     }
@@ -55,7 +55,7 @@ Política de confianza del rol hub (ejemplo):
 }
 ```
 
-> **A validar en la prueba de concepto:** el emisor exacto depende de la versión del token que Entra entregue para esa audiencia (`sts.windows.net/<tenant>/` en v1, `login.microsoftonline.com/<tenant>/v2.0` en v2). La condición sobre `sub` es la que impide que cualquier otra identidad del tenant asuma el rol, y es obligatoria.
+> **Validado en la prueba de concepto (fase 2, paso 1; `infra/terraform/aws.tf`):** funciona con **tokens v1** (emisor `sts.windows.net/<tenant>/`, `aud` = URI `api://<client id>` de un registro dedicado a la federación). Con tokens v2 STS responde `InvalidIdentityToken`: para tokens que traen `azp`, AWS toma ese claim (el client id de la identidad, no el del registro) como audiencia. El registro exige asignación de rol, así que solo la identidad de la plataforma obtiene tokens para esa audiencia; la condición sobre `sub` (id de objeto de la identidad) es el segundo candado y es obligatoria. Prueba: `python -m app.providers.aws.federacion` desde el job.
 
 Respaldo, solo para desarrollo local: perfil de AWS CLI (`AWS_PROFILE`) con SSO. Nunca llaves de un usuario IAM.
 
