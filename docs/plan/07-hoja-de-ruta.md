@@ -65,8 +65,8 @@ gantt
 - El panel muestra 30 días de historia propia de inventario, costos y hallazgos.
 - Un hallazgo corregido se marca resuelto solo.
 - El job diario termina con éxito 14 días seguidos.
-- El consumo de la base de datos queda medido y dentro del cupo gratuito, o con la decisión tomada.
-- `azure_agent.py` deja de existir como pieza monolítica.
+- El consumo de la base de datos queda medido y dentro del cupo gratuito, o con la decisión tomada. **Cumplido:** 11 % del cupo a mitad de mes, proyección del 25 % ([detalle](05-infraestructura.md#consumo-medido-octubre-de-2026)).
+- `azure_agent.py` deja de existir como pieza monolítica. **Cumplido:** de 1.346 a 399 líneas; contexto, prompts, consultas en vivo y motor de reglas en módulos propios.
 
 **Costo incremental:** USD 0-2/mes.
 
