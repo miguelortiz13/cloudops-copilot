@@ -93,6 +93,15 @@ resource "azurerm_role_assignment" "reader" {
   principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
 
+# Reader heredado por cada suscripción del grupo de administración, incluidas
+# las que se creen después: la plataforma las descubre sola.
+resource "azurerm_role_assignment" "reader_management_group" {
+  for_each             = toset(var.observed_management_group_ids)
+  scope                = "/providers/Microsoft.Management/managementGroups/${each.value}"
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
 # Lectura de los estados de Terraform para medir la cobertura real de IaC.
 resource "azurerm_role_assignment" "tfstate_reader" {
   for_each             = { for s in var.tfstate_sources : s.storage_account_id => s }

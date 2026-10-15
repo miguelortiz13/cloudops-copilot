@@ -182,8 +182,13 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     from app.readmodel import service
     from tests.contract.proveedores import FabricaAws
 
+    from app.providers.base import Cuenta
+
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    recolectar(FabricaMemoria().normal())
+    memoria = FabricaMemoria().normal()
+    # Una suscripción visible y vacía también se reporta.
+    memoria.lista_cuentas.append(Cuenta("memoria:acct/c", "memoria", "c", "Vacía"))
+    recolectar(memoria)
     monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     run.ejecutar("inventory_aws", run.inventario_aws, ctx)
@@ -201,6 +206,10 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     boveda = next(x for x in r["resources"] if x["uid"] == "memoria:res/a/vault-1")
     assert (boveda["cost_30d"], boveda["account"], boveda["in_iac"]) == (1.5, "Cuenta A", True)
     assert next(x for x in r["resources"] if x["uid"] == "aws:arn:aws:s3:::lab-datos")["classification"] == "Confidencial"
+    por_cuenta = {c["uid"]: c for c in r["accounts"]}
+    # Con permiso de costos y sin cargos: cero. Sin permiso: desconocido.
+    assert (por_cuenta["memoria:acct/c"]["resources"], por_cuenta["memoria:acct/c"]["cost_30d"]) == (0, 0.0)
+    assert por_cuenta[B]["cost_30d"] is None
     assert service.cuentas_conectadas()["source"] == "cache"
 
     csv = TestClient(app).get("/api/inventory/report/export")
