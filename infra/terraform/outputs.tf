@@ -74,5 +74,5 @@ output "role_groups" {
 
 output "aws_reader_role_arn" {
   description = "Rol de AWS que asume la identidad administrada (vacío sin AWS)."
-  value       = local.aws_enabled ? aws_iam_role.reader[0].arn : null
+  value       = local.aws_enabled ? module.aws_onboarding[0].role_arn : null
 }

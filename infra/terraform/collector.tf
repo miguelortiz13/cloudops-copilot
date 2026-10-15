@@ -25,7 +25,7 @@ locals {
   }
   # Federación con AWS (aws.tf): rol a asumir y audiencia del token de Entra.
   aws_env = local.aws_enabled ? {
-    AWS_ROLE_ARN       = aws_iam_role.reader[0].arn
+    AWS_ROLE_ARN       = module.aws_onboarding[0].role_arn
     AWS_ENTRA_AUDIENCE = azuread_application_identifier_uri.aws_federation[0].identifier_uri
     AWS_DEFAULT_REGION = var.aws_region
   } : {}

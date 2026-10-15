@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# AWS: federación de la identidad administrada, sin llaves (fase 2, paso 1)
+# AWS: federación de la identidad administrada, sin llaves (fase 2)
 # ---------------------------------------------------------------------------
 #
 # La identidad administrada pide a Entra ID un token para el registro
@@ -76,41 +76,36 @@ resource "azuread_app_role_assignment" "aws_federation" {
   resource_object_id  = azuread_service_principal.aws_federation[0].object_id
 }
 
-resource "aws_iam_openid_connect_provider" "entra" {
-  count          = local.aws_enabled ? 1 : 0
-  url            = "https://${local.entra_issuer}"
-  client_id_list = [azuread_application_identifier_uri.aws_federation[0].identifier_uri]
-  tags           = local.tags
+# Lo de AWS (OIDC, rol hub, inventario, costos) vive en el módulo, que una
+# organización puede aplicar por su cuenta: infra/modules/aws-onboarding.
+module "aws_onboarding" {
+  source = "../modules/aws-onboarding"
+  count  = local.aws_enabled ? 1 : 0
+
+  name                = local.base
+  oidc_issuer         = local.entra_issuer
+  audience            = azuread_application_identifier_uri.aws_federation[0].identifier_uri
+  principal_object_id = azurerm_user_assigned_identity.api.principal_id
+  tags                = local.tags
 }
 
-resource "aws_iam_role" "reader" {
-  count                = local.aws_enabled ? 1 : 0
-  name                 = "${local.base}-reader"
-  description          = "Solo lectura de metadatos para ${var.app_display_name}; lo asume la identidad administrada de Azure por OIDC."
-  max_session_duration = 3600
-  tags                 = local.tags
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.entra[0].arn }
-      Action    = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "${local.entra_issuer}:aud" = azuread_application_identifier_uri.aws_federation[0].identifier_uri
-          # Obligatoria: sin ella cualquier aplicación del tenant asumiría el rol.
-          "${local.entra_issuer}:sub" = azurerm_user_assigned_identity.api.principal_id
-        }
-      }
-    }]
-  })
+# Paso 1 creó estos recursos en la raíz.
+moved {
+  from = aws_iam_openid_connect_provider.entra[0]
+  to   = module.aws_onboarding[0].aws_iam_openid_connect_provider.entra
 }
 
-# Configuración y metadatos, sin leer datos: ReadOnlyAccess no sirve porque
-# permite s3:GetObject y similares (docs/plan/03-multicloud.md).
-resource "aws_iam_role_policy_attachment" "reader" {
-  for_each   = local.aws_enabled ? toset(["SecurityAudit", "job-function/ViewOnlyAccess"]) : toset([])
-  role       = aws_iam_role.reader[0].name
-  policy_arn = "arn:aws:iam::aws:policy/${each.value}"
+moved {
+  from = aws_iam_role.reader[0]
+  to   = module.aws_onboarding[0].aws_iam_role.hub
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.reader["SecurityAudit"]
+  to   = module.aws_onboarding[0].aws_iam_role_policy_attachment.hub["SecurityAudit"]
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.reader["job-function/ViewOnlyAccess"]
+  to   = module.aws_onboarding[0].aws_iam_role_policy_attachment.hub["job-function/ViewOnlyAccess"]
 }
