@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.compliance.classification import ambiente
 from app.db.models import Account, AssetClassification, CostDaily, Finding, Resource
-from app.readmodel.cuentas import ETIQUETA, _iso, _ultima
+from app.readmodel.cuentas import ETIQUETA, _iso, _ultima, cuentas_conectadas
 
 DIAS_DE_COSTO = 30
 ACTIVOS = ("abierto", "asumido")
@@ -61,14 +61,19 @@ def reporte(s: Session) -> Dict[str, Any]:
         })
     recursos.sort(key=lambda x: (x["provider"], x["account"].lower(), -(x["cost_30d"] or 0), x["name"].lower()))
 
+    # Visibilidad y gasto por cuenta como en Cuentas conectadas: una cuenta
+    # visible y vacía también se reporta, y con permiso de costos sin cargos
+    # gastó cero (no "sin dato").
+    conectadas = {a["uid"]: a for a in cuentas_conectadas(s)["accounts"]}
     por_cuenta = []
     for uid, c in sorted(cuentas.items(), key=lambda kv: (kv[1].provider, kv[1].name.lower())):
         propios = [x for x in recursos if x["account_uid"] == uid]
-        if not propios and uid not in gasto_cuenta:
+        estado = conectadas.get(uid, {})
+        if not propios and uid not in gasto_cuenta and not estado.get("visible"):
             continue
         por_cuenta.append({
             "uid": uid, "provider": c.provider, "name": c.name, "native_id": c.native_id, "resources": len(propios),
-            "cost_30d": round(gasto_cuenta[uid], 2) if uid in gasto_cuenta else None, "currency": moneda.get(uid),
+            "cost_30d": estado.get("cost_30d"), "currency": estado.get("currency") or moneda.get(uid),
             "open_findings": hallazgos.get(uid, 0), "by_type": _contar(x["type"] for x in propios)[:5],
         })
 
