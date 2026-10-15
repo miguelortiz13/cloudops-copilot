@@ -35,11 +35,21 @@ def get_cost_overview(cost_overview: CostOverviewDep, subscriptions: Optional[st
     Es la entrada del modulo de FinOps: cuanto se gasta y en que, antes que el
     ahorro. Solo facturacion real; las suscripciones sin cobertura se declaran.
     """
+    from app.readmodel import cache
+
+    # La vista de todas las suscripciones la deja lista el recolector
+    # (costcache): abrir Costos no espera a Resource Graph ni a Cost Management.
+    llave = cache.clave("cost_overview", subscriptions=subscriptions or "")
+    guardado = cache.leer(llave)
+    if guardado is not None:
+        return guardado
     try:
         subs_list = subscriptions.split(",") if subscriptions else None
-        return cost_overview.build(subs_list)
+        datos = cost_overview.build(subs_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    cache.guardar(llave, datos)
+    return datos
 
 
 @router.get("/api/finops/report")

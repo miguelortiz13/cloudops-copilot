@@ -5,6 +5,7 @@ import { useApi } from '../../lib/useApi';
 import type { Snapshot } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import { Card, Empty, Notice, PageHeader, Section, Segmented } from '../../components/ui';
+import { InventoryReport } from './InventoryReport';
 
 function readWebhook(): string {
   try {
@@ -45,8 +46,9 @@ export function ReportsPage({ onSync }: { onSync: () => void }) {
     <>
       <PageHeader
         title="Reportes y automatización"
-        description="Inventario maestro en Excel, snapshots semanales y alertas a Microsoft Teams."
+        description="Inventario de todas las nubes, inventario maestro en Excel, snapshots semanales y alertas a Microsoft Teams."
       />
+      <div style={{ marginBottom: 24 }}><InventoryReport /></div>
       <div className="grid grid-2">
         <Section title="Inventario maestro" description="Excel con las revisiones manuales del equipo, actualizado por el pipeline de inventario.">
           <Card
