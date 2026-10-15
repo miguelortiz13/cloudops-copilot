@@ -28,9 +28,12 @@ from app.services.inventory_service import INVALID_TAG_VALUES, PRODUCTION_ENVIRO
 CLASES = ("Confidencial", "Restringido", "Uso interno")
 
 TIPOS_DE_DATOS = ("microsoft.sql/", "microsoft.keyvault/", "microsoft.storage/", "microsoft.documentdb/",
-                  "microsoft.dbforpostgresql/", "microsoft.dbformysql/", "microsoft.cache/")
+                  "microsoft.dbforpostgresql/", "microsoft.dbformysql/", "microsoft.cache/",
+                  # AWS (tipos de Resource Explorer)
+                  "s3:", "rds:", "dynamodb:", "kms:", "secretsmanager:", "elasticache:", "memorydb:")
 TIPOS_DE_COMPUTO_Y_RED = ("microsoft.containerservice/", "microsoft.compute/virtualmachines",
-                          "microsoft.web/sites", "microsoft.network/networksecuritygroups", "microsoft.app/")
+                          "microsoft.web/sites", "microsoft.network/networksecuritygroups", "microsoft.app/",
+                          "ec2:instance", "ec2:security-group", "eks:", "ecs:", "lambda:")
 
 
 class Clasificacion(NamedTuple):

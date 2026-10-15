@@ -71,7 +71,7 @@ resource "aws_iam_role_policy" "hub" {
     Version = "2012-10-17"
     Statement = [
       { Sid    = "Inventario", Effect = "Allow",
-        Action = ["resource-explorer-2:Search", "resource-explorer-2:GetView"],
+        Action = ["resource-explorer-2:ListResources", "resource-explorer-2:Search", "resource-explorer-2:GetView"],
       Resource = aws_resourceexplorer2_view.cloudops.arn },
       { Sid = "Etiquetas", Effect = "Allow", Action = ["tag:GetResources"], Resource = "*" },
       { Sid = "Actividad", Effect = "Allow", Action = ["cloudtrail:LookupEvents"], Resource = "*" },

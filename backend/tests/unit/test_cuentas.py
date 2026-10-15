@@ -139,3 +139,36 @@ def test_una_cuenta_cubierta_sin_filas_gasto_cero():
     cuentas = {c["uid"]: c for c in vista()["accounts"]}
     assert (cuentas[A]["cost_status"], cuentas[A]["cost_30d"]) == ("con_permiso", 0.0)
     assert (cuentas[B]["cost_status"], cuentas[B]["cost_30d"]) == ("sin_permiso", None)
+
+
+def test_aws_con_su_propia_ejecucion_de_inventario(monkeypatch):
+    """Fase 2: AWS corre su inventario aparte; cada nube se ve con su corrida y su identidad."""
+    from app.collectors import classification
+    from app.db.models import AssetClassification
+    from app.providers.aws.provider import AwsProvider
+    from tests.contract.proveedores import FabricaAws
+
+    recolectar(FabricaMemoria().normal())
+    aws = FabricaAws().normal()
+    aws.identidad = {"kind": "federacion_oidc", "client_id": None, "role_arn": "arn:aws:iam::111111111111:role/lector"}
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: aws))
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+    assert run.ejecutar("classification", classification.recolectar, ctx) == "ok"
+
+    v = vista()
+    proveedores = {p["name"]: p for p in v["providers"]}
+    assert set(proveedores) == {"memoria", "aws"}
+    assert proveedores["aws"]["visible"] == 2 and proveedores["aws"]["identity"]["kind"] == "federacion_oidc"
+    assert proveedores["aws"]["capabilities"]["inventario"] and not proveedores["aws"]["capabilities"]["costos"]
+    # La corrida de AWS no le quita la visibilidad a las cuentas de la otra nube.
+    assert all(c["visible"] for c in v["accounts"])
+    cuentas = {c["uid"]: c for c in v["accounts"]}
+    assert cuentas["aws:account/111111111111"]["resources"] == 3
+    assert cuentas["aws:account/111111111111"]["cost_status"] == "sin_dato"
+
+    # La clasificación ISO cubre los recursos de las dos nubes.
+    with db.session_scope() as s:
+        clases = {c.resource_uid: c.classification for c in s.query(AssetClassification)}
+    assert clases["aws:arn:aws:s3:::lab-datos"] == "Confidencial"
+    assert "memoria:res/a/vault-1" in clases

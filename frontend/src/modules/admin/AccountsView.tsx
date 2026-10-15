@@ -115,7 +115,9 @@ function AccountRow({ c }: { c: ConnectedAccount }) {
 function ProviderCard({ provider: p, refreshing }: { provider: ConnectedProvider; refreshing: boolean }) {
   const identidad = p.identity?.kind === 'identidad_administrada'
     ? <>Identidad administrada <span className="mono">{p.identity.client_id}</span></>
-    : p.identity ? 'Credencial por defecto (sesión de desarrollo)' : null;
+    : p.identity?.kind === 'federacion_oidc'
+      ? <>federación OIDC con el rol <span className="mono">{p.identity.role_arn}</span>, sin llaves</>
+      : p.identity ? 'Credencial por defecto (sesión de desarrollo)' : null;
   return (
     <Section title={p.label} description={identidad ? <>Se conecta con: {identidad}. Solo lectura.</> : undefined}>
       <div className="grid grid-main-side">

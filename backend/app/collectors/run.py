@@ -4,7 +4,7 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario -> clasificacion ISO -> costos -> hallazgos -> KPIs -> cache de la
+Orden: migraciones -> inventario (Azure y, si esta configurado, AWS) -> clasificacion ISO -> costos -> hallazgos -> KPIs -> cache de la
 vision general de costos -> vistas precalculadas para el panel (app/readmodel). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
@@ -39,6 +39,24 @@ def precalentar_costos_en_vivo(ctx: Contexto, session) -> Resultado:
                      detail={"subscriptions": len(ctx.subscription_ids), "recovered_on_retry": r.get("recovered_on_retry")})
 
 
+def inventario_aws(ctx: Contexto, session) -> Resultado:
+    """
+    Inventario de AWS con el mismo recolector, sobre su propio proveedor y
+    cuentas. Va en su propia ejecucion: si AWS falla, Azure no se entera.
+    """
+    from app.providers.aws.provider import AwsProvider
+
+    proveedor = AwsProvider.desde_entorno()
+    cuentas = proveedor.cuentas()
+    if not cuentas:
+        raise RuntimeError("La identidad no ve ninguna cuenta de AWS.")
+    aws = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=ctx.momento,
+                   proveedor=proveedor, cuentas=cuentas)
+    resultado = inventory.recolectar(aws, session)
+    resultado.detail["identity"] = proveedor.identidad
+    return resultado
+
+
 def precalcular_vistas(ctx: Contexto, session) -> Resultado:
     """Deja las vistas por defecto del panel en la cache compartida (app/readmodel)."""
     from app.readmodel.service import precalentar
@@ -48,6 +66,7 @@ def precalcular_vistas(ctx: Contexto, session) -> Resultado:
 
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
+    "inventory_aws": inventario_aws,
     "classification": classification.recolectar,
     "costs": costs.recolectar,
     "findings": findings.recolectar,
@@ -126,7 +145,10 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--skip-migrations", action="store_true")
     args = parser.parse_args(argv)
 
-    elegidos = [n.strip() for n in args.only.split(",") if n.strip()] or list(RECOLECTORES)
+    from app.providers.aws.provider import AwsProvider
+
+    por_defecto = [n for n in RECOLECTORES if n != "inventory_aws" or AwsProvider.configurado()]
+    elegidos = [n.strip() for n in args.only.split(",") if n.strip()] or por_defecto
     desconocidos = [n for n in elegidos if n not in RECOLECTORES]
     if desconocidos:
         parser.error(f"Recolectores desconocidos: {', '.join(desconocidos)}")

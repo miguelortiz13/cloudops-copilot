@@ -172,6 +172,58 @@ class FabricaAzure:
         return self._armar(costos_fallan_una_vez=[SUB_A1])
 
 
+# ---------------------------------------------------------------- aws
+
+class _PaginadorGrabado:
+    def __init__(self, paginas, falla):
+        self._paginas, self._falla = paginas, falla
+
+    def paginate(self, **kw):
+        for i, pagina in enumerate(self._paginas):
+            # Falla en la segunda página: lo ya leído no debe salir a medias.
+            if self._falla and i == 1:
+                from botocore.exceptions import ClientError
+
+                raise ClientError({"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "ListResources")
+            yield pagina
+
+
+class ClienteAwsGrabado:
+    """Doble de boto3: Organizations y Resource Explorer sobre respuestas grabadas."""
+
+    def __init__(self, inventario_roto=False):
+        self._datos = json.loads((GRABACIONES.parent / "aws" / "inventario.json").read_text(encoding="utf-8"))
+        self._roto = inventario_roto
+
+    def __call__(self, servicio: str):
+        return self
+
+    def get_paginator(self, operacion: str):
+        return _PaginadorGrabado(self._datos[operacion], self._roto and operacion == "list_resources")
+
+
+@dataclass
+class FabricaAws:
+    nombre: str = "aws"
+    cuenta_con_costos: str = "aws:account/111111111111"
+    cuenta_sin_permiso_de_costos: str = "aws:account/222222222222"
+    regla_que_puede_fallar: str = ""
+
+    def _armar(self, **kw):
+        from app.providers.aws.provider import AwsProvider
+
+        return AwsProvider(ClienteAwsGrabado(**kw), "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1")
+
+    def normal(self):
+        return self._armar()
+
+    def inventario_roto(self):
+        return self._armar(inventario_roto=True)
+
+    def sin_iac(self):
+        return self._armar()
+
+
 # ---------------------------------------------------------------- memoria
 
 def _escenario_en_memoria(**kw) -> ProveedorEnMemoria:

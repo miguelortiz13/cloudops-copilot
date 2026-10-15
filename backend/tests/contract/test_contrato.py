@@ -20,9 +20,9 @@ from app.providers.base import (
     InventoryProvider, Proveedor, ProveedorError, SecurityProvider, resumen_capacidades,
 )
 
-from .proveedores import FabricaAzure, FabricaMemoria, hoy, uids
+from .proveedores import FabricaAws, FabricaAzure, FabricaMemoria, hoy, uids
 
-FABRICAS = ["azure", "memoria"]
+FABRICAS = ["azure", "aws", "memoria"]
 SEVERIDADES = {"critica", "alta", "media"}
 INTERFAZ = {
     Capacidad.INVENTARIO: InventoryProvider, Capacidad.COSTOS: CostProvider, Capacidad.SEGURIDAD: SecurityProvider,
@@ -32,11 +32,20 @@ INTERFAZ = {
 
 @pytest.fixture(params=FABRICAS)
 def fabrica(request, monkeypatch, tmp_path):
-    return FabricaAzure(monkeypatch, tmp_path) if request.param == "azure" else FabricaMemoria()
+    if request.param == "azure":
+        return FabricaAzure(monkeypatch, tmp_path)
+    return FabricaAws() if request.param == "aws" else FabricaMemoria()
 
 
 def prefijo(fabrica) -> str:
     return f"{fabrica.nombre}:"
+
+
+def declarada(p, capacidad: Capacidad):
+    """Lo que el proveedor no declara no se prueba: ya se exige que lo rechace."""
+    if capacidad not in p.capacidades():
+        pytest.skip(f"{p.nombre} no declara {capacidad.value}")
+    return p
 
 
 # ---------------------------------------------------------------- identidad y capacidades
@@ -108,7 +117,7 @@ def test_un_inventario_incompleto_es_un_error_no_una_lista_vacia(fabrica):
 # ---------------------------------------------------------------- costos
 
 def test_costos_en_focus(fabrica):
-    p = fabrica.normal()
+    p = declarada(fabrica.normal(), Capacidad.COSTOS)
     pedidas = sorted(uids(p.cuentas()))
     r = p.costos_diarios(pedidas, 7)
     assert r.filas, "el escenario tiene gasto"
@@ -128,7 +137,7 @@ def test_costos_en_focus(fabrica):
 
 
 def test_la_cobertura_dice_que_cuentas_no_tienen_dato(fabrica):
-    p = fabrica.normal()
+    p = declarada(fabrica.normal(), Capacidad.COSTOS)
     pedidas = sorted(uids(p.cuentas()))
     c = p.costos_diarios(pedidas, 7).cobertura
     grupos = [set(c.cubiertas), set(c.denegadas), set(c.fallidas)]
@@ -141,7 +150,7 @@ def test_la_cobertura_dice_que_cuentas_no_tienen_dato(fabrica):
 # ---------------------------------------------------------------- seguridad
 
 def test_hallazgos_del_catalogo(fabrica):
-    p = fabrica.normal()
+    p = declarada(fabrica.normal(), Capacidad.SEGURIDAD)
     r = p.evaluar_reglas(sorted(uids(p.cuentas())))
     assert r.hallazgos and not r.reglas_sin_evidencia
     claves = set()
@@ -157,6 +166,7 @@ def test_hallazgos_del_catalogo(fabrica):
 
 
 def test_una_regla_sin_evaluar_se_informa(fabrica):
+    declarada(fabrica.normal(), Capacidad.SEGURIDAD)
     p = fabrica.regla_sin_evidencia()
     r = p.evaluar_reglas(sorted(uids(p.cuentas())))
     assert fabrica.regla_que_puede_fallar in r.reglas_sin_evidencia
@@ -170,8 +180,7 @@ def test_una_regla_sin_evaluar_se_informa(fabrica):
 # ---------------------------------------------------------------- IaC y actividad
 
 def test_recursos_gestionados_por_iac(fabrica):
-    p = fabrica.normal()
-    assert Capacidad.IAC in p.capacidades()
+    p = declarada(fabrica.normal(), Capacidad.IAC)
     gestionados = p.recursos_gestionados()
     assert isinstance(gestionados, frozenset) and gestionados
     assert all(u.startswith(prefijo(fabrica)) for u in gestionados)
@@ -180,7 +189,7 @@ def test_recursos_gestionados_por_iac(fabrica):
 
 
 def test_creaciones(fabrica):
-    p = fabrica.normal()
+    p = declarada(fabrica.normal(), Capacidad.ACTIVIDAD)
     a = p.creaciones(sorted(uids(p.cuentas())))
     assert a.creaciones
     for c in a.creaciones:
@@ -196,5 +205,7 @@ def test_resultados_deterministas(fabrica):
     cuentas = sorted(uids(p.cuentas()))
     orden = lambda xs: sorted(xs, key=repr)  # noqa: E731
     assert orden(p.recursos(cuentas)) == orden(p.recursos(cuentas))
-    assert orden(p.costos_diarios(cuentas, 7).filas) == orden(p.costos_diarios(cuentas, 7).filas)
-    assert orden(p.evaluar_reglas(cuentas).hallazgos) == orden(p.evaluar_reglas(cuentas).hallazgos)
+    if Capacidad.COSTOS in p.capacidades():
+        assert orden(p.costos_diarios(cuentas, 7).filas) == orden(p.costos_diarios(cuentas, 7).filas)
+    if Capacidad.SEGURIDAD in p.capacidades():
+        assert orden(p.evaluar_reglas(cuentas).hallazgos) == orden(p.evaluar_reglas(cuentas).hallazgos)
