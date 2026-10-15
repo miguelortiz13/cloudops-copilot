@@ -79,7 +79,7 @@ gantt
 | Paso | Entregable | Puerta |
 |---|---|---|
 | 1 | **Prueba de concepto de federación**: la identidad administrada asume un rol de AWS por OIDC | **Cumplido** (14-oct-2026): asumió el rol de lectura desde el job, sin llaves; registrado en CloudTrail |
-| 2 | Módulo `infra/aws-onboarding` (OIDC, rol hub, StackSet, CUR 2.0, Resource Explorer) | Se aplica sobre una organización de laboratorio |
+| 2 | Módulo `infra/modules/aws-onboarding` (OIDC, rol hub, StackSet, CUR 2.0, Resource Explorer) | **Cumplido en parte** (14-oct-2026): aplicado en la organización de laboratorio con OIDC, rol hub, Resource Explorer agregador con vista propia y export FOCUS 1.2 a S3. Falta el StackSet de cuentas miembro: necesita una cuenta miembro de laboratorio |
 | 3 | `AwsProvider.inventory` con tipos canónicos | Inventario multinube en las vistas |
 | 4 | `AwsProvider.costs` sobre CUR 2.0 FOCUS + Athena | El total de un mes coincide con la factura (±1 %) |
 | 5 | Reglas AWS del catálogo y recursos sin uso | Hallazgos AWS en la misma bandeja |
