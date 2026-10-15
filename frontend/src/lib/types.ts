@@ -548,3 +548,44 @@ export interface ConnectedAccounts {
   providers: ConnectedProvider[];
   accounts: ConnectedAccount[];
 }
+
+// ---------------------------------------------------------------- Reportes: inventario multinube
+
+export interface CountBy { key: string; count: number }
+
+export interface InventoryReportProvider {
+  name: string;
+  label: string;
+  accounts: number;
+  resources: number;
+  /** null: ninguna cuenta de esta nube entrega costos todavía (desconocido, no cero). */
+  cost_30d: number | null;
+  currency: string | null;
+  open_findings: number;
+  in_iac: number;
+  iac_known: boolean;
+  by_type: CountBy[];
+  by_region: CountBy[];
+  inventory_at: string | null;
+}
+
+export interface InventoryReportAccount {
+  uid: string;
+  provider: string;
+  name: string;
+  native_id: string;
+  resources: number;
+  cost_30d: number | null;
+  currency: string | null;
+  open_findings: number;
+  by_type: CountBy[];
+}
+
+export interface InventoryReport {
+  configured: boolean;
+  cost_days: number;
+  cost_until: string | null;
+  providers: InventoryReportProvider[];
+  accounts: InventoryReportAccount[];
+  resources: { uid: string; provider: string; account: string; name: string; type: string; region: string | null; cost_30d: number | null }[];
+}

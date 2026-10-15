@@ -65,13 +65,12 @@ def audit_log(limit: int = 100):
 
 @router.get("/api/admin/accounts")
 def connected_accounts():
-    """Cuentas conectadas por proveedor, con sus permisos efectivos según la última recolección (abre la base)."""
+    """Cuentas conectadas por proveedor, con sus permisos efectivos según la última recolección (precalculada)."""
     if not db.is_configured():
         return {"configured": False, "providers": [], "accounts": []}
-    from app.readmodel.cuentas import cuentas_conectadas
+    from app.readmodel import service
 
     try:
-        with db.session_scope() as s:
-            return cuentas_conectadas(s)
+        return service.cuentas_conectadas()
     except db.DatabaseUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))

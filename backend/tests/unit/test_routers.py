@@ -67,7 +67,11 @@ def servicios():
 
 
 @pytest.fixture
-def cliente(servicios):
+def cliente(servicios, tmp_path, monkeypatch):
+    from app.core import config
+
+    # Cache de vistas propia de cada prueba.
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     # Sin `with`: no se ejecuta el lifespan (ni la precarga de costos).
     return TestClient(app)
 
@@ -82,6 +86,18 @@ def test_costos_reparte_las_suscripciones_del_query(cliente, servicios):
 def test_costos_sin_scope_pide_todas(cliente, servicios):
     cliente.get("/api/finops/costs")
     assert servicios.cost_overview.llamadas == [("build", (None,), {})]
+
+
+def test_costos_se_sirven_de_la_vista_precalculada(cliente, servicios):
+    from app.readmodel import cache
+
+    cache.guardar(cache.clave("cost_overview", subscriptions=""), {"basis": "actual", "totals": {"last_period": 7.0}})
+    assert cliente.get("/api/finops/costs").json()["totals"]["last_period"] == 7.0
+    assert servicios.cost_overview.llamadas == []
+    # Otro alcance no está precalculado: se arma y queda guardado.
+    cliente.get("/api/finops/costs", params={"subscriptions": "a"})
+    cliente.get("/api/finops/costs", params={"subscriptions": "a"})
+    assert len(servicios.cost_overview.llamadas) == 1
 
 
 def test_error_del_servicio_se_traduce_en_500(cliente, servicios):

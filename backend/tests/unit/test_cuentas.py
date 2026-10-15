@@ -172,3 +172,39 @@ def test_aws_con_su_propia_ejecucion_de_inventario(monkeypatch):
         clases = {c.resource_uid: c.classification for c in s.query(AssetClassification)}
     assert clases["aws:arn:aws:s3:::lab-datos"] == "Confidencial"
     assert "memoria:res/a/vault-1" in clases
+
+
+def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
+    """Reportes: inventario de todas las nubes, precalculado por el recolector."""
+    from app.collectors import classification
+    from app.main import app
+    from app.providers.aws.provider import AwsProvider
+    from app.readmodel import service
+    from tests.contract.proveedores import FabricaAws
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    recolectar(FabricaMemoria().normal())
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    run.ejecutar("inventory_aws", run.inventario_aws, ctx)
+    run.ejecutar("classification", classification.recolectar, ctx)
+    run.ejecutar("readmodel", run.precalcular_vistas, ctx)
+
+    r = service.inventario_multinube()
+    assert r["source"] == "cache", "lo deja listo el recolector: abrir Reportes no despierta la base"
+    nubes = {p["name"]: p for p in r["providers"]}
+    assert (nubes["memoria"]["resources"], nubes["memoria"]["cost_30d"], nubes["memoria"]["open_findings"]) == (3, 1.6, 2)
+    # AWS todavía no entrega costos: desconocido, no cero.
+    assert (nubes["aws"]["resources"], nubes["aws"]["cost_30d"], nubes["aws"]["iac_known"]) == (4, None, False)
+    assert {"key": "storage.bucket", "count": 1} in nubes["aws"]["by_type"]
+    assert {"key": "global", "count": 1} in nubes["aws"]["by_region"]
+    boveda = next(x for x in r["resources"] if x["uid"] == "memoria:res/a/vault-1")
+    assert (boveda["cost_30d"], boveda["account"], boveda["in_iac"]) == (1.5, "Cuenta A", True)
+    assert next(x for x in r["resources"] if x["uid"] == "aws:arn:aws:s3:::lab-datos")["classification"] == "Confidencial"
+    assert service.cuentas_conectadas()["source"] == "cache"
+
+    csv = TestClient(app).get("/api/inventory/report/export")
+    assert csv.status_code == 200 and "inventario-multinube.csv" in csv.headers["content-disposition"]
+    lineas = csv.text.lstrip("﻿").splitlines()
+    assert lineas[0].startswith("Nube,Cuenta,Recurso,Tipo") and len(lineas) == 1 + 7
+    assert any(line.startswith("aws,Laboratorio,lab-datos,storage.bucket") for line in lineas)

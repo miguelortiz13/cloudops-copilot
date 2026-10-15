@@ -30,13 +30,26 @@ from app.db.models import CollectorRun
 def precalentar_costos_en_vivo(ctx: Contexto, session) -> Resultado:
     """
     Deja lista la cache de la vision general de costos (consulta en vivo a Cost
-    Management) en el almacenamiento compartido con el API. Asi el API no
-    precarga en cada arranque en frio ni hace esperar al usuario.
+    Management) y la vision ya armada en el almacenamiento compartido con el
+    API. Asi el API no precarga en cada arranque en frio ni hace esperar al
+    usuario.
     """
+    from app.readmodel import cache
+    from app.services.cost_overview_service import CostOverviewService
+
     r = ctx.cost.warm(ctx.subscription_ids, pace_seconds=2.5)
     faltan = len(ctx.subscription_ids) - (r.get("covered") or 0)
-    return Resultado(items=r.get("covered") or 0, status="parcial" if faltan else "ok",
-                     detail={"subscriptions": len(ctx.subscription_ids), "recovered_on_retry": r.get("recovered_on_retry")})
+    # Con los costos ya en cache, la vision general sale sin esperar: se deja
+    # armada para la vista por defecto (todas las suscripciones).
+    try:
+        cache.guardar(cache.clave("cost_overview", subscriptions=""), CostOverviewService(ctx.azure, ctx.cost).build())
+        vision = True
+    except Exception as exc:  # sin la vision armada, el API la arma en la primera visita
+        print(f"[recolector] Vision general de costos no precalculada: {exc}")
+        vision = False
+    return Resultado(items=r.get("covered") or 0, status="parcial" if faltan or not vision else "ok",
+                     detail={"subscriptions": len(ctx.subscription_ids), "recovered_on_retry": r.get("recovered_on_retry"),
+                             "overview": vision})
 
 
 def inventario_aws(ctx: Contexto, session) -> Resultado:

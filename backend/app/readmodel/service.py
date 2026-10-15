@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.db import engine as db
 from app.compliance.classification import CLASES, clasificar, custodio
 from app.db.models import AssetClassification, Finding, FindingEvent, Resource
-from app.readmodel import cache, cumplimiento as vistas_cumplimiento, queries
+from app.readmodel import cache, cuentas as vistas_cuentas, cumplimiento as vistas_cumplimiento, inventario, queries
 
 # Transiciones que una persona puede hacer. "resuelto" no esta: lo decide el
 # recolector cuando el problema deja de detectarse.
@@ -52,6 +52,14 @@ def hallazgos() -> Dict[str, Any]:
 
 def kpis(dias: int) -> Dict[str, Any]:
     return _leer("kpis", {"days": dias}, lambda s: queries.kpis(s, dias))
+
+
+def cuentas_conectadas() -> Dict[str, Any]:
+    return _leer("accounts", {}, vistas_cuentas.cuentas_conectadas)
+
+
+def inventario_multinube() -> Dict[str, Any]:
+    return _leer("inventory_report", {}, inventario.reporte)
 
 
 def cumplimiento() -> Dict[str, Any]:
@@ -99,19 +107,25 @@ def cambiar_estado(hallazgo_id: int, estado: str, actor: str, nota: Optional[str
         # hallazgos aceptados o asumidos.
         datos = queries.hallazgos(s)
         estado_de_controles = vistas_cumplimiento.cumplimiento(s)
+        # Cuentan los hallazgos activos por cuenta.
+        cuentas, reporte = vistas_cuentas.cuentas_conectadas(s), inventario.reporte(s)
     # Despues del commit: la cache nunca muestra un cambio que no quedo guardado.
     cache.guardar(cache.clave("findings"), datos)
     cache.guardar(cache.clave("compliance"), estado_de_controles)
+    cache.guardar(cache.clave("accounts"), cuentas)
+    cache.guardar(cache.clave("inventory_report"), reporte)
     return next(h for h in datos["items"] if h["id"] == hallazgo_id)
 
 
 def _vistas_de_clasificacion(s: Session) -> Callable[[str], Dict[str, Any]]:
     """Calcula las vistas con la base despierta; las guarda al llamar al resultado (tras el commit)."""
     datos, estado_de_controles = vistas_cumplimiento.activos(s), vistas_cumplimiento.cumplimiento(s)
+    reporte = inventario.reporte(s)
 
     def publicar(uid: str) -> Dict[str, Any]:
         cache.guardar(cache.clave("assets"), datos)
         cache.guardar(cache.clave("compliance"), estado_de_controles)
+        cache.guardar(cache.clave("inventory_report"), reporte)
         return next(a for a in datos["items"] if a["uid"] == uid)
 
     return publicar
@@ -172,4 +186,6 @@ def precalentar(s: Session) -> int:
     cache.guardar(cache.clave("kpis", days=queries.DIAS_KPI_POR_DEFECTO), queries.kpis(s, queries.DIAS_KPI_POR_DEFECTO))
     cache.guardar(cache.clave("compliance"), vistas_cumplimiento.cumplimiento(s))
     cache.guardar(cache.clave("assets"), vistas_cumplimiento.activos(s))
-    return escritas + 4
+    cache.guardar(cache.clave("accounts"), vistas_cuentas.cuentas_conectadas(s))
+    cache.guardar(cache.clave("inventory_report"), inventario.reporte(s))
+    return escritas + 6

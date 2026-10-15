@@ -7,6 +7,7 @@
  * público y las capturas de regresión visual salen de aquí).
  */
 import type {
+  InventoryReport,
   ClassifiedAsset, ClassifiedAssets, ComplianceStatus, ConnectedAccounts, CostHistory, CostOverview, FindingEvent, FinOpsReport,
   HistorySeries, InventoryPage, InventoryResource, InventorySummary, ManagedFinding, ManagedFindings, ManualCreations,
   Me, RiskExposure, Role, SecOpsReport, Snapshot, Subscription, SyncStatus, TagCompliance, TerraformCoverage,
@@ -432,5 +433,33 @@ export function connectedAccounts(): ConnectedAccounts {
       { uid: `azure:sub/${SUB_LAB}`, provider: 'azure', native_id: SUB_LAB, name: 'Laboratorio (demo)', parent: null, first_seen: '2026-08-01T06:00:00Z', last_seen: '2026-10-10T06:00:00Z', visible: true, resources: 27, open_findings: 0, cost_30d: null, currency: null, cost_status: 'sin_permiso' },
       { uid: 'azure:sub/00000000-0000-4000-8000-000000000003', provider: 'azure', native_id: '00000000-0000-4000-8000-000000000003', name: 'Retirada (demo)', parent: null, first_seen: '2026-08-01T06:00:00Z', last_seen: '2026-09-15T06:00:00Z', visible: false, resources: 0, open_findings: 0, cost_30d: 0.4, currency: 'USD', cost_status: 'con_permiso' },
     ],
+  };
+}
+
+export function inventoryReport(): InventoryReport {
+  return {
+    configured: true,
+    cost_days: 30,
+    cost_until: '2026-10-09',
+    providers: [
+      {
+        name: 'aws', label: 'Amazon Web Services', accounts: 1, resources: 6, cost_30d: null, currency: null, open_findings: 0,
+        in_iac: 0, iac_known: false, inventory_at: '2026-10-10T06:01:20Z',
+        by_type: [{ key: 'iam:role', count: 3 }, { key: 'storage.bucket', count: 2 }, { key: 'compute.vm', count: 1 }],
+        by_region: [{ key: 'global', count: 3 }, { key: 'us-east-1', count: 3 }],
+      },
+      {
+        name: 'azure', label: 'Microsoft Azure', accounts: 2, resources: 48, cost_30d: 71.4, currency: 'USD', open_findings: 2,
+        in_iac: 31, iac_known: true, inventory_at: '2026-10-10T06:01:11Z',
+        by_type: [{ key: 'storage.account', count: 9 }, { key: 'compute.app', count: 7 }, { key: 'secrets.vault', count: 4 }],
+        by_region: [{ key: 'eastus2', count: 40 }, { key: 'centralus', count: 8 }],
+      },
+    ],
+    accounts: [
+      { uid: 'aws:account/111111111111', provider: 'aws', name: 'AWS laboratorio (demo)', native_id: '111111111111', resources: 6, cost_30d: null, currency: null, open_findings: 0, by_type: [{ key: 'iam:role', count: 3 }, { key: 'storage.bucket', count: 2 }] },
+      { uid: `azure:sub/${SUB_PROD}`, provider: 'azure', name: 'Producción (demo)', native_id: SUB_PROD, resources: 21, cost_30d: 71.4, currency: 'USD', open_findings: 2, by_type: [{ key: 'compute.app', count: 5 }, { key: 'storage.account', count: 4 }] },
+      { uid: `azure:sub/${SUB_LAB}`, provider: 'azure', name: 'Laboratorio (demo)', native_id: SUB_LAB, resources: 27, cost_30d: null, currency: null, open_findings: 0, by_type: [{ key: 'storage.account', count: 5 }] },
+    ],
+    resources: [],
   };
 }

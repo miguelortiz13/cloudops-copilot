@@ -59,6 +59,8 @@ function rutas(role: Role): Record<string, Handler> {
     'POST /api/inventory/resources': () => fx.inventoryPage,
     'POST /api/inventory/manual-creations': () => fx.manualCreations,
     'GET /api/inventory/snapshots': () => fx.snapshots,
+    'GET /api/inventory/report': () => fx.inventoryReport(),
+    'GET /api/inventory/report/export': () => new Respuesta(200, 'Nube,Cuenta,Recurso\naws,AWS laboratorio (demo),lab-datos\n'),
     'GET /api/sync/status': () => fx.syncStatus,
     'GET /api/finops/costs': () => fx.costOverview,
     'GET /api/finops/report': () => fx.finopsReport,
