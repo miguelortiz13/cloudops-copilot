@@ -4,7 +4,8 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario (Azure y, si esta configurado, AWS) -> clasificacion ISO -> costos -> hallazgos -> KPIs -> cache de la
+Orden: migraciones -> inventario (Azure y, si esta configurado, AWS) -> clasificacion ISO
+(costos de AWS despues de los de Azure) -> costos -> hallazgos -> KPIs -> cache de la
 vision general de costos -> vistas precalculadas para el panel (app/readmodel). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
@@ -52,22 +53,40 @@ def precalentar_costos_en_vivo(ctx: Contexto, session) -> Resultado:
                              "overview": vision})
 
 
-def inventario_aws(ctx: Contexto, session) -> Resultado:
-    """
-    Inventario de AWS con el mismo recolector, sobre su propio proveedor y
-    cuentas. Va en su propia ejecucion: si AWS falla, Azure no se entera.
-    """
+def _contexto_aws(ctx: Contexto) -> Contexto:
     from app.providers.aws.provider import AwsProvider
 
     proveedor = AwsProvider.desde_entorno()
     cuentas = proveedor.cuentas()
     if not cuentas:
         raise RuntimeError("La identidad no ve ninguna cuenta de AWS.")
-    aws = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=ctx.momento,
-                   proveedor=proveedor, cuentas=cuentas)
+    return Contexto(azure=None, inventory=None, cost=None, secops=None, momento=ctx.momento,
+                    proveedor=proveedor, cuentas=cuentas)
+
+
+def inventario_aws(ctx: Contexto, session) -> Resultado:
+    """
+    Inventario de AWS con el mismo recolector, sobre su propio proveedor y
+    cuentas. Va en su propia ejecucion: si AWS falla, Azure no se entera.
+    """
+    aws = _contexto_aws(ctx)
     resultado = inventory.recolectar(aws, session)
-    resultado.detail["identity"] = proveedor.identidad
+    resultado.detail["identity"] = aws.proveedor.identidad
     return resultado
+
+
+def costos_aws(ctx: Contexto, session) -> Resultado:
+    """Costos de AWS desde el export FOCUS (Athena), en su propia ejecucion."""
+    from app.providers.base import Capacidad
+
+    aws = _contexto_aws(ctx)
+    if Capacidad.COSTOS not in aws.proveedor.capacidades():
+        return Resultado(status="parcial", detail={"covered_accounts": [], "reason": "Export de costos no configurado."})
+    if not aws.proveedor.export_entregado():
+        # La primera entrega tarda hasta 24 h: sin dato todavia, no es un fallo del job.
+        return Resultado(status="parcial", detail={"covered_accounts": [],
+                                                   "reason": "El export de costos todavia no entrego datos."})
+    return costs.recolectar(aws, session, nombre="costs_aws", fuente="export")
 
 
 def precalcular_vistas(ctx: Contexto, session) -> Resultado:
@@ -82,6 +101,7 @@ RECOLECTORES: Dict[str, Callable] = {
     "inventory_aws": inventario_aws,
     "classification": classification.recolectar,
     "costs": costs.recolectar,
+    "costs_aws": costos_aws,
     "findings": findings.recolectar,
     "kpis": kpis.recolectar,
     "costcache": precalentar_costos_en_vivo,
@@ -160,7 +180,7 @@ def main(argv: List[str] = None) -> int:
 
     from app.providers.aws.provider import AwsProvider
 
-    por_defecto = [n for n in RECOLECTORES if n != "inventory_aws" or AwsProvider.configurado()]
+    por_defecto = [n for n in RECOLECTORES if not n.endswith("_aws") or AwsProvider.configurado()]
     elegidos = [n.strip() for n in args.only.split(",") if n.strip()] or por_defecto
     desconocidos = [n for n in elegidos if n not in RECOLECTORES]
     if desconocidos:

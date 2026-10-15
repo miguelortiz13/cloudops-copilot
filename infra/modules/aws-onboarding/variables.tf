@@ -28,3 +28,9 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "athena_bytes_limit" {
+  description = "Tope de bytes leídos por consulta de Athena (la consulta se cancela al pasarlo). 1 GB = USD 0,005."
+  type        = number
+  default     = 1073741824
+}

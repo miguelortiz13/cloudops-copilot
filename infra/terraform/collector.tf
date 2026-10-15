@@ -30,6 +30,10 @@ locals {
     AWS_DEFAULT_REGION = var.aws_region
     # Vista de Resource Explorer: inventario de AWS (app/providers/aws).
     AWS_INVENTORY_VIEW_ARN = module.aws_onboarding[0].inventory_view_arn
+    # Costos: tabla del export FOCUS en Athena (vacías si el export no se crea).
+    AWS_COST_DATABASE  = try(module.aws_onboarding[0].cost_export.database, "")
+    AWS_COST_TABLE     = try(module.aws_onboarding[0].cost_export.table, "")
+    AWS_COST_WORKGROUP = try(module.aws_onboarding[0].cost_export.workgroup, "")
   } : {}
 }
 

@@ -1,0 +1,14 @@
+{
+  "_nota": "Respuesta ficticia con la forma real de athena:GetQueryResults (dos páginas; la primera fila son los nombres de columna).",
+  "get_query_results": [
+    {"ResultSet": {"Rows": [
+      {"Data": [{"VarCharValue": "_col0"}, {"VarCharValue": "subaccountid"}, {"VarCharValue": "_col2"}, {"VarCharValue": "_col3"}, {"VarCharValue": "_col4"}, {"VarCharValue": "_col5"}, {"VarCharValue": "_col6"}]},
+      {"Data": [{"VarCharValue": "2026-10-09"}, {"VarCharValue": "111111111111"}, {"VarCharValue": "arn:aws:s3:::lab-datos"}, {"VarCharValue": "Amazon Simple Storage Service"}, {"VarCharValue": "0.0231"}, {"VarCharValue": "0.0231"}, {"VarCharValue": "USD"}]},
+      {"Data": [{"VarCharValue": "2026-10-09"}, {"VarCharValue": "111111111111"}, {"VarCharValue": "i-0abc123"}, {"VarCharValue": "Amazon Elastic Compute Cloud"}, {"VarCharValue": "1.2"}, {"VarCharValue": "0.9"}, {"VarCharValue": "USD"}]}
+    ]}, "NextToken": "pagina-2"},
+    {"ResultSet": {"Rows": [
+      {"Data": [{"VarCharValue": "2026-10-09"}, {"VarCharValue": "111111111111"}, {"VarCharValue": ""}, {"VarCharValue": "Tax"}, {"VarCharValue": "0.1"}, {"VarCharValue": "0.1"}, {"VarCharValue": "USD"}]},
+      {"Data": [{"VarCharValue": "2026-10-10"}, {"VarCharValue": "222222222222"}, {"VarCharValue": "arn:aws:lambda:us-east-2:222222222222:function:web"}, {"VarCharValue": "AWS Lambda"}, {"VarCharValue": "0"}, {"VarCharValue": "0"}, {"VarCharValue": "USD"}]}
+    ]}}
+  ]
+}
