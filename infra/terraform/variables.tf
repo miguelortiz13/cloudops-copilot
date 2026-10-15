@@ -58,6 +58,12 @@ variable "observed_subscription_ids" {
   type        = list(string)
 }
 
+variable "observed_management_group_ids" {
+  description = "Grupos de administración sobre los que la identidad recibe Reader: cubre sus suscripciones actuales y las que se creen dentro, sin agregarlas una por una. Las suscripciones fuera de esos grupos van en observed_subscription_ids."
+  type        = list(string)
+  default     = []
+}
+
 variable "tfstate_sources" {
   description = "Cuentas con estados de Terraform a escanear (lectura de blobs)."
   type = list(object({

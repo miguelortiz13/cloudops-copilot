@@ -10,6 +10,10 @@ observed_subscription_ids = [
   "00000000-0000-0000-0000-000000000000",
 ]
 
+# Grupos de administración observados (recomendado): Reader heredado por todas
+# sus suscripciones, también las futuras.
+# observed_management_group_ids = ["mg-organizacion"]
+
 # Cuentas con estados de Terraform (opcional): cobertura real de IaC.
 tfstate_sources = [
   # { storage_account_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<cuenta>", container = "tfstate" },
