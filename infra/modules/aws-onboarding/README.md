@@ -11,7 +11,7 @@ tenga permisos de IAM, S3, Resource Explorer y Data Exports.
 | Bucket privado y export FOCUS 1.2 (Data Exports) | Costos de toda la organización | Centavos de S3 |
 
 Permisos del rol: `SecurityAudit` y `ViewOnlyAccess`, más una política propia
-(búsqueda solo en la vista, `tag:GetResources`, `cloudtrail:LookupEvents`,
+(listado y búsqueda solo en la vista, `tag:GetResources`, `cloudtrail:LookupEvents`,
 lectura de la organización y de presupuestos). Sin `ReadOnlyAccess` ni
 `s3:GetObject`: metadatos, no datos.
 

@@ -44,6 +44,24 @@ describe('Cuentas conectadas', () => {
     expect(screen.getByText('00000000-0000-4000-8000-0000000000c1')).toBeInTheDocument();
   });
 
+  it('muestra cada nube con su identidad y sus capacidades', async () => {
+    const datos = connectedAccounts();
+    datos.providers.push({
+      name: 'aws', label: 'Amazon Web Services',
+      capabilities: { inventario: true, costos: false, seguridad: false, iac: false, actividad: false },
+      unavailable: {},
+      identity: { kind: 'federacion_oidc', client_id: null, role_arn: 'arn:aws:iam::111111111111:role/demo-reader' },
+      cost_role: null, accounts: 1, visible: 1, cost_denied: 0,
+    });
+    datos.accounts.push({ uid: 'aws:account/111111111111', provider: 'aws', native_id: '111111111111', name: 'AWS (demo)', parent: null, first_seen: '2026-10-10T06:00:00Z', last_seen: '2026-10-10T06:00:00Z', visible: true, resources: 44, open_findings: 0, cost_30d: null, currency: null, cost_status: 'sin_dato' });
+    api.get.mockResolvedValue(datos);
+    renderWithApp(<AccountsView />);
+    await screen.findByText('AWS (demo)');
+    expect(screen.getByRole('heading', { name: 'Amazon Web Services' })).toBeInTheDocument();
+    expect(screen.getByText('arn:aws:iam::111111111111:role/demo-reader').parentElement).toHaveTextContent('federación OIDC');
+    expect(within(fila('AWS (demo)')).getByText('Sin dato')).toBeInTheDocument();
+  });
+
   it('sin base de datos lo dice', async () => {
     api.get.mockResolvedValue({ configured: false, providers: [], accounts: [] });
     renderWithApp(<AccountsView />);

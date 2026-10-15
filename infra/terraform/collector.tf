@@ -28,6 +28,8 @@ locals {
     AWS_ROLE_ARN       = module.aws_onboarding[0].role_arn
     AWS_ENTRA_AUDIENCE = azuread_application_identifier_uri.aws_federation[0].identifier_uri
     AWS_DEFAULT_REGION = var.aws_region
+    # Vista de Resource Explorer: inventario de AWS (app/providers/aws).
+    AWS_INVENTORY_VIEW_ARN = module.aws_onboarding[0].inventory_view_arn
   } : {}
 }
 

@@ -1,0 +1,24 @@
+{
+  "_nota": "Respuestas ficticias con la forma real de organizations:ListAccounts y resource-explorer-2:ListResources (dos páginas).",
+  "list_accounts": [
+    {"Accounts": [
+      {"Id": "111111111111", "Name": "Laboratorio", "Status": "ACTIVE"},
+      {"Id": "222222222222", "Name": "Cargas", "Status": "ACTIVE"},
+      {"Id": "333333333333", "Name": "Cerrada", "Status": "SUSPENDED"}
+    ]}
+  ],
+  "list_resources": [
+    {"Resources": [
+      {"Arn": "arn:aws:s3:::lab-datos", "OwningAccountId": "111111111111", "Region": "us-east-1", "ResourceType": "s3:bucket", "Service": "s3",
+       "Properties": [{"Name": "tags", "Data": [{"Key": "Environment", "Value": "prod"}, {"Key": "Project", "Value": "pagos"}]}]},
+      {"Arn": "arn:aws:ec2:us-east-1:111111111111:instance/i-0abc123", "OwningAccountId": "111111111111", "Region": "us-east-1", "ResourceType": "ec2:instance", "Service": "ec2",
+       "Properties": [{"Name": "tags", "Data": [{"Key": "Name", "Value": "web-1"}]}]},
+      {"Arn": "arn:aws:iam::111111111111:role/Lector", "OwningAccountId": "111111111111", "Region": "global", "ResourceType": "iam:role", "Service": "iam", "Properties": []}
+    ], "NextToken": "pagina-2"},
+    {"Resources": [
+      {"Arn": "arn:aws:autoscaling:us-east-2:222222222222:autoScalingGroup:1234:autoScalingGroupName/web", "OwningAccountId": "222222222222", "Region": "us-east-2", "ResourceType": "autoscaling:autoScalingGroup", "Service": "autoscaling", "Properties": []},
+      {"Arn": "arn:aws:s3:::lab-datos", "OwningAccountId": "111111111111", "Region": "us-east-1", "ResourceType": "s3:bucket", "Service": "s3", "Properties": []},
+      {"Arn": "arn:aws:ec2:us-east-1:333333333333:vpc/vpc-1", "OwningAccountId": "333333333333", "Region": "us-east-1", "ResourceType": "ec2:vpc", "Service": "ec2", "Properties": []}
+    ]}
+  ]
+}

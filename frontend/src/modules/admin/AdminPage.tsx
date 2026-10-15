@@ -73,7 +73,7 @@ const FAMILIAS = [
 ] as const;
 
 const RECOLECTOR: Record<string, string> = {
-  inventory: 'Inventario', classification: 'Clasificación ISO', costs: 'Costos', findings: 'Hallazgos', kpis: 'KPIs',
+  inventory: 'Inventario', inventory_aws: 'Inventario de AWS', classification: 'Clasificación ISO', costs: 'Costos', findings: 'Hallazgos', kpis: 'KPIs',
   costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel',
 };
 

@@ -513,7 +513,11 @@ export interface ConnectedProvider {
   label: string;
   capabilities: Record<Capability, boolean> | null;
   unavailable: Partial<Record<Capability, string>>;
-  identity: { kind: 'identidad_administrada' | 'credencial_por_defecto'; client_id: string | null } | null;
+  identity:
+    | { kind: 'identidad_administrada' | 'credencial_por_defecto'; client_id: string | null }
+    // AWS: la identidad administrada asume este rol por federación OIDC, sin llaves.
+    | { kind: 'federacion_oidc'; client_id: null; role_arn: string }
+    | null;
   cost_role: string | null;
   accounts: number;
   visible: number;

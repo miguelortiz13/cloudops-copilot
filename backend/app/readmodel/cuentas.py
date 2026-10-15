@@ -39,6 +39,19 @@ def _ultima(s: Session, recolector: str) -> Optional[CollectorRun]:
         .order_by(CollectorRun.started_at.desc()).limit(1)).first()
 
 
+def _corte(corrida: Optional[CollectorRun], cuentas: List[Account]) -> Optional[datetime]:
+    """
+    Una cuenta es visible si apareció en la última recolección de inventario de
+    su nube: su last_seen es el momento con el que esa recolección marcó las
+    cuentas (anterior al inicio registrado de la ejecución, así que no sirve
+    como corte).
+    """
+    if corrida is None:
+        return None
+    marca = (corrida.detail or {}).get("seen_at")
+    return _aware(datetime.fromisoformat(marca)) if marca else max((_aware(c.last_seen) for c in cuentas), default=None)
+
+
 def _identidad() -> Dict[str, Any]:
     if config.AZURE_MANAGED_IDENTITY_CLIENT_ID:
         return {"kind": "identidad_administrada", "client_id": config.AZURE_MANAGED_IDENTITY_CLIENT_ID}
@@ -62,9 +75,18 @@ def _estado_de_costos(cuenta: Account, corrida: Optional[CollectorRun]) -> str:
 
 
 def cuentas_conectadas(s: Session) -> Dict[str, Any]:
-    inventario = _ultima(s, "inventory")
     costos = _ultima(s, "costs")
     cuentas = list(s.scalars(select(Account).order_by(Account.provider, Account.name)))
+    # Cada nube tiene su ejecución de inventario: `inventory` es la del
+    # proveedor principal (Azure; su detalle dice cuál) e `inventory_<nube>`
+    # las demás (run.py).
+    nombres = {c.provider for c in cuentas}
+    inventarios: Dict[str, Optional[CollectorRun]] = {p: _ultima(s, f"inventory_{p}") for p in nombres}
+    principal = _ultima(s, "inventory")
+    if principal is not None:
+        inventarios[(principal.detail or {}).get("provider", "azure")] = principal
+    nombres = sorted(set(inventarios))
+    cortes = {p: _corte(inventarios[p], [c for c in cuentas if c.provider == p]) for p in nombres}
 
     recursos = dict(s.execute(select(Resource.account_uid, func.count()).where(Resource.deleted_at.is_(None))
                               .group_by(Resource.account_uid)).all())
@@ -77,17 +99,9 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
             select(CostDaily.account_uid, func.sum(CostDaily.billed_cost), func.max(CostDaily.currency))
             .where(CostDaily.charge_date > hasta - timedelta(days=DIAS_DE_COSTO)).group_by(CostDaily.account_uid)).all()}
 
-    # Una cuenta es visible si apareció en la última recolección de inventario:
-    # su last_seen es el momento con el que esa recolección marcó las cuentas
-    # (anterior al inicio registrado de la ejecución, así que no sirve como corte).
-    desde_ultima = None
-    if inventario:
-        marca = (inventario.detail or {}).get("seen_at")
-        desde_ultima = _aware(datetime.fromisoformat(marca)) if marca else max(
-            (_aware(c.last_seen) for c in cuentas), default=None)
     items: List[Dict[str, Any]] = []
     for c in cuentas:
-        visible = bool(desde_ultima and _aware(c.last_seen) >= desde_ultima)
+        visible = bool(cortes.get(c.provider) and _aware(c.last_seen) >= cortes[c.provider])
         estado_costos = _estado_de_costos(c, costos)
         monto, moneda = gasto.get(c.uid, (None, None))
         if monto is None and estado_costos == "con_permiso":
@@ -101,17 +115,17 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
             "cost_status": estado_costos,
         })
 
-    detalle = (inventario.detail or {}) if inventario else {}
     proveedores = []
-    for nombre in sorted({c.provider for c in cuentas} | ({detalle["provider"]} if detalle.get("provider") else set())):
+    for nombre in nombres:
         propias = [i for i in items if i["provider"] == nombre]
-        es_el_de_la_corrida = detalle.get("provider", "azure") == nombre
+        corrida = inventarios[nombre]
+        detalle = (corrida.detail or {}) if corrida else {}
         proveedores.append({
             "name": nombre,
             "label": ETIQUETA.get(nombre, nombre),
-            "capabilities": detalle.get("capabilities") if es_el_de_la_corrida else None,
-            "unavailable": detalle.get("unavailable", {}) if es_el_de_la_corrida else {},
-            "identity": _identidad() if nombre == "azure" else None,
+            "capabilities": detalle.get("capabilities"),
+            "unavailable": detalle.get("unavailable", {}),
+            "identity": _identidad() if nombre == "azure" else detalle.get("identity"),
             "cost_role": ROL_DE_COSTOS.get(nombre),
             "accounts": len(propias),
             "visible": sum(1 for i in propias if i["visible"]),
@@ -120,7 +134,7 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
 
     return {
         "configured": True,
-        "inventory_at": _iso(inventario.finished_at) if inventario else None,
+        "inventory_at": _iso(principal.finished_at) if principal else None,
         "costs_at": _iso(costos.finished_at) if costos else None,
         "cost_days": DIAS_DE_COSTO,
         "providers": proveedores,

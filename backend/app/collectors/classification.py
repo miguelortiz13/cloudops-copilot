@@ -16,7 +16,7 @@ from typing import Dict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.collectors.common import Contexto, Resultado, account_uid
+from app.collectors.common import Contexto, Resultado
 from app.compliance.classification import clasificar, custodio
 from app.db.models import AssetClassification, Resource
 
@@ -24,9 +24,8 @@ ACTOR = "recolector"
 
 
 def recolectar(ctx: Contexto, session: Session) -> Resultado:
-    cuentas = [account_uid(s) for s in ctx.subscription_ids]
-    recursos = list(session.scalars(select(Resource).where(
-        Resource.account_uid.in_(cuentas), Resource.deleted_at.is_(None))))
+    # Todas las nubes: corre despues de los inventarios de cada una.
+    recursos = list(session.scalars(select(Resource).where(Resource.deleted_at.is_(None))))
     existentes: Dict[str, AssetClassification] = {
         c.resource_uid: c for c in session.scalars(select(AssetClassification))}
 
