@@ -143,7 +143,8 @@ def test_la_cobertura_dice_que_cuentas_no_tienen_dato(fabrica):
     grupos = [set(c.cubiertas), set(c.denegadas), set(c.fallidas)]
     assert set().union(*grupos) == set(pedidas), "toda cuenta pedida está en algún grupo"
     assert sum(len(g) for g in grupos) == len(pedidas), "y en uno solo"
-    assert fabrica.cuenta_sin_permiso_de_costos in c.denegadas
+    if fabrica.cuenta_sin_permiso_de_costos:  # la nube tiene permisos de costos por cuenta
+        assert fabrica.cuenta_sin_permiso_de_costos in c.denegadas
     assert fabrica.cuenta_con_costos in c.cubiertas
 
 

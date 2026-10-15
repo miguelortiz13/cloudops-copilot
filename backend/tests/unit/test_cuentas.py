@@ -154,18 +154,22 @@ def test_aws_con_su_propia_ejecucion_de_inventario(monkeypatch):
     monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: aws))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+    assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "ok"
     assert run.ejecutar("classification", classification.recolectar, ctx) == "ok"
 
     v = vista()
     proveedores = {p["name"]: p for p in v["providers"]}
     assert set(proveedores) == {"memoria", "aws"}
     assert proveedores["aws"]["visible"] == 2 and proveedores["aws"]["identity"]["kind"] == "federacion_oidc"
-    assert proveedores["aws"]["capabilities"]["inventario"] and not proveedores["aws"]["capabilities"]["costos"]
+    assert proveedores["aws"]["capabilities"]["inventario"] and proveedores["aws"]["capabilities"]["costos"]
     # La corrida de AWS no le quita la visibilidad a las cuentas de la otra nube.
     assert all(c["visible"] for c in v["accounts"])
     cuentas = {c["uid"]: c for c in v["accounts"]}
     assert cuentas["aws:account/111111111111"]["resources"] == 3
-    assert cuentas["aws:account/111111111111"]["cost_status"] == "sin_dato"
+    # Costos del export FOCUS: su propia corrida (costs_aws), no la de la otra nube.
+    assert (cuentas["aws:account/111111111111"]["cost_status"], cuentas["aws:account/111111111111"]["cost_30d"]) == ("con_permiso", 1.32)
+    assert (cuentas["aws:account/222222222222"]["cost_status"], cuentas["aws:account/222222222222"]["cost_30d"]) == ("con_permiso", 0.0)
+    assert cuentas[B]["cost_status"] == "sin_permiso"
 
     # La clasificación ISO cubre los recursos de las dos nubes.
     with db.session_scope() as s:
@@ -217,3 +221,18 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     lineas = csv.text.lstrip("﻿").splitlines()
     assert lineas[0].startswith("Nube,Cuenta,Recurso,Tipo") and len(lineas) == 1 + 7
     assert any(line.startswith("aws,Laboratorio,lab-datos,storage.bucket") for line in lineas)
+
+
+def test_costos_de_aws_antes_de_la_primera_entrega(monkeypatch):
+    """El export tarda hasta 24 h en entregar: el paso queda parcial y la cuenta sin dato, no en cero ni en error."""
+    from app.providers.aws.provider import AwsProvider
+    from tests.contract.proveedores import ClienteAwsGrabado
+
+    aws = AwsProvider(ClienteAwsGrabado(export_vacio=True), "arn:vista",
+                      costos={"database": "d", "table": "t", "workgroup": "w"}, pausa=lambda s: None)
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: aws))
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+    assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "parcial"
+    cuenta = next(c for c in vista()["accounts"] if c["uid"] == "aws:account/111111111111")
+    assert (cuenta["cost_status"], cuenta["cost_30d"]) == ("sin_dato", None)

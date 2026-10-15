@@ -26,11 +26,12 @@ DIAS_MOVILES = 7
 FUENTE = "query"
 
 
-def recolectar(ctx: Contexto, session: Session) -> Resultado:
+def recolectar(ctx: Contexto, session: Session, nombre: str = "costs", fuente: str = FUENTE) -> Resultado:
+    """`nombre`: la ejecucion de esta nube (costs, costs_aws); `fuente`: de donde salen las filas."""
     # Ventana movil si alguna recoleccion ya hizo la carga inicial completa;
     # las filas no sirven de señal porque una cuenta sin gasto nunca tiene filas.
     previas = session.scalars(select(CollectorRun.detail).where(
-        CollectorRun.collector == "costs", CollectorRun.status.in_(("ok", "parcial"))))
+        CollectorRun.collector == nombre, CollectorRun.status.in_(("ok", "parcial"))))
     carga_hecha = any((d or {}).get("window_days", 0) >= DIAS_INICIALES for d in previas)
     dias = DIAS_MOVILES if carga_hecha else DIAS_INICIALES
 
@@ -46,13 +47,13 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
     # conserva lo que ya habia (el proveedor solo entrega filas de las cubiertas).
     for cuenta in cubiertas:
         session.execute(delete(CostDaily).where(
-            CostDaily.account_uid == cuenta, CostDaily.source == FUENTE, CostDaily.charge_date >= desde,
+            CostDaily.account_uid == cuenta, CostDaily.source == fuente, CostDaily.charge_date >= desde,
         ))
     filas = [f for f in resultado.filas if f.charge_date >= desde and f.account_uid in cubiertas]
     for f in filas:
         session.add(CostDaily(charge_date=f.charge_date, account_uid=f.account_uid, resource_uid=f.resource_uid,
                               service_name=f.service_name, billed_cost=f.billed_cost, effective_cost=f.effective_cost,
-                              currency=f.currency, source=FUENTE))
+                              currency=f.currency, source=fuente))
     session.flush()
 
     total = session.scalar(select(func.coalesce(func.sum(CostDaily.billed_cost), 0)).where(

@@ -14,5 +14,9 @@ output "cost_export" {
     bucket = aws_s3_bucket.costs[0].bucket
     prefix = "focus"
     name   = local.export_name
+    # Consulta con Athena (app/providers/aws).
+    database  = aws_glue_catalog_database.costs[0].name
+    table     = aws_glue_catalog_table.focus[0].name
+    workgroup = aws_athena_workgroup.costs[0].name
   } : null
 }

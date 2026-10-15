@@ -189,11 +189,15 @@ class _PaginadorGrabado:
 
 
 class ClienteAwsGrabado:
-    """Doble de boto3: Organizations y Resource Explorer sobre respuestas grabadas."""
+    """Doble de boto3: Organizations, Resource Explorer, Athena, Glue y S3 sobre respuestas grabadas."""
 
-    def __init__(self, inventario_roto=False):
-        self._datos = json.loads((GRABACIONES.parent / "aws" / "inventario.json").read_text(encoding="utf-8"))
-        self._roto = inventario_roto
+    def __init__(self, inventario_roto=False, athena_falla=False, export_vacio=False):
+        aws = GRABACIONES.parent / "aws"
+        self._datos = {**json.loads((aws / "inventario.json").read_text(encoding="utf-8")),
+                       **json.loads((aws / "costos.json").read_text(encoding="utf-8"))}
+        self._roto, self._athena_falla, self._export_vacio = inventario_roto, athena_falla, export_vacio
+        self.consultas: List[str] = []
+        self._estados = iter(["QUEUED", "RUNNING", "FAILED" if athena_falla else "SUCCEEDED"])
 
     def __call__(self, servicio: str):
         return self
@@ -201,18 +205,38 @@ class ClienteAwsGrabado:
     def get_paginator(self, operacion: str):
         return _PaginadorGrabado(self._datos[operacion], self._roto and operacion == "list_resources")
 
+    # Athena
+    def start_query_execution(self, QueryString, WorkGroup):
+        self.consultas.append(QueryString)
+        self._estados = iter(["QUEUED", "RUNNING", "FAILED" if self._athena_falla else "SUCCEEDED"])
+        return {"QueryExecutionId": "q-1"}
+
+    def get_query_execution(self, QueryExecutionId):
+        estado = next(self._estados)
+        return {"QueryExecution": {"Status": {"State": estado, "StateChangeReason": "HIVE_BAD_DATA" if estado == "FAILED" else None}}}
+
+    # Glue y S3 (si el export ya entregó)
+    def get_table(self, DatabaseName, Name):
+        return {"Table": {"StorageDescriptor": {"Location": "s3://costos-lab/focus/lab-focus/data/"}}}
+
+    def list_objects_v2(self, Bucket, Prefix, MaxKeys):
+        return {"KeyCount": 0 if self._export_vacio else 1}
+
 
 @dataclass
 class FabricaAws:
     nombre: str = "aws"
     cuenta_con_costos: str = "aws:account/111111111111"
-    cuenta_sin_permiso_de_costos: str = "aws:account/222222222222"
+    # El export cubre a toda la organización: no hay cuentas sin permiso de costos.
+    cuenta_sin_permiso_de_costos: Optional[str] = None
     regla_que_puede_fallar: str = ""
 
     def _armar(self, **kw):
         from app.providers.aws.provider import AwsProvider
 
-        return AwsProvider(ClienteAwsGrabado(**kw), "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1")
+        return AwsProvider(ClienteAwsGrabado(**kw), "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1",
+                           costos={"database": "lab_costos", "table": "focus", "workgroup": "lab-costos"},
+                           pausa=lambda s: None)
 
     def normal(self):
         return self._armar()

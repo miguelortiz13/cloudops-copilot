@@ -228,3 +228,131 @@ resource "aws_bcmdataexports_export" "focus" {
 
   depends_on = [aws_s3_bucket_policy.costs]
 }
+
+# ---------------------------------------------------------------------------
+# Costos: consulta del export con Athena (fase 2, paso 4)
+# ---------------------------------------------------------------------------
+# Tabla sobre los Parquet del export con proyección de particiones: sin
+# crawler (que cobra) ni MSCK REPAIR. Solo se declaran las columnas que lee la
+# plataforma; Parquet resuelve por nombre y el resto se ignora.
+# Costo: USD 5 por TB leído (mínimo 10 MB por consulta); el tope por consulta
+# del workgroup corta cualquier consulta que se dispare.
+locals {
+  athena_prefix = "athena"
+  export_data   = var.cost_export ? "s3://${aws_s3_bucket.costs[0].bucket}/focus/${local.export_name}/data" : ""
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "costs" {
+  count  = var.cost_export ? 1 : 0
+  bucket = aws_s3_bucket.costs[0].id
+
+  # Los resultados de Athena solo sirven mientras se leen.
+  rule {
+    id     = "resultados-athena"
+    status = "Enabled"
+    filter {
+      prefix = "${local.athena_prefix}/"
+    }
+    expiration {
+      days = 7
+    }
+  }
+}
+
+resource "aws_athena_workgroup" "costs" {
+  count         = var.cost_export ? 1 : 0
+  name          = "${var.name}-costos"
+  force_destroy = true
+  tags          = var.tags
+
+  configuration {
+    enforce_workgroup_configuration = true
+    bytes_scanned_cutoff_per_query  = var.athena_bytes_limit
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.costs[0].bucket}/${local.athena_prefix}/"
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
+  }
+}
+
+resource "aws_glue_catalog_database" "costs" {
+  count = var.cost_export ? 1 : 0
+  name  = replace("${var.name}_costos", "-", "_")
+}
+
+resource "aws_glue_catalog_table" "focus" {
+  count         = var.cost_export ? 1 : 0
+  name          = "focus"
+  database_name = aws_glue_catalog_database.costs[0].name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    EXTERNAL                                  = "TRUE"
+    "parquet.compression"                     = "SNAPPY"
+    "projection.enabled"                      = "true"
+    "projection.billing_period.type"          = "date"
+    "projection.billing_period.format"        = "yyyy-MM"
+    "projection.billing_period.range"         = "2026-01,NOW"
+    "projection.billing_period.interval"      = "1"
+    "projection.billing_period.interval.unit" = "MONTHS"
+    "storage.location.template"               = "${local.export_data}/BILLING_PERIOD=$${billing_period}"
+  }
+
+  partition_keys {
+    name = "billing_period"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "${local.export_data}/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    dynamic "columns" {
+      for_each = {
+        chargeperiodstart = "timestamp", subaccountid = "string", resourceid = "string", servicename = "string",
+        billedcost        = "double", effectivecost = "double", billingcurrency = "string",
+      }
+      content {
+        name = columns.key
+        type = columns.value
+      }
+    }
+  }
+}
+
+# Lectura del export (datos de costos, no de cargas de trabajo) y de los
+# resultados de sus propias consultas.
+resource "aws_iam_role_policy" "hub_costs" {
+  count = var.cost_export ? 1 : 0
+  name  = "cloudops-costos"
+  role  = aws_iam_role.hub.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      { Sid    = "Athena", Effect = "Allow",
+        Action = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution"],
+      Resource = aws_athena_workgroup.costs[0].arn },
+      { Sid    = "Catalogo", Effect = "Allow",
+        Action = ["glue:GetDatabase", "glue:GetTable", "glue:GetPartitions"],
+        Resource = [
+          "arn:${local.partition}:glue:${local.region}:${local.account_id}:catalog",
+          aws_glue_catalog_database.costs[0].arn,
+          "arn:${local.partition}:glue:${local.region}:${local.account_id}:table/${aws_glue_catalog_database.costs[0].name}/*",
+      ] },
+      { Sid = "Bucket", Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketLocation"],
+      Resource = aws_s3_bucket.costs[0].arn },
+      { Sid = "Export", Effect = "Allow", Action = ["s3:GetObject"],
+      Resource = "${aws_s3_bucket.costs[0].arn}/focus/*" },
+      { Sid = "Resultados", Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"],
+      Resource = "${aws_s3_bucket.costs[0].arn}/${local.athena_prefix}/*" },
+    ]
+  })
+}

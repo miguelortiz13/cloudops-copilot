@@ -75,7 +75,6 @@ def _estado_de_costos(cuenta: Account, corrida: Optional[CollectorRun]) -> str:
 
 
 def cuentas_conectadas(s: Session) -> Dict[str, Any]:
-    costos = _ultima(s, "costs")
     cuentas = list(s.scalars(select(Account).order_by(Account.provider, Account.name)))
     # Cada nube tiene su ejecución de inventario: `inventory` es la del
     # proveedor principal (Azure; su detalle dice cuál) e `inventory_<nube>`
@@ -83,9 +82,14 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
     nombres = {c.provider for c in cuentas}
     inventarios: Dict[str, Optional[CollectorRun]] = {p: _ultima(s, f"inventory_{p}") for p in nombres}
     principal = _ultima(s, "inventory")
+    proveedor_principal = (principal.detail or {}).get("provider", "azure") if principal else "azure"
     if principal is not None:
-        inventarios[(principal.detail or {}).get("provider", "azure")] = principal
+        inventarios[proveedor_principal] = principal
     nombres = sorted(set(inventarios))
+    # Lo mismo con los costos: `costs` es la del proveedor principal y `costs_<nube>` las demás.
+    costos = _ultima(s, "costs")
+    costos_por: Dict[str, Optional[CollectorRun]] = {p: _ultima(s, f"costs_{p}") for p in nombres}
+    costos_por[proveedor_principal] = costos
     cortes = {p: _corte(inventarios[p], [c for c in cuentas if c.provider == p]) for p in nombres}
 
     recursos = dict(s.execute(select(Resource.account_uid, func.count()).where(Resource.deleted_at.is_(None))
@@ -102,7 +106,7 @@ def cuentas_conectadas(s: Session) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     for c in cuentas:
         visible = bool(cortes.get(c.provider) and _aware(c.last_seen) >= cortes[c.provider])
-        estado_costos = _estado_de_costos(c, costos)
+        estado_costos = _estado_de_costos(c, costos_por.get(c.provider))
         monto, moneda = gasto.get(c.uid, (None, None))
         if monto is None and estado_costos == "con_permiso":
             # Cubierta y sin filas: Cost Management respondió y no hubo gasto. Es cero, no desconocido.

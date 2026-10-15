@@ -66,3 +66,45 @@ def test_capacidades_pendientes_se_rechazan():
                     lambda: p.recursos_gestionados(), lambda: p.creaciones([A])):
         with pytest.raises(CapacidadNoSoportada):
             llamada()
+
+
+COSTOS = {"database": "lab_costos", "table": "focus", "workgroup": "lab-costos"}
+
+
+def _con_costos(**kw):
+    cliente = ClienteAwsGrabado(**kw)
+    return AwsProvider(cliente, VISTA, costos=COSTOS, pausa=lambda s: None), cliente
+
+
+def test_costos_desde_el_export_focus_con_athena():
+    p, cliente = _con_costos()
+    r = p.costos_diarios([A, B], 30)
+    (sql,) = cliente.consultas
+    assert '"lab_costos"."focus"' in sql and "billing_period >=" in sql
+    assert "subaccountid IN ('111111111111', '222222222222')" in sql
+    filas = {(f.account_uid, f.resource_uid): f for f in r.filas}
+    s3 = filas[(A, "aws:arn:aws:s3:::lab-datos")]
+    assert (str(s3.billed_cost), s3.currency, s3.service_name) == ("0.0231", "USD", "Amazon Simple Storage Service")
+    # Un id que no es ARN se conserva por recurso; un cargo sin recurso, con uid vacío.
+    assert filas[(A, "aws:i-0abc123")].effective_cost < filas[(A, "aws:i-0abc123")].billed_cost
+    assert filas[(A, "")].service_name == "Tax"
+    # Toda la organización está en el export: las dos cuentas quedan cubiertas.
+    assert r.cobertura.cubiertas == [A, B] and not r.cobertura.fallidas
+
+
+def test_si_athena_falla_las_cuentas_quedan_sin_dato():
+    p, _ = _con_costos(athena_falla=True)
+    r = p.costos_diarios([A], 7)
+    assert r.filas == [] and r.cobertura.fallidas == [A] and r.cobertura.cubiertas == []
+
+
+def test_ids_de_cuenta_se_validan_antes_de_ir_al_sql():
+    p, cliente = _con_costos()
+    with pytest.raises(ValueError):
+        p.costos_diarios(["aws:account/1' OR '1'='1"], 7)
+    assert cliente.consultas == []
+
+
+def test_export_todavia_sin_entregar():
+    assert _con_costos()[0].export_entregado() is True
+    assert _con_costos(export_vacio=True)[0].export_entregado() is False
