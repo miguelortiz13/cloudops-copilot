@@ -10,7 +10,7 @@ y el panel vuelve a las vistas en vivo.
 import csv
 import io
 from datetime import date
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -33,11 +33,30 @@ def _guardia():
         raise HTTPException(status_code=503, detail="Historia no disponible: la base de datos no está configurada.")
 
 
+def _cuentas_del_filtro(accounts: Optional[str]) -> Optional[List[str]]:
+    """uids del filtro del panel ("azure:sub/...,aws:account/..."); vacío = todas."""
+    cuentas = [c.strip() for c in (accounts or "").split(",") if c.strip()]
+    if len(cuentas) > 500 or any(len(c) > 200 for c in cuentas):
+        raise HTTPException(status_code=400, detail="Filtro de cuentas inválido.")
+    return cuentas or None
+
+
+@router.get("/api/accounts")
+def accounts():
+    """Cuentas de todas las nubes para el filtro del panel (precalculado)."""
+    if not db.is_configured():
+        return {"configured": False, "providers": [], "accounts": []}
+    try:
+        return service.cuentas()
+    except db.DatabaseUnavailable as exc:
+        raise _no_disponible(exc)
+
+
 @router.get("/api/history/costs")
-def history_costs(period: str = "30d"):
+def history_costs(period: str = "30d", accounts: Optional[str] = None):
     _guardia()
     try:
-        return service.costos(period)
+        return service.costos(period, _cuentas_del_filtro(accounts))
     except queries.PeriodoInvalido as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except db.DatabaseUnavailable as exc:
@@ -116,9 +135,10 @@ COLUMNAS_INVENTARIO = (
 
 
 @router.get("/api/inventory/report/export")
-def inventory_report_export():
-    """El reporte de inventario en CSV (UTF-8 con BOM para que Excel respete las tildes)."""
+def inventory_report_export(accounts: Optional[str] = None):
+    """El reporte de inventario en CSV (UTF-8 con BOM para que Excel respete las tildes), con el filtro del panel."""
     _guardia()
+    cuentas = _cuentas_del_filtro(accounts)
     try:
         datos = service.inventario_multinube()
     except db.DatabaseUnavailable as exc:
@@ -128,6 +148,8 @@ def inventory_report_export():
     escritor = csv.writer(salida)
     escritor.writerow([titulo for _, titulo in COLUMNAS_INVENTARIO])
     for r in datos["resources"]:
+        if cuentas and r["account_uid"] not in cuentas:
+            continue
         v = [r.get(campo) for campo, _ in COLUMNAS_INVENTARIO]
         escritor.writerow(["Sí" if x is True else "No" if x is False else "" if x is None else x for x in v])
     return StreamingResponse(iter([salida.getvalue()]), media_type="text/csv; charset=utf-8",

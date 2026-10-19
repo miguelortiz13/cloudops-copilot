@@ -263,3 +263,40 @@ def test_hallazgos_de_aws_en_la_bandeja_y_en_cumplimiento(monkeypatch):
     controles = {c["id"]: c["status"] for c in cis_aws["controls"]}
     assert controles["5.2"] == "no_cumple" and controles["1.5"] == "cumple"
     assert "aws.network.admin-port-open" not in vista["failed_rules"]
+
+
+def test_filtro_por_nube_y_cuenta(monkeypatch, tmp_path):
+    """Paso 8: el panel filtra por cuenta; el filtro por nube completa sale precalculado."""
+    from app.main import app
+    from app.providers.aws.provider import AwsProvider
+    from app.readmodel import service
+    from tests.contract.proveedores import FabricaAws
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    recolectar(FabricaMemoria().normal())
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    for nombre, paso in (("inventory_aws", run.inventario_aws), ("costs_aws", run.costos_aws),
+                         ("findings_aws", run.hallazgos_aws), ("readmodel", run.precalcular_vistas)):
+        assert run.ejecutar(nombre, paso, ctx) in ("ok", "parcial"), nombre
+
+    todas = service.costos("30d")
+    aws = ["aws:account/111111111111", "aws:account/222222222222"]
+    solo_aws = service.costos("30d", aws)
+    assert solo_aws["source"] == "cache", "el filtro por nube completa lo deja listo el recolector"
+    assert solo_aws["total"] == 1.32 and todas["total"] == round(1.32 + 1.6, 2)
+    assert {g["key"] for g in solo_aws["by_account"]} <= set(aws)
+    # Un subconjunto se calcula a pedido (y queda en caché).
+    assert service.costos("30d", [A])["total"] == 1.6
+
+    cliente = TestClient(app)
+    cuentas = cliente.get("/api/accounts").json()
+    assert {p["name"] for p in cuentas["providers"]} == {"memoria", "aws"}
+    assert set(cuentas["accounts"][0]) == {"uid", "provider", "native_id", "name", "visible"}
+    assert cliente.get("/api/history/costs", params={"accounts": ",".join(aws)}).json()["total"] == 1.32
+    assert cliente.get("/api/history/costs", params={"accounts": "x" * 201}).status_code == 400
+    solo = cliente.get("/api/inventory/report/export", params={"accounts": A}).text.lstrip("\ufeff").splitlines()[1:]
+    assert solo and all(",Cuenta A," in linea for linea in solo)
+    # Hallazgos y activos llevan su cuenta para filtrarlos en el navegador.
+    assert all(h["account_uid"] for h in cliente.get("/api/findings").json()["items"])
+    assert all(a["account_uid"] for a in cliente.get("/api/compliance/assets").json()["items"])

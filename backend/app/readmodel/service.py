@@ -6,13 +6,14 @@ clasificacion de activos), que recalculan la cache afectada.
 """
 
 from datetime import date, datetime, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import engine as db
 from app.compliance.classification import CLASES, clasificar, custodio
-from app.db.models import AssetClassification, Finding, FindingEvent, Resource
+from app.db.models import Account, AssetClassification, Finding, FindingEvent, Resource
 from app.readmodel import cache, cuentas as vistas_cuentas, cumplimiento as vistas_cumplimiento, inventario, queries
 
 # Transiciones que una persona puede hacer. "resuelto" no esta: lo decide el
@@ -40,10 +41,20 @@ def _leer(nombre: str, params: Dict[str, Any], calcular: Callable[[Session], Any
     return {**datos, "source": "database"} if isinstance(datos, dict) else datos
 
 
-def costos(periodo: str) -> Dict[str, Any]:
+def costos(periodo: str, cuentas: Optional[List[str]] = None) -> Dict[str, Any]:
     if periodo not in queries.PERIODOS:
         raise queries.PeriodoInvalido(f"Periodo desconocido: {periodo}")
-    return _leer("costs", {"period": periodo}, lambda s: queries.costos(s, periodo))
+    if not cuentas:
+        return _leer("costs", {"period": periodo}, lambda s: queries.costos(s, periodo))
+    cuentas = sorted(set(cuentas))
+    return _leer("costs", {"period": periodo, "accounts": cuentas}, lambda s: queries.costos(s, periodo, cuentas))
+
+
+def cuentas() -> Dict[str, Any]:
+    """Cuentas de todas las nubes para el filtro del panel (sin costos ni permisos)."""
+    datos = cuentas_conectadas()
+    return {"configured": True, "providers": [{"name": p["name"], "label": p["label"]} for p in datos["providers"]],
+            "accounts": [{k: a[k] for k in ("uid", "provider", "native_id", "name", "visible")} for a in datos["accounts"]]}
 
 
 def hallazgos() -> Dict[str, Any]:
@@ -179,9 +190,18 @@ def restaurar_automatica(uid: str, actor: str) -> Dict[str, Any]:
 def precalentar(s: Session) -> int:
     """Lo llama el recolector al terminar: deja calculadas las vistas por defecto."""
     escritas = 0
+    # Filtro por nube completa (todas las cuentas de un proveedor): precalculado.
+    por_nube: Dict[str, List[str]] = {}
+    for uid, proveedor in s.execute(select(Account.uid, Account.provider)).all():
+        por_nube.setdefault(proveedor, []).append(uid)
     for periodo in queries.PERIODOS_POR_DEFECTO:
         cache.guardar(cache.clave("costs", period=periodo), queries.costos(s, periodo))
         escritas += 1
+        if len(por_nube) > 1:
+            for uids in por_nube.values():
+                uids = sorted(uids)
+                cache.guardar(cache.clave("costs", period=periodo, accounts=uids), queries.costos(s, periodo, uids))
+                escritas += 1
     cache.guardar(cache.clave("findings"), queries.hallazgos(s))
     cache.guardar(cache.clave("kpis", days=queries.DIAS_KPI_POR_DEFECTO), queries.kpis(s, queries.DIAS_KPI_POR_DEFECTO))
     cache.guardar(cache.clave("compliance"), vistas_cumplimiento.cumplimiento(s))

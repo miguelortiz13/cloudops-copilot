@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { get } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
+import { useApp } from '../../state/hooks';
 import { dateRange, dateTime, day, money, shortType } from '../../lib/format';
 import type { CostHistory, CostPeriod } from '../../lib/types';
 import { BarList, DailyCostChart, DailyCostTable, MonthlyCostChart } from '../../components/charts';
@@ -24,16 +25,17 @@ type Dimension = 'service' | 'account';
  * A diferencia de la visión general (consulta en vivo a Cost Management), esta
  * vista lee lo que guarda el recolector diario: permite elegir periodo y
  * comparar mes a mes sin depender de los límites de la API de Azure. Cubre
- * todas las suscripciones que ve la plataforma; el selector de alcance no la
- * filtra todavía.
+ * las cuentas de todas las nubes y respeta el filtro del panel (el filtro por
+ * una nube completa lo deja precalculado el recolector).
  */
 export function HistoryView() {
   const [period, setPeriod] = useState<CostPeriod>('mtd');
   const [dimension, setDimension] = useState<Dimension>('service');
   const [dailyView, setDailyView] = useState<'chart' | 'table'>('chart');
+  const { accountScope, accountKey } = useApp();
   const { data, error, loading, refreshing, reload } = useApi<CostHistory>(
-    `cost-history:${period}`,
-    () => get<CostHistory>(`/api/history/costs?period=${period}`),
+    `cost-history:${period}:${accountKey}`,
+    () => get<CostHistory>(`/api/history/costs?period=${period}${accountScope.length ? `&accounts=${encodeURIComponent(accountScope.join(','))}` : ''}`),
   );
   const meta = PERIODS.find((p) => p.id === period)!;
 
@@ -70,7 +72,7 @@ export function HistoryView() {
       <div className="spread" style={{ flexWrap: 'wrap', gap: 12 }}>
         {selector}
         <span className="muted" style={{ fontSize: 12.5 }}>
-          Todas las suscripciones · datos hasta el {day(data.data_through)}
+          {accountScope.length ? `${accountScope.length} cuenta(s) del filtro` : 'Todas las cuentas'} · datos hasta el {day(data.data_through)}
         </span>
       </div>
 

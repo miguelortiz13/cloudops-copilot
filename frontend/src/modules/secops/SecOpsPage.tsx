@@ -8,6 +8,7 @@ import { useApp } from '../../state/hooks';
 import {
   Card, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile, Tabs,
 } from '../../components/ui';
+import { AzureGuard } from '../../components/AzureGuard';
 import { ManagementView } from './ManagementView';
 
 /**
@@ -49,7 +50,7 @@ export function SecOpsPage({ view, onView }: { view: string | undefined; onView:
           { id: 'gestion', label: 'Gestión de hallazgos' },
         ]}
       />
-      {active === 'vivo' ? <LiveFindings /> : <ManagementView />}
+      {active === 'vivo' ? <AzureGuard><LiveFindings /></AzureGuard> : <ManagementView />}
     </>
   );
 }

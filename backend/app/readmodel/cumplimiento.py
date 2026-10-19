@@ -189,7 +189,7 @@ def activos(s: Session) -> Dict[str, Any]:
     items = []
     for r, c in filas:
         items.append({
-            "uid": r.uid, "name": r.name, "type": r.native_type, "group": r.group_name,
+            "uid": r.uid, "name": r.name, "type": r.native_type, "group": r.group_name, "account_uid": r.account_uid,
             "account": cuentas.get(r.account_uid), "environment": ambiente(r.tags) or None,
             "classification": c.classification if c else None,
             "confidentiality": c.confidentiality if c else None, "integrity": c.integrity if c else None,
