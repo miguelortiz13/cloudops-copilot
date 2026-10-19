@@ -1,0 +1,39 @@
+{
+  "_nota": "Eventos ficticios con la forma real de cloudtrail:LookupEvents (CloudTrailEvent es JSON en texto).",
+  "lookup_events": [
+    {
+      "Events": [
+        {
+          "EventName": "CreateBucket",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"CreateBucket\", \"eventSource\": \"s3.amazonaws.com\", \"userIdentity\": {\"type\": \"AssumedRole\", \"arn\": \"arn:aws:sts::111111111111:assumed-role/AWSReservedSSO_Admin_1/ana\", \"sessionContext\": {\"sessionIssuer\": {\"arn\": \"arn:aws:iam::111111111111:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Admin_1\"}}}, \"userAgent\": \"console.amazonaws.com\", \"requestParameters\": {\"bucketName\": \"lab-datos\"}}"
+        },
+        {
+          "EventName": "RunInstances",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"RunInstances\", \"eventSource\": \"ec2.amazonaws.com\", \"userIdentity\": {\"type\": \"AssumedRole\", \"arn\": \"arn:aws:sts::111111111111:assumed-role/AWSReservedSSO_Admin_1/ana\", \"sessionContext\": {\"sessionIssuer\": {\"arn\": \"arn:aws:iam::111111111111:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Admin_1\"}}}, \"userAgent\": \"aws-cli/2.38 Terraform/1.9\", \"responseElements\": {\"instancesSet\": {\"items\": [{\"instanceId\": \"i-0abc123\"}]}}}"
+        },
+        {
+          "EventName": "CreateSecurityGroup",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"CreateSecurityGroup\", \"eventSource\": \"ec2.amazonaws.com\", \"userIdentity\": {\"type\": \"Root\", \"arn\": \"arn:aws:iam::111111111111:root\"}, \"userAgent\": \"console.amazonaws.com\", \"responseElements\": {\"groupId\": \"sg-abierto\"}}"
+        },
+        {
+          "EventName": "CreateDBInstance",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"CreateDBInstance\", \"eventSource\": \"rds.amazonaws.com\", \"userIdentity\": {\"type\": \"AssumedRole\", \"arn\": \"arn:aws:sts::111111111111:assumed-role/AWSReservedSSO_Admin_1/ana\", \"sessionContext\": {\"sessionIssuer\": {\"arn\": \"arn:aws:iam::111111111111:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Admin_1\"}}}, \"userAgent\": \"console.amazonaws.com\", \"requestParameters\": {\"dBInstanceIdentifier\": \"pagos\"}, \"errorCode\": \"AccessDenied\"}"
+        },
+        {
+          "EventName": "CreateVolume",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"CreateVolume\", \"eventSource\": \"ec2.amazonaws.com\", \"userIdentity\": {\"type\": \"AWSService\", \"invokedBy\": \"autoscaling.amazonaws.com\"}, \"userAgent\": \"console.amazonaws.com\", \"responseElements\": {\"volumeId\": \"vol-suelto\"}}"
+        },
+        {
+          "EventName": "CreateToken",
+          "EventTime": "2026-10-01T15:00:00+00:00",
+          "CloudTrailEvent": "{\"eventName\": \"CreateToken\", \"eventSource\": \"sso-oauth.amazonaws.com\", \"userIdentity\": {\"type\": \"IdentityCenterUser\"}, \"userAgent\": \"console.amazonaws.com\"}"
+        }
+      ]
+    }
+  ]
+}

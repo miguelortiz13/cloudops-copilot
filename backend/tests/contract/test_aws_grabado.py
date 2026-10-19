@@ -62,7 +62,7 @@ def test_cuenta_miembro_ve_solo_la_propia():
 
 def test_capacidades_pendientes_se_rechazan():
     p = AwsProvider(ClienteAwsGrabado(), VISTA)
-    for llamada in (lambda: p.costos_diarios([A], 7), lambda: p.recursos_gestionados(), lambda: p.creaciones([A])):
+    for llamada in (lambda: p.costos_diarios([A], 7), lambda: p.recursos_gestionados()):
         with pytest.raises(CapacidadNoSoportada):
             llamada()
 
@@ -197,3 +197,38 @@ def test_recursos_por_defecto(tipo, nombre, arn):
 
     assert es_por_defecto(tipo, nombre, arn)
     assert not es_por_defecto("resource-explorer-2:view", "inventario", "arn:aws:resource-explorer-2:us-east-1:1:view/inventario/2adc")
+
+
+# ---------------------------------------------------------------- actividad
+
+def test_quien_creo_cada_recurso_desde_cloudtrail():
+    a = AwsProvider(ClienteAwsGrabado(), VISTA).creaciones([A, B])
+    por_recurso = {c.resource_uid: c for c in a.creaciones}
+    # Sin ARN en el evento: se cruza por nombre (bucket) o por id (instancia, security group, volumen).
+    bucket = por_recurso["aws:arn:aws:s3:::lab-datos"]
+    assert (bucket.actor, bucket.por_persona) == ("ana", True)
+    # Con Terraform en el user agent es automatización aunque la sesión sea de una persona.
+    assert por_recurso["aws:arn:aws:ec2:us-east-1:111111111111:instance/i-0abc123"].por_persona is False
+    assert por_recurso["aws:arn:aws:ec2:us-east-1:111111111111:security-group/sg-abierto"].actor == "root"
+    # Un servicio de AWS no es una persona; una creación que falló no cuenta.
+    assert por_recurso["aws:arn:aws:ec2:us-east-1:111111111111:volume/vol-suelto"].por_persona is False
+    assert "aws:arn:aws:rds:us-east-1:111111111111:db:pagos" not in por_recurso
+    assert (a.hasta - a.desde).days == 90
+
+
+def test_cloudtrail_caido_es_un_error_no_un_historial_vacio():
+    from botocore.exceptions import ClientError
+
+    from app.providers.base import ProveedorError
+
+    cliente = ClienteAwsGrabado()
+    original = cliente.get_paginator
+
+    def paginador(operacion):
+        if operacion == "lookup_events":
+            raise ClientError({"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "LookupEvents")
+        return original(operacion)
+
+    cliente.get_paginator = paginador
+    with pytest.raises(ProveedorError):
+        AwsProvider(cliente, VISTA).creaciones([A])
