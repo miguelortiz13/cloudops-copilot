@@ -22,59 +22,17 @@ locals {
   sql_server_name = "sql-${local.base}-${substr(sha1("${var.subscription_id}/${var.sql_location}"), 0, 6)}"
 }
 
-resource "azurerm_mssql_server" "sql" {
-  name                          = local.sql_server_name
-  resource_group_name           = azurerm_resource_group.rg.name
-  location                      = var.sql_location
-  version                       = "12.0"
-  minimum_tls_version           = "1.2"
-  public_network_access_enabled = true
-  tags                          = local.tags
+module "sql" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/mssql-serverless-free?ref=v0.3.0"
 
-  azuread_administrator {
-    login_username              = data.azuread_user.sql_admin.user_principal_name
-    object_id                   = data.azuread_user.sql_admin.object_id
-    azuread_authentication_only = true
+  server_name         = local.sql_server_name
+  database_name       = "sqldb-${local.base}"
+  resource_group_name = module.rg.name
+  location            = var.sql_location
+  tags                = local.tags
+
+  entra_admin = {
+    login_username = data.azuread_user.sql_admin.user_principal_name
+    object_id      = data.azuread_user.sql_admin.object_id
   }
-}
-
-# Container Apps de consumo sale a Internet con IPs que no son fijas: la regla
-# 0.0.0.0 admite solo tráfico originado dentro de Azure. El acceso sigue
-# exigiendo un token de Entra ID de una identidad con usuario en la base.
-resource "azurerm_mssql_firewall_rule" "azure_services" {
-  name             = "AllowAzureServices"
-  server_id        = azurerm_mssql_server.sql.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "0.0.0.0"
-}
-
-# azurerm no expone los parámetros de la oferta gratuita (useFreeLimit y
-# freeLimitExhaustionBehavior): la base se declara con azapi.
-resource "azapi_resource" "db" {
-  type      = "Microsoft.Sql/servers/databases@2025-01-01"
-  name      = "sqldb-${local.base}"
-  parent_id = azurerm_mssql_server.sql.id
-  location  = var.sql_location
-  tags      = local.tags
-
-  body = {
-    sku = {
-      name     = "GP_S_Gen5"
-      tier     = "GeneralPurpose"
-      family   = "Gen5"
-      capacity = 1
-    }
-    properties = {
-      useFreeLimit                = true
-      freeLimitExhaustionBehavior = "AutoPause"
-      # La oferta gratuita con AutoPause solo admite el retardo de pausa por
-      # defecto (60 minutos sin conexiones); no se declara autoPauseDelay.
-      minCapacity                      = 0.5
-      maxSizeBytes                     = 34359738368
-      zoneRedundant                    = false
-      requestedBackupStorageRedundancy = "Local"
-    }
-  }
-
-  response_export_values = ["properties.currentServiceObjectiveName", "properties.status"]
 }

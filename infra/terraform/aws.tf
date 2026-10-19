@@ -72,7 +72,7 @@ resource "azuread_service_principal" "aws_federation" {
 resource "azuread_app_role_assignment" "aws_federation" {
   count               = local.aws_enabled ? 1 : 0
   app_role_id         = random_uuid.aws_assume_role[0].result
-  principal_object_id = azurerm_user_assigned_identity.api.principal_id
+  principal_object_id = module.api_identity.principal_id
   resource_object_id  = azuread_service_principal.aws_federation[0].object_id
 }
 
@@ -85,7 +85,7 @@ module "aws_onboarding" {
   name                = local.base
   oidc_issuer         = local.entra_issuer
   audience            = azuread_application_identifier_uri.aws_federation[0].identifier_uri
-  principal_object_id = azurerm_user_assigned_identity.api.principal_id
+  principal_object_id = module.api_identity.principal_id
   tags                = local.tags
 }
 

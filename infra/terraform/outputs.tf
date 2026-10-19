@@ -1,26 +1,26 @@
 output "resource_group_name" {
   description = "Grupo de recursos de la plataforma."
-  value       = azurerm_resource_group.rg.name
+  value       = module.rg.name
 }
 
 output "api_url" {
   description = "URL publica del API."
-  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+  value       = module.api.url
 }
 
 output "api_container_app_name" {
   description = "Nombre de la Container App del API."
-  value       = azurerm_container_app.api.name
+  value       = module.api.name
 }
 
 output "frontend_url" {
   description = "URL publica del panel."
-  value       = "https://${azurerm_static_web_app.web.default_host_name}"
+  value       = module.web.url
 }
 
 output "static_web_app_api_key" {
   description = "Token de despliegue de la Static Web App."
-  value       = azurerm_static_web_app.web.api_key
+  value       = module.web.api_key
   sensitive   = true
 }
 
@@ -41,30 +41,30 @@ output "api_scope" {
 
 output "identity_principal_id" {
   description = "Principal de la identidad administrada de la plataforma."
-  value       = azurerm_user_assigned_identity.api.principal_id
+  value       = module.api_identity.principal_id
 }
 
 output "deploy_client_id" {
   description = "Client id de la identidad de despliegue (secreto AZURE_CLIENT_ID del ambiente de GitHub)."
-  value       = azurerm_user_assigned_identity.deploy.client_id
+  value       = module.deploy_identity.client_id
 }
 
 output "sql_server_fqdn" {
   description = "Servidor de Azure SQL (autenticación solo con Entra ID)."
-  value       = azurerm_mssql_server.sql.fully_qualified_domain_name
+  value       = module.sql.server_fqdn
 }
 
 output "sql_database_name" {
-  value = azapi_resource.db.name
+  value = module.sql.database_name
 }
 
 output "api_identity_name" {
   description = "Identidad administrada del API; entra a la base como usuario contenido (scripts/db-bootstrap.sh)."
-  value       = azurerm_user_assigned_identity.api.name
+  value       = "id-${local.base}"
 }
 
 output "collector_job_name" {
-  value = azurerm_container_app_job.collector.name
+  value = module.collector.name
 }
 
 output "role_groups" {

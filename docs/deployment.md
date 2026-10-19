@@ -24,6 +24,7 @@ La plataforma se despliega con un diseño de **costo cercano a cero**: el API es
 Fuera del grupo:
 
 - **Estado de Terraform**: `rg-cloudops-tfstate`, creado por `scripts/bootstrap-state.sh`. Cuesta centavos al mes.
+- **Módulos**: la infraestructura de Azure usa los módulos estándar de [terraform-modules-iac](https://github.com/miguelortiz13/terraform-modules-iac) (`v0.3.0`): grupo de recursos, identidades, storage, entorno de Container Apps, API, recolector, Static Web App y Azure SQL gratuito. `infra/terraform/moved.tf` trasladó el estado de los recursos ya desplegados sin recrearlos.
 - **Imagen del API**: pública en GitHub Container Registry (`ghcr.io/miguelortiz13/cloudops-copilot-api`), construida por la CI. Sin costo y sin credenciales para descargarla.
 
 ```mermaid
@@ -154,7 +155,7 @@ El estado se consulta con `GET /api/admin/database` (versión del esquema, filas
 az containerapp job start -n caj-cloudops-dev-collector -g rg-cloudops-dev
 # Historial y logs
 az containerapp job execution list -n caj-cloudops-dev-collector -g rg-cloudops-dev -o table
-az containerapp job logs show -n caj-cloudops-dev-collector -g rg-cloudops-dev --container collector
+az containerapp job logs show -n caj-cloudops-dev-collector -g rg-cloudops-dev --container main
 ```
 
 En local: `python -m app.collectors.run [--only inventory,costs]` con `DB_SERVER`/`DB_NAME` (y tu IP en el firewall) o `DATABASE_URL=sqlite:///...`.
