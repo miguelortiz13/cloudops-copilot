@@ -12,23 +12,19 @@
 # Static Web App. No puede asignar roles ni tocar las suscripciones observadas:
 # los cambios de infraestructura se siguen aplicando con `terraform apply`.
 
-resource "azurerm_user_assigned_identity" "deploy" {
+module "deploy_identity" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/user-assigned-identity?ref=v0.3.0"
+
   name                = "id-${local.base}-deploy"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  resource_group_name = module.rg.name
+  location            = module.rg.location
   tags                = local.tags
-}
 
-resource "azurerm_federated_identity_credential" "github" {
-  name                      = "github-${var.environment}"
-  user_assigned_identity_id = azurerm_user_assigned_identity.deploy.id
-  audience                  = ["api://AzureADTokenExchange"]
-  issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:${var.github_repository}:environment:${var.environment}"
-}
+  role_assignments = {
+    rg = { scope = module.rg.id, role_definition_name = "Contributor" }
+  }
 
-resource "azurerm_role_assignment" "deploy" {
-  scope                = azurerm_resource_group.rg.id
-  role_definition_name = "Contributor"
-  principal_id         = azurerm_user_assigned_identity.deploy.principal_id
+  federated_credentials = {
+    "github-${var.environment}" = { subject = "repo:${var.github_repository}:environment:${var.environment}" }
+  }
 }

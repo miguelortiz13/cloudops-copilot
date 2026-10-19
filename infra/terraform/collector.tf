@@ -10,13 +10,13 @@
 
 locals {
   collector_env = {
-    AZURE_MANAGED_IDENTITY_CLIENT_ID = azurerm_user_assigned_identity.api.client_id
+    AZURE_MANAGED_IDENTITY_CLIENT_ID = module.api_identity.client_id
     AZURE_SUBSCRIPTION_ID            = var.subscription_id
     MANDATORY_TAGS                   = join(",", var.mandatory_tags)
     SHOWBACK_TAGS                    = join(",", var.showback_tags)
     TFSTATE_ACCOUNT                  = local.tfstate_sources
-    DB_SERVER                        = azurerm_mssql_server.sql.fully_qualified_domain_name
-    DB_NAME                          = azapi_resource.db.name
+    DB_SERVER                        = module.sql.server_fqdn
+    DB_NAME                          = module.sql.database_name
     # La precarga de costos es del API; el job consulta lo suyo.
     COST_WARM_ENABLED = "false"
     # Mismo File Share que el API: ahi deja las vistas precalculadas del panel
@@ -37,57 +37,22 @@ locals {
   } : {}
 }
 
-resource "azurerm_container_app_job" "collector" {
+module "collector" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app-job?ref=v0.3.0"
+
   name                         = "caj-${local.base}-collector"
-  resource_group_name          = azurerm_resource_group.rg.name
-  location                     = azurerm_resource_group.rg.location
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  replica_timeout_in_seconds   = 1800
-  replica_retry_limit          = 1
+  resource_group_name          = module.rg.name
+  location                     = module.rg.location
+  container_app_environment_id = module.cae.id
   tags                         = local.tags
 
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api.id]
-  }
+  cron_expression            = var.collector_cron
+  replica_timeout_in_seconds = 1800
+  replica_retry_limit        = 1
+  identity_ids               = [module.api_identity.id]
 
-  schedule_trigger_config {
-    cron_expression          = var.collector_cron
-    parallelism              = 1
-    replica_completion_count = 1
-  }
-
-  template {
-    volume {
-      name         = "data"
-      storage_type = "AzureFile"
-      storage_name = azurerm_container_app_environment_storage.data.name
-    }
-
-    container {
-      name    = "collector"
-      image   = var.api_image
-      cpu     = 0.5
-      memory  = "1Gi"
-      command = ["python", "-m", "app.collectors.run"]
-
-      volume_mounts {
-        name = "data"
-        path = local.data_mount_path
-      }
-
-      dynamic "env" {
-        for_each = merge(local.collector_env, local.aws_env)
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-    }
-  }
-
-  # La imagen la actualiza el workflow de CD junto con la del API.
-  lifecycle {
-    ignore_changes = [template[0].container[0].image]
-  }
+  image   = var.api_image
+  command = ["python", "-m", "app.collectors.run"]
+  volumes = { (local.data_share) = local.data_mount_path }
+  env     = merge(local.collector_env, local.aws_env)
 }

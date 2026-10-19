@@ -59,16 +59,23 @@ locals {
   })
 
   data_mount_path = "/data"
+  data_share      = "cloudops-data"
   gemini_enabled  = nonsensitive(var.gemini_api_key != "")
 
   # Cuentas de estados de Terraform a escanear: "cuenta/contenedor".
   tfstate_sources = join(",", [for s in var.tfstate_sources : "${element(split("/", s.storage_account_id), 8)}/${s.container}"])
 }
 
+# Módulos estándar de terraform-modules-iac. Los nombres se conservan (no se usa
+# el módulo naming) para no recrear lo que ya está desplegado; moved.tf traslada
+# el estado a las direcciones nuevas.
+
 # ---------------------------------------------------------------------------
 # Grupo de recursos
 # ---------------------------------------------------------------------------
-resource "azurerm_resource_group" "rg" {
+module "rg" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/resource-group?ref=v0.3.0"
+
   name     = "rg-${local.base}"
   location = var.location
   tags     = local.tags
@@ -77,12 +84,17 @@ resource "azurerm_resource_group" "rg" {
 # ---------------------------------------------------------------------------
 # Identidad de la plataforma: solo lectura, sin secretos
 # ---------------------------------------------------------------------------
-resource "azurerm_user_assigned_identity" "api" {
+module "api_identity" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/user-assigned-identity?ref=v0.3.0"
+
   name                = "id-${local.base}"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  resource_group_name = module.rg.name
+  location            = module.rg.location
   tags                = local.tags
 }
+
+# Los permisos de lectura se declaran aparte del módulo: sus claves salen de
+# terraform.tfvars y son lo que la plataforma observa, no parte de la identidad.
 
 # Reader sobre cada suscripcion observada: inventario, SecOps y costos con
 # alcance de suscripcion.
@@ -90,7 +102,7 @@ resource "azurerm_role_assignment" "reader" {
   for_each             = toset(var.observed_subscription_ids)
   scope                = "/subscriptions/${each.value}"
   role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.api.principal_id
+  principal_id         = module.api_identity.principal_id
 }
 
 # Reader heredado por cada suscripción del grupo de administración, incluidas
@@ -99,7 +111,7 @@ resource "azurerm_role_assignment" "reader_management_group" {
   for_each             = toset(var.observed_management_group_ids)
   scope                = "/providers/Microsoft.Management/managementGroups/${each.value}"
   role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.api.principal_id
+  principal_id         = module.api_identity.principal_id
 }
 
 # Lectura de los estados de Terraform para medir la cobertura real de IaC.
@@ -107,28 +119,23 @@ resource "azurerm_role_assignment" "tfstate_reader" {
   for_each             = { for s in var.tfstate_sources : s.storage_account_id => s }
   scope                = each.key
   role_definition_name = "Storage Blob Data Reader"
-  principal_id         = azurerm_user_assigned_identity.api.principal_id
+  principal_id         = module.api_identity.principal_id
 }
-
 
 # ---------------------------------------------------------------------------
 # Almacenamiento persistente (cache de costos, historico de KPIs, Excel)
 # ---------------------------------------------------------------------------
-resource "azurerm_storage_account" "data" {
-  name                            = local.storage_name
-  resource_group_name             = azurerm_resource_group.rg.name
-  location                        = azurerm_resource_group.rg.location
-  account_tier                    = "Standard"
-  account_replication_type        = "LRS"
-  min_tls_version                 = "TLS1_2"
-  allow_nested_items_to_be_public = false
-  tags                            = local.tags
-}
+module "storage" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/storage-account?ref=v0.3.0"
 
-resource "azurerm_storage_share" "data" {
-  name               = "cloudops-data"
-  storage_account_id = azurerm_storage_account.data.id
-  quota              = 1
+  name                = local.storage_name
+  resource_group_name = module.rg.name
+  location            = module.rg.location
+  tags                = local.tags
+
+  # Container Apps monta el File Share con la clave de la cuenta.
+  shared_access_key_enabled = true
+  file_shares               = { (local.data_share) = 1 }
 }
 
 # ---------------------------------------------------------------------------
@@ -136,204 +143,78 @@ resource "azurerm_storage_share" "data" {
 # ---------------------------------------------------------------------------
 # Sin Log Analytics: los logs se consultan en vivo con
 # `az containerapp logs show`. Conectar un workspace es opcional y tiene costo.
-resource "azurerm_container_app_environment" "env" {
+module "cae" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app-environment?ref=v0.3.0"
+
   name                = "cae-${local.base}"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  resource_group_name = module.rg.name
+  location            = module.rg.location
   tags                = local.tags
+
+  storages            = { (local.data_share) = { account_name = module.storage.name, share_name = local.data_share } }
+  storage_access_keys = { (local.data_share) = module.storage.primary_access_key }
 }
 
-resource "azurerm_container_app_environment_storage" "data" {
-  name                         = "cloudops-data"
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  account_name                 = azurerm_storage_account.data.name
-  share_name                   = azurerm_storage_share.data.name
-  access_key                   = azurerm_storage_account.data.primary_access_key
-  access_mode                  = "ReadWrite"
-}
+module "api" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app?ref=v0.3.0"
 
-resource "azurerm_container_app" "api" {
   name                         = "ca-${local.base}-api"
-  resource_group_name          = azurerm_resource_group.rg.name
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  revision_mode                = "Single"
-  # Cada merge a main crea una revisión; basta con unas pocas para volver atrás.
-  max_inactive_revisions = 5
-  tags                   = local.tags
+  resource_group_name          = module.rg.name
+  container_app_environment_id = module.cae.id
+  tags                         = local.tags
 
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api.id]
-  }
+  # 0 replicas en reposo: sin trafico no hay costo. La primera peticion
+  # tras un periodo inactivo tarda unos segundos en arrancar el contenedor.
+  image        = var.api_image
+  min_replicas = 0
+  max_replicas = 1
+  identity_ids = [module.api_identity.id]
+  ingress      = { target_port = 8000 }
+  volumes      = { (local.data_share) = local.data_mount_path }
 
-  ingress {
-    external_enabled = true
-    target_port      = 8000
-    transport        = "auto"
-    traffic_weight {
-      latest_revision = true
-      percentage      = 100
-    }
-  }
+  # Sin clave, el chat y el generador de IaC usan el motor de reglas.
+  secrets    = local.gemini_enabled ? { "gemini-api-key" = var.gemini_api_key } : {}
+  secret_env = local.gemini_enabled ? { GEMINI_API_KEY = "gemini-api-key" } : {}
 
-  template {
-    # 0 replicas en reposo: sin trafico no hay costo. La primera peticion
-    # tras un periodo inactivo tarda unos segundos en arrancar el contenedor.
-    min_replicas = 0
-    max_replicas = 1
-
-    volume {
-      name         = "data"
-      storage_type = "AzureFile"
-      storage_name = azurerm_container_app_environment_storage.data.name
-    }
-
-    container {
-      name   = "api"
-      image  = var.api_image
-      cpu    = 0.5
-      memory = "1Gi"
-
-      volume_mounts {
-        name = "data"
-        path = local.data_mount_path
-      }
-
-      env {
-        name  = "AZURE_MANAGED_IDENTITY_CLIENT_ID"
-        value = azurerm_user_assigned_identity.api.client_id
-      }
-      env {
-        name  = "AZURE_SUBSCRIPTION_ID"
-        value = var.subscription_id
-      }
-      env {
-        name  = "APP_NAME"
-        value = var.app_display_name
-      }
-      env {
-        name  = "ORG_NAME"
-        value = var.org_name
-      }
-      env {
-        name  = "MANDATORY_TAGS"
-        value = join(",", var.mandatory_tags)
-      }
-      env {
-        name  = "SHOWBACK_TAGS"
-        value = join(",", var.showback_tags)
-      }
-      env {
-        name  = "DATA_DIR"
-        value = local.data_mount_path
-      }
-      env {
-        name  = "FRONTEND_URL"
-        value = "https://${azurerm_static_web_app.web.default_host_name}"
-      }
-      env {
-        name  = "ALLOWED_ORIGINS"
-        value = "https://${azurerm_static_web_app.web.default_host_name}"
-      }
-      env {
-        name  = "TFSTATE_ACCOUNT"
-        value = local.tfstate_sources
-      }
-      env {
-        name  = "AUTH_ENABLED"
-        value = "true"
-      }
-      env {
-        name  = "AZURE_AD_TENANT_ID"
-        value = data.azurerm_client_config.current.tenant_id
-      }
-      env {
-        name  = "AZURE_AD_API_CLIENT_ID"
-        value = azuread_application.api.client_id
-      }
-      env {
-        # Las vistas precalculadas valen hasta que termine la siguiente
-        # recoleccion: el API necesita saber a que hora corre (collector_cron).
-        name  = "COLLECTOR_HOUR_UTC"
-        value = split(" ", var.collector_cron)[1]
-      }
-      env {
-        name  = "AUTHZ_GROUP_ADMIN"
-        value = azuread_group.role["Admin"].object_id
-      }
-      env {
-        name  = "AUTHZ_GROUP_OPERATOR"
-        value = azuread_group.role["Operator"].object_id
-      }
-      env {
-        name  = "AUTHZ_GROUP_READER"
-        value = azuread_group.role["Reader"].object_id
-      }
-      env {
-        name  = "GEMINI_MODEL"
-        value = var.gemini_model
-      }
-      # Sin clave, el chat y el generador de IaC usan el motor de reglas.
-      dynamic "env" {
-        for_each = local.gemini_enabled ? [1] : []
-        content {
-          name        = "GEMINI_API_KEY"
-          secret_name = "gemini-api-key"
-        }
-      }
-      # La precarga de costos corre mientras haya una replica viva; con escala
-      # a cero se apoya en la cache persistida en /data.
-      env {
-        name  = "DB_SERVER"
-        value = azurerm_mssql_server.sql.fully_qualified_domain_name
-      }
-      env {
-        name  = "DB_NAME"
-        value = azapi_resource.db.name
-      }
-      # La cache de la vision general de costos la deja el recolector diario en
-      # /data (paso costcache): el API no precarga al arrancar y la considera
-      # vigente hasta la siguiente recoleccion (26 h).
-      env {
-        name  = "COST_WARM_ENABLED"
-        value = "false"
-      }
-      env {
-        name  = "COST_CACHE_TTL_SECONDS"
-        value = "93600"
-      }
-    }
-  }
-
-  dynamic "secret" {
-    for_each = local.gemini_enabled ? [1] : []
-    content {
-      name  = "gemini-api-key"
-      value = var.gemini_api_key
-    }
-  }
-
-  # La imagen la actualiza el despliegue continuo (az containerapp update).
-  # Sin esto, cada `terraform apply` volvería a la imagen de terraform.tfvars.
-  lifecycle {
-    ignore_changes = [template[0].container[0].image]
+  env = {
+    AZURE_MANAGED_IDENTITY_CLIENT_ID = module.api_identity.client_id
+    AZURE_SUBSCRIPTION_ID            = var.subscription_id
+    APP_NAME                         = var.app_display_name
+    ORG_NAME                         = var.org_name
+    MANDATORY_TAGS                   = join(",", var.mandatory_tags)
+    SHOWBACK_TAGS                    = join(",", var.showback_tags)
+    DATA_DIR                         = local.data_mount_path
+    FRONTEND_URL                     = module.web.url
+    ALLOWED_ORIGINS                  = module.web.url
+    TFSTATE_ACCOUNT                  = local.tfstate_sources
+    AUTH_ENABLED                     = "true"
+    AZURE_AD_TENANT_ID               = data.azurerm_client_config.current.tenant_id
+    AZURE_AD_API_CLIENT_ID           = azuread_application.api.client_id
+    # Las vistas precalculadas valen hasta que termine la siguiente
+    # recoleccion: el API necesita saber a que hora corre (collector_cron).
+    COLLECTOR_HOUR_UTC   = split(" ", var.collector_cron)[1]
+    AUTHZ_GROUP_ADMIN    = azuread_group.role["Admin"].object_id
+    AUTHZ_GROUP_OPERATOR = azuread_group.role["Operator"].object_id
+    AUTHZ_GROUP_READER   = azuread_group.role["Reader"].object_id
+    GEMINI_MODEL         = var.gemini_model
+    DB_SERVER            = module.sql.server_fqdn
+    DB_NAME              = module.sql.database_name
+    # La cache de la vision general de costos la deja el recolector diario en
+    # /data (paso costcache): el API no precarga al arrancar y la considera
+    # vigente hasta la siguiente recoleccion (26 h).
+    COST_WARM_ENABLED      = "false"
+    COST_CACHE_TTL_SECONDS = "93600"
   }
 }
 
 # ---------------------------------------------------------------------------
 # Panel (Static Web App gratuita)
 # ---------------------------------------------------------------------------
-resource "azurerm_static_web_app" "web" {
-  name                = "stapp-${local.base}"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = var.static_web_app_location
-  sku_tier            = "Free"
-  sku_size            = "Free"
-  tags                = local.tags
+module "web" {
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/static-web-app?ref=v0.3.0"
 
-  # Azure registra el repositorio al publicar con el token de despliegue (CD);
-  # Terraform no administra ese vínculo.
-  lifecycle {
-    ignore_changes = [repository_url, repository_branch]
-  }
+  name                = "stapp-${local.base}"
+  resource_group_name = module.rg.name
+  location            = var.static_web_app_location
+  tags                = local.tags
 }

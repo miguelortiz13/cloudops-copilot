@@ -137,7 +137,7 @@ resource "azuread_application" "spa" {
     redirect_uris = concat(
       # Entra ID exige la barra final cuando no hay ruta; el panel usa la
       # misma forma (frontend/src/auth.ts).
-      ["https://${azurerm_static_web_app.web.default_host_name}/"],
+      ["${module.web.url}/"],
       var.local_redirect_uris,
     )
   }
