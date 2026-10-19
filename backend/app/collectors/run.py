@@ -89,6 +89,11 @@ def costos_aws(ctx: Contexto, session) -> Resultado:
     return costs.recolectar(aws, session, nombre="costs_aws", fuente="export")
 
 
+def hallazgos_aws(ctx: Contexto, session) -> Resultado:
+    """Reglas AWS del catalogo en su propia ejecucion: una falla de AWS no toca los hallazgos de Azure."""
+    return findings.recolectar(_contexto_aws(ctx), session)
+
+
 def precalcular_vistas(ctx: Contexto, session) -> Resultado:
     """Deja las vistas por defecto del panel en la cache compartida (app/readmodel)."""
     from app.readmodel.service import precalentar
@@ -103,6 +108,7 @@ RECOLECTORES: Dict[str, Callable] = {
     "costs": costs.recolectar,
     "costs_aws": costos_aws,
     "findings": findings.recolectar,
+    "findings_aws": hallazgos_aws,
     "kpis": kpis.recolectar,
     "costcache": precalentar_costos_en_vivo,
     "readmodel": precalcular_vistas,

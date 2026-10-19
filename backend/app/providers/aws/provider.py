@@ -7,6 +7,11 @@ AwsProvider: el contrato de app/providers/base.py sobre AWS (fase 2).
   (infra/modules/aws-onboarding), que cubre todas las regiones indexadas.
 * Costos: el export FOCUS 1.2 de la organización consultado con Athena (no la
   API de Cost Explorer, que cobra por llamada).
+* Seguridad: las reglas AWS del catálogo con llamadas de lectura (seguridad.py).
+
+Los recursos que AWS crea solo (parameter groups "default.*", roles
+vinculados a servicios, el bus de eventos "default"...) no se inventarían: no
+son de nadie, no se pueden borrar y llenarían el inventario de ruido.
 
 Entra con credenciales temporales de la federación (federacion.py): no hay
 llaves de AWS guardadas.
@@ -19,6 +24,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Sequence
 
+from app.providers.aws import seguridad
 from app.providers.aws.types import canonical_type
 from app.providers.base import (
     Capacidad, Cobertura, CostoDiario, Cuenta, ProveedorError, Recurso, ResultadoActividad, ResultadoCostos,
@@ -33,6 +39,32 @@ TAGS_DE_GRUPO = ("Project", "Application")
 # segundos; pasado este tiempo se cancela y la cuenta queda sin dato.
 ESPERA_ATHENA_SEGUNDOS = 120
 ID_DE_CUENTA = re.compile(r"^[0-9]{12}$")
+
+# Recursos que AWS crea por su cuenta en cada región o cuenta, por tipo y nombre.
+POR_DEFECTO = {
+    "memorydb:user": {"default"}, "memorydb:acl": {"open-access"},
+    "apprunner:autoscalingconfiguration": {"DefaultConfiguration"}, "events:event-bus": {"default"},
+    "xray:sampling-rule": {"Default"}, "xray:group": {"Default"}, "athena:workgroup": {"primary"},
+    "athena:datacatalog": {"AwsDataCatalog"}, "s3:storage-lens": {"default-account-dashboard"},
+}
+PREFIJOS_POR_DEFECTO = {"memorydb:parametergroup": "default.", "elasticache:parametergroup": "default.",
+                        "elasticache:user": "default", "rds:pg": "default.", "rds:cluster-pg": "default.",
+                        "rds:og": "default:", "iam:saml-provider": "AWSSSO_"}
+# Vistas que Resource Explorer crea al activarse, con el nombre de la región.
+VISTA_DE_REGION = re.compile(r"^[a-z]{2}(-[a-z]+)+-[0-9]$")
+# Roles que administra AWS: vinculados a servicios y los de Identity Center.
+RUTAS_DE_AWS = (":role/aws-service-role/", ":role/aws-reserved/")
+
+
+def es_por_defecto(tipo: str, nombre: str, arn: str) -> bool:
+    if any(r in arn for r in RUTAS_DE_AWS):
+        return True
+    if nombre in POR_DEFECTO.get(tipo, ()):
+        return True
+    if tipo == "resource-explorer-2:view" and VISTA_DE_REGION.match(nombre):
+        return True
+    prefijo = PREFIJOS_POR_DEFECTO.get(tipo)
+    return bool(prefijo and nombre.startswith(prefijo))
 
 
 def account_uid(account_id: str) -> str:
@@ -54,8 +86,17 @@ def _nombre(arn: str, tags: Dict[str, str]) -> str:
     """La tag Name si existe; si no, el último tramo del ARN (bucket, i-0abc..., rol)."""
     if tags.get("Name"):
         return tags["Name"]
-    recurso = arn.split(":", 5)[-1]
-    return recurso.rsplit("/", 1)[-1] or recurso
+    servicio, recurso = arn.split(":", 5)[2], arn.split(":", 5)[-1]
+    tramos = recurso.split("/")
+    if servicio == "iam" or len(tramos) < 3:
+        # "bucket", "instance/i-0abc", "role/ruta/Lector" (IAM: el nombre va al final)
+        nombre = tramos[-1]
+    elif servicio == "elasticloadbalancing":
+        nombre = tramos[2]  # loadbalancer/app/<nombre>/<id>
+    else:
+        nombre = tramos[1]  # view/<nombre>/<id>, autoscalingconfiguration/<nombre>/<versión>/<id>
+    # "db:pagos", "function:web"
+    return nombre.rsplit(":", 1)[-1] or recurso
 
 
 def _tags(propiedades: List[Dict[str, Any]]) -> Dict[str, str]:
@@ -65,17 +106,30 @@ def _tags(propiedades: List[Dict[str, Any]]) -> Dict[str, str]:
     return {}
 
 
+def _sesion_boto3(credenciales: Dict[str, str]) -> Callable[..., Any]:
+    import boto3
+
+    return boto3.Session(aws_access_key_id=credenciales["AccessKeyId"], aws_secret_access_key=credenciales["SecretAccessKey"],
+                         aws_session_token=credenciales["SessionToken"],
+                         region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")).client
+
+
 class AwsProvider:
     nombre = PROVEEDOR
 
-    def __init__(self, cliente: Callable[[str], Any], vista_arn: str, identidad: Optional[Dict[str, Any]] = None,
-                 costos: Optional[Dict[str, str]] = None, pausa: Callable[[float], None] = time.sleep):
+    def __init__(self, cliente: Callable[..., Any], vista_arn: str, identidad: Optional[Dict[str, Any]] = None,
+                 costos: Optional[Dict[str, str]] = None, pausa: Callable[[float], None] = time.sleep,
+                 rol_miembro: Optional[str] = None, sesion: Optional[Callable[[Dict[str, str]], Callable[..., Any]]] = None):
         """
-        `cliente(servicio)` devuelve un cliente de boto3 (o un doble en las pruebas).
+        `cliente(servicio, region_name=None)` devuelve un cliente de boto3 (o un doble en las pruebas).
         `costos`: database, table y workgroup de Athena del export FOCUS; sin
         ellos la capacidad de costos no se declara.
+        `rol_miembro`: nombre del rol de lectura en las cuentas miembro (StackSet);
+        `sesion(credenciales)` arma el `cliente` de esa cuenta.
         """
         self._cliente = cliente
+        self._rol_miembro = rol_miembro
+        self._sesion = sesion or _sesion_boto3
         self._vista = vista_arn
         self._costos = costos if costos and all(costos.get(k) for k in ("database", "table", "workgroup")) else None
         self._pausa = pausa
@@ -96,6 +150,7 @@ class AwsProvider:
                                aws_session_token=c.session_token, region_name=region)
         return cls(sesion.client, os.environ["AWS_INVENTORY_VIEW_ARN"],
                    identidad={"kind": "federacion_oidc", "client_id": None, "role_arn": rol},
+                   rol_miembro=os.getenv("AWS_MEMBER_ROLE_NAME") or None,
                    costos={"database": os.getenv("AWS_COST_DATABASE", ""), "table": os.getenv("AWS_COST_TABLE", ""),
                            "workgroup": os.getenv("AWS_COST_WORKGROUP", "")})
 
@@ -104,7 +159,7 @@ class AwsProvider:
         return all(os.getenv(v) for v in ("AWS_ROLE_ARN", "AWS_ENTRA_AUDIENCE", "AWS_INVENTORY_VIEW_ARN"))
 
     def capacidades(self) -> FrozenSet[Capacidad]:
-        return frozenset({Capacidad.INVENTARIO} | ({Capacidad.COSTOS} if self._costos else set()))
+        return frozenset({Capacidad.INVENTARIO, Capacidad.SEGURIDAD} | ({Capacidad.COSTOS} if self._costos else set()))
 
     # ------------------------------------------------------------ inventario
 
@@ -151,9 +206,12 @@ class AwsProvider:
                 continue
             tags = _tags(r.get("Properties"))
             tipo = (r.get("ResourceType") or "").lower()
+            nombre = _nombre(arn, tags)
+            if es_por_defecto(tipo, nombre, arn):
+                continue
             region = r.get("Region")
             vistos[uid] = Recurso(
-                uid=uid, provider=PROVEEDOR, account_uid=account_uid(cuenta), native_id=arn, name=_nombre(arn, tags),
+                uid=uid, provider=PROVEEDOR, account_uid=account_uid(cuenta), native_id=arn, name=nombre,
                 native_type=tipo, canonical_type=canonical_type(tipo),
                 region=None if region in (None, "", "global") else region,
                 group_name=next((tags[t] for t in TAGS_DE_GRUPO if tags.get(t)), None), tags=tags,
@@ -235,11 +293,67 @@ class AwsProvider:
         # El export cubre a toda la organización: una cuenta pedida sin filas no gastó.
         return ResultadoCostos(resultado, Cobertura(cubiertas=list(cuentas)))
 
-    # ------------------------------------------------------------ pendientes (fase 2, pasos 5 a 7)
-    # Sin declarar: el contrato pide rechazarlas, no devolver vacío.
+    # ------------------------------------------------------------ seguridad
 
     def evaluar_reglas(self, cuentas: Sequence[str]) -> ResultadoSeguridad:
+        """
+        Las reglas AWS del catálogo en cada cuenta pedida: la del rol hub con sus
+        propias credenciales y las miembro asumiendo su rol de lectura
+        (StackSet). Una cuenta sin ese rol deja las reglas sin evidencia, no
+        "sin hallazgos".
+        """
+        from botocore.exceptions import BotoCoreError, ClientError
+
         requiere(self, Capacidad.SEGURIDAD)
+        ids = {cuenta_de(c) for c in cuentas}
+        if not ids:
+            return ResultadoSeguridad([])
+        try:
+            propia = self._cliente("sts").get_caller_identity()["Account"]
+        except (ClientError, BotoCoreError) as e:
+            raise ProveedorError(f"STS no respondió: {e}") from None
+        todas = {r for c in set(seguridad.CONSULTA_DE_TIPO.values()) for r in seguridad.reglas_de(c)}
+        recursos = self.recursos([account_uid(i) for i in sorted(ids)])
+        hallazgos, sin_evidencia = [], set()
+        for id_cuenta in sorted(ids):
+            if id_cuenta == propia:
+                cliente = self._cliente
+            else:
+                try:
+                    cliente = self._cliente_de_miembro(id_cuenta)
+                except (ClientError, BotoCoreError, ProveedorError) as e:
+                    # Sin rol en la cuenta no hay evidencia: sus hallazgos previos no se resuelven.
+                    print(f"[aws] Cuenta {id_cuenta} sin evaluar: {e}")
+                    sin_evidencia |= todas
+                    continue
+            cuenta = account_uid(id_cuenta)
+            propios = [r for r in recursos if r.account_uid == cuenta]
+            consultas = {
+                "security_groups": lambda: seguridad.security_groups(cliente, propios),
+                "s3": lambda: seguridad.s3(cliente, propios, id_cuenta),
+                "rds": lambda: seguridad.rds(cliente, propios),
+                "ebs": lambda: seguridad.ebs(cliente, propios),
+                "eips": lambda: seguridad.eips(cliente, propios),
+                "iam": lambda: seguridad.root_sin_mfa(cliente, id_cuenta, cuenta, resource_uid),
+            }
+            for consulta, evaluar in consultas.items():
+                try:
+                    hallazgos += evaluar()
+                except (ClientError, BotoCoreError) as e:
+                    print(f"[aws] Regla sin evidencia en {id_cuenta} ({consulta}): {e}")
+                    sin_evidencia |= seguridad.reglas_de(consulta)
+        return ResultadoSeguridad(hallazgos, frozenset(sin_evidencia))
+
+    def _cliente_de_miembro(self, id_cuenta: str) -> Callable[..., Any]:
+        """Credenciales temporales del rol de lectura de la cuenta miembro (el hub lo asume)."""
+        if not self._rol_miembro:
+            raise ProveedorError("No hay rol de lectura en las cuentas miembro (AWS_MEMBER_ROLE_NAME).")
+        credenciales = self._cliente("sts").assume_role(
+            RoleArn=f"arn:aws:iam::{id_cuenta}:role/{self._rol_miembro}", RoleSessionName="cloudops-copilot")["Credentials"]
+        return self._sesion(credenciales)
+
+    # ------------------------------------------------------------ pendientes (fase 2, pasos 6 y 7)
+    # Sin declarar: el contrato pide rechazarlas, no devolver vacío.
 
     def recursos_gestionados(self) -> FrozenSet[str]:
         requiere(self, Capacidad.IAC)

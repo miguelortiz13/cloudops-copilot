@@ -98,8 +98,18 @@ def _evidencia_de_clasificacion(s: Session) -> Dict[str, Dict[str, Any]]:
 
 
 def cumplimiento(s: Session) -> Dict[str, Any]:
-    corrida = _ultima(s, "findings")
-    sin_evidencia = _reglas_sin_evidencia(corrida)
+    # Cada regla la evalua el recolector de su proveedor. Las de un proveedor
+    # que nunca corrio (nube no conectada) no son evidencia de nada: no
+    # rebajan los controles ISO que comparten con la otra nube.
+    corrida = _ultima(s, catalog.RECOLECTOR_DE_HALLAZGOS["azure"])
+    sin_evidencia: Set[str] = set()
+    no_aplican: Set[str] = set()
+    for proveedor, recolector in catalog.RECOLECTOR_DE_HALLAZGOS.items():
+        propias = {r.id for r in catalog.REGLAS.values() if r.proveedor == proveedor}
+        ultima = corrida if recolector == "findings" else _ultima(s, recolector)
+        if ultima is None and proveedor != "azure":
+            no_aplican |= propias
+        sin_evidencia |= _reglas_sin_evidencia(ultima) & propias
     conteo = _conteo_por_regla(s)
     clasificacion = _evidencia_de_clasificacion(s)
     vacio = {"active": 0, "accepted": 0, "resolved": 0, "by_severity": {}}
@@ -118,18 +128,23 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
         reglas.append({
             "id": r.id, "title": r.title, "severity_default": r.severity_default, "description": r.description,
             "detection": r.detection, "remediation": r.remediation, "references": list(r.references),
-            "frameworks": catalog.frameworks_json(r), "status": estado_de_regla(r.id),
+            "frameworks": catalog.frameworks_json(r), "status": estado_de_regla(r.id), "provider": r.proveedor,
             "evaluated": r.id not in sin_evidencia, **c,
         })
 
     marcos = []
     for marco in catalog.MARCOS.values():
+        reglas_del_marco = {r.id for r in catalog.REGLAS.values() if marco.id in r.frameworks}
+        if reglas_del_marco and reglas_del_marco <= no_aplican:
+            continue  # marco de una nube no conectada (CIS AWS sin AWS)
         controles = []
         for (m, cid), control in catalog.CONTROLES.items():
             if m != marco.id:
                 continue
             evidencias, estados = [], []
             for r in catalog.REGLAS.values():
+                if r.id in no_aplican:
+                    continue
                 for control_id, alcance in r.frameworks.get(m, ()):
                     if control_id != cid:
                         continue
@@ -156,7 +171,7 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
         "frameworks": marcos,
         "rules": reglas,
         "evaluated_at": _iso(corrida.finished_at) if corrida else None,
-        "failed_rules": sorted(sin_evidencia) if corrida else [],
+        "failed_rules": sorted(sin_evidencia - no_aplican) if corrida else [],
     }
 
 
