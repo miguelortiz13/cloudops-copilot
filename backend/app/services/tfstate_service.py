@@ -124,9 +124,10 @@ class TfStateService:
         try:
             estado = json.loads(contenido)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            return {"ids": set(), "tipos": {}, "ok": False}
+            return {"ids": set(), "arns": set(), "tipos": {}, "ok": False}
 
         ids: Set[str] = set()
+        arns: Set[str] = set()
         tipos: Dict[str, int] = {}
         for recurso in estado.get("resources", []):
             if recurso.get("mode") != "managed":
@@ -140,7 +141,13 @@ class TfStateService:
                 if isinstance(rid, str) and rid.lower().startswith("/subscriptions/"):
                     ids.add(rid.lower())
                     tipos[tipo] = tipos.get(tipo, 0) + 1
-        return {"ids": ids, "tipos": tipos, "ok": True}
+                # AWS: el `id` no siempre es el ARN (una instancia es "i-0abc", un
+                # bucket su nombre); el atributo `arn` sí, y es lo que da el inventario.
+                arn = atributos.get("arn")
+                if isinstance(arn, str) and arn.startswith("arn:aws"):
+                    arns.add(arn)
+                    tipos[tipo] = tipos.get(tipo, 0) + 1
+        return {"ids": ids, "arns": arns, "tipos": tipos, "ok": True}
 
     def _leer_estado(self, nombre: str, token: str) -> Dict[str, Any]:
         """`nombre` es `cuenta/contenedor/blob`, tal como se publica en el indice."""
@@ -162,6 +169,7 @@ class TfStateService:
             "ok": datos["ok"],
             "motivo": None if datos["ok"] else "estado ilegible",
             "ids": datos["ids"],
+            "arns": datos["arns"],
             "tipos": datos["tipos"],
         }
 
@@ -228,15 +236,19 @@ class TfStateService:
                                            "ids": set(), "tipos": {}})
 
         gestionados: Set[str] = set()
+        arns: Set[str] = set()
         tipos: Dict[str, int] = {}
         for r in resultados:
             gestionados |= r["ids"]
+            arns |= r.get("arns", set())
             for tipo, n in r["tipos"].items():
                 tipos[tipo] = tipos.get(tipo, 0) + n
 
         indice = {
             "available": any(r["ok"] for r in resultados),
             "managed_ids": gestionados,
+            # ARN de recursos de AWS en los mismos estados (fase 2, paso 6).
+            "managed_arns": arns,
             # Se publica el detalle por estado —sin un solo atributo— para que
             # el panel pueda decir sobre que se calculo la cobertura.
             "states": [

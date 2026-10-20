@@ -151,7 +151,7 @@ def test_aws_con_su_propia_ejecucion_de_inventario(monkeypatch):
     recolectar(FabricaMemoria().normal())
     aws = FabricaAws().normal()
     aws.identidad = {"kind": "federacion_oidc", "client_id": None, "role_arn": "arn:aws:iam::111111111111:role/lector"}
-    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: aws))
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: aws))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
     assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "ok"
@@ -193,7 +193,7 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     # Una suscripción visible y vacía también se reporta.
     memoria.lista_cuentas.append(Cuenta("memoria:acct/c", "memoria", "c", "Vacía"))
     recolectar(memoria)
-    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: FabricaAws().normal()))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     run.ejecutar("inventory_aws", run.inventario_aws, ctx)
     run.ejecutar("classification", classification.recolectar, ctx)
@@ -204,7 +204,8 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     nubes = {p["name"]: p for p in r["providers"]}
     assert (nubes["memoria"]["resources"], nubes["memoria"]["cost_30d"], nubes["memoria"]["open_findings"]) == (3, 1.6, 2)
     # AWS todavía no entrega costos: desconocido, no cero.
-    assert (nubes["aws"]["resources"], nubes["aws"]["cost_30d"], nubes["aws"]["iac_known"]) == (9, None, False)
+    # El bucket está en un estado de Terraform (por ARN); el resto no.
+    assert (nubes["aws"]["resources"], nubes["aws"]["cost_30d"], nubes["aws"]["iac_known"], nubes["aws"]["in_iac"]) == (9, None, True, 1)
     assert {"key": "storage.bucket", "count": 1} in nubes["aws"]["by_type"]
     assert {"key": "global", "count": 1} in nubes["aws"]["by_region"]
     boveda = next(x for x in r["resources"] if x["uid"] == "memoria:res/a/vault-1")
@@ -230,7 +231,7 @@ def test_costos_de_aws_antes_de_la_primera_entrega(monkeypatch):
 
     aws = AwsProvider(ClienteAwsGrabado(export_vacio=True), "arn:vista",
                       costos={"database": "d", "table": "t", "workgroup": "w"}, pausa=lambda s: None)
-    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: aws))
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: aws))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
     assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "parcial"
@@ -249,7 +250,7 @@ def test_hallazgos_de_aws_en_la_bandeja_y_en_cumplimiento(monkeypatch):
         antes = {m["id"] for m in cumplimiento.cumplimiento(s)["frameworks"]}
     assert "cis-aws-3.0.0" not in antes, "sin AWS conectado el marco no aparece"
 
-    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: FabricaAws().normal()))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
     assert run.ejecutar("findings_aws", run.hallazgos_aws, ctx) == "ok"
@@ -274,7 +275,7 @@ def test_filtro_por_nube_y_cuenta(monkeypatch, tmp_path):
 
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     recolectar(FabricaMemoria().normal())
-    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: FabricaAws().normal()))
     ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
     for nombre, paso in (("inventory_aws", run.inventario_aws), ("costs_aws", run.costos_aws),
                          ("findings_aws", run.hallazgos_aws), ("readmodel", run.precalcular_vistas)):

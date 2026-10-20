@@ -83,10 +83,10 @@ gantt
 | 3 | `AwsProvider.inventory` con tipos canónicos | **Cumplido** (15-oct-2026; verificado en el job: 72 recursos de AWS): `app/providers/aws` lee la vista de Resource Explorer con credenciales federadas y pasa la batería de contrato. El job corre `inventory_aws` en su propia ejecución; Administración y la clasificación ISO muestran las dos nubes |
 | 4 | `AwsProvider.costs` sobre CUR 2.0 FOCUS + Athena | **Implementado** (15-oct-2026; el export entrega desde el 16-oct y `costs_aws` corre a diario): Athena con proyección de particiones y tope por consulta; paso `costs_aws` en el job. Falta comparar un mes cerrado con la factura: la primera entrega del export todavía no llegó |
 | 5 | Reglas AWS del catálogo y recursos sin uso | **Implementado** (18-oct-2026): 5 reglas de seguridad (CIS AWS 3.0.0 e ISO) y 2 de recursos sin uso en la misma bandeja (`findings_aws`); el inventario deja fuera los recursos que AWS crea solo |
-| 6 | Estados de Terraform en S3 con resolución de ARN | Cobertura de IaC por nube |
+| 6 | Estados de Terraform en S3 con resolución de ARN | **Cumplido en parte** (19-oct-2026): los estados que ya lee la plataforma reconocen los recursos de AWS por su atributo `arn` (9 recursos del laboratorio en IaC). Leer estados guardados en S3 queda para cuando exista un bucket de estados |
 | 7 | Actividad desde CloudTrail | **Implementado** (18-oct-2026): quién creó cada recurso en los últimos 90 días (historial de eventos, sin trail); persona vs. automatización (Terraform, servicios de AWS) |
 | 8 | Filtros por proveedor y cuenta en todo el panel | **Implementado** (18-oct-2026): selector único por nube y cuenta; hallazgos, activos y reporte se filtran en el navegador, el historial de costos en el servidor (por nube completa, precalculado); las vistas en vivo de Azure avisan si el filtro no incluye Azure |
-| 9 | Inventario de clústeres EKS | Página de Kubernetes con AKS y EKS |
+| 9 | Inventario de clústeres EKS | **Pendiente sin bloqueo**: los clústeres EKS ya entran al inventario como `kubernetes.cluster`. El panel no tiene página de Kubernetes (vive en el agente de IA) y el laboratorio no tiene clústeres: se hace cuando exista uno |
 
 **Criterios de salida:** una cuenta de AWS de laboratorio aparece en todas las vistas con datos reales; ninguna llave de AWS guardada; la factura de AWS del mes coincide con el panel.
 

@@ -56,7 +56,10 @@ def precalentar_costos_en_vivo(ctx: Contexto, session) -> Resultado:
 def _contexto_aws(ctx: Contexto) -> Contexto:
     from app.providers.aws.provider import AwsProvider
 
-    proveedor = AwsProvider.desde_entorno()
+    # Los estados de Terraform los lee la plataforma (Azure Storage): los de AWS
+    # salen del mismo índice, por ARN.
+    tfstate = getattr(ctx.proveedor, "_tfstate", None)
+    proveedor = AwsProvider.desde_entorno(estados=tfstate.get_index if tfstate else None)
     cuentas = proveedor.cuentas()
     if not cuentas:
         raise RuntimeError("La identidad no ve ninguna cuenta de AWS.")
