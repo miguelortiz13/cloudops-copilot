@@ -100,7 +100,7 @@ gantt
 
 | Entregable | Módulo |
 |---|---|
-| Motor de eventos y notificaciones (Teams, Slack, correo) con deduplicación | Integraciones |
+| Motor de eventos y notificaciones (Teams, Slack, correo) con deduplicación | Integraciones · **En curso** (20-oct-2026): paso `notify` del job con `finding.opened` (alta y crítica) y `collector.failed` a un webhook de Teams o Slack, deduplicado por transición. Faltan correo, enrutamiento por severidad o cuenta, `cost.anomaly`, `budget.threshold` y `resource.unmanaged_created` |
 | PR de remediación con bloque `import` (GitHub App) | IaC / Hallazgos |
 | Anomalías estadísticas y pronóstico con estacionalidad | Costos |
 | Seguimiento del ahorro realizado | Costos |

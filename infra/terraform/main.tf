@@ -61,6 +61,7 @@ locals {
   data_mount_path = "/data"
   data_share      = "cloudops-data"
   gemini_enabled  = nonsensitive(var.gemini_api_key != "")
+  notify_enabled  = nonsensitive(var.notify_webhook_url != "")
 
   # Cuentas de estados de Terraform a escanear: "cuenta/contenedor".
   tfstate_sources = join(",", [for s in var.tfstate_sources : "${element(split("/", s.storage_account_id), 8)}/${s.container}"])
