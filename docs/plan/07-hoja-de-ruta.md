@@ -84,7 +84,7 @@ gantt
 | 4 | `AwsProvider.costs` sobre CUR 2.0 FOCUS + Athena | **Implementado** (15-oct-2026; el export entrega desde el 16-oct y `costs_aws` corre a diario): Athena con proyección de particiones y tope por consulta; paso `costs_aws` en el job. Falta comparar un mes cerrado con la factura: la primera entrega del export todavía no llegó |
 | 5 | Reglas AWS del catálogo y recursos sin uso | **Implementado** (18-oct-2026): 5 reglas de seguridad (CIS AWS 3.0.0 e ISO) y 2 de recursos sin uso en la misma bandeja (`findings_aws`); el inventario deja fuera los recursos que AWS crea solo |
 | 6 | Estados de Terraform en S3 con resolución de ARN | Cobertura de IaC por nube |
-| 7 | Actividad desde CloudTrail | "Creado a mano" en AWS |
+| 7 | Actividad desde CloudTrail | **Implementado** (18-oct-2026): quién creó cada recurso en los últimos 90 días (historial de eventos, sin trail); persona vs. automatización (Terraform, servicios de AWS) |
 | 8 | Filtros por proveedor y cuenta en todo el panel | |
 | 9 | Inventario de clústeres EKS | Página de Kubernetes con AKS y EKS |
 

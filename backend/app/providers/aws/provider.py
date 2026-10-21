@@ -8,6 +8,7 @@ AwsProvider: el contrato de app/providers/base.py sobre AWS (fase 2).
 * Costos: el export FOCUS 1.2 de la organización consultado con Athena (no la
   API de Cost Explorer, que cobra por llamada).
 * Seguridad: las reglas AWS del catálogo con llamadas de lectura (seguridad.py).
+* Actividad: quién creó cada recurso, desde el historial de CloudTrail (actividad.py).
 
 Los recursos que AWS crea solo (parameter groups "default.*", roles
 vinculados a servicios, el bus de eventos "default"...) no se inventarían: no
@@ -24,7 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Sequence
 
-from app.providers.aws import seguridad
+from app.providers.aws import actividad, seguridad
 from app.providers.aws.types import canonical_type
 from app.providers.base import (
     Capacidad, Cobertura, CostoDiario, Cuenta, ProveedorError, Recurso, ResultadoActividad, ResultadoCostos,
@@ -159,7 +160,8 @@ class AwsProvider:
         return all(os.getenv(v) for v in ("AWS_ROLE_ARN", "AWS_ENTRA_AUDIENCE", "AWS_INVENTORY_VIEW_ARN"))
 
     def capacidades(self) -> FrozenSet[Capacidad]:
-        return frozenset({Capacidad.INVENTARIO, Capacidad.SEGURIDAD} | ({Capacidad.COSTOS} if self._costos else set()))
+        return frozenset({Capacidad.INVENTARIO, Capacidad.SEGURIDAD, Capacidad.ACTIVIDAD}
+                         | ({Capacidad.COSTOS} if self._costos else set()))
 
     # ------------------------------------------------------------ inventario
 
@@ -352,11 +354,25 @@ class AwsProvider:
             RoleArn=f"arn:aws:iam::{id_cuenta}:role/{self._rol_miembro}", RoleSessionName="cloudops-copilot")["Credentials"]
         return self._sesion(credenciales)
 
-    # ------------------------------------------------------------ pendientes (fase 2, pasos 6 y 7)
+    # ------------------------------------------------------------ actividad
+
+    def creaciones(self, cuentas: Sequence[str]) -> ResultadoActividad:
+        """Creaciones de los últimos 90 días en la cuenta del rol hub (el historial es por cuenta)."""
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        requiere(self, Capacidad.ACTIVIDAD)
+        try:
+            propia = account_uid(self._cliente("sts").get_caller_identity()["Account"])
+            if propia not in cuentas:
+                return ResultadoActividad([])
+            lista, desde, hasta = actividad.creaciones(self._cliente, self.recursos([propia]))
+        except (ClientError, BotoCoreError) as e:
+            raise ProveedorError(f"CloudTrail no respondió: {e}") from None
+        return ResultadoActividad(lista, desde, hasta)
+
+    # ------------------------------------------------------------ pendiente (fase 2, paso 6)
     # Sin declarar: el contrato pide rechazarlas, no devolver vacío.
 
     def recursos_gestionados(self) -> FrozenSet[str]:
         requiere(self, Capacidad.IAC)
 
-    def creaciones(self, cuentas: Sequence[str]) -> ResultadoActividad:
-        requiere(self, Capacidad.ACTIVIDAD)

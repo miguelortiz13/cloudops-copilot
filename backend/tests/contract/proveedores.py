@@ -195,7 +195,8 @@ class ClienteAwsGrabado:
         aws = GRABACIONES.parent / "aws"
         self._datos = {**json.loads((aws / "inventario.json").read_text(encoding="utf-8")),
                        **json.loads((aws / "costos.json").read_text(encoding="utf-8")),
-                       **json.loads((aws / "seguridad.json").read_text(encoding="utf-8"))}
+                       **json.loads((aws / "seguridad.json").read_text(encoding="utf-8")),
+                       **json.loads((aws / "actividad.json").read_text(encoding="utf-8"))}
         self._roto, self._athena_falla, self._export_vacio = inventario_roto, athena_falla, export_vacio
         self._s3_falla = s3_falla
         self._servicio = ""
