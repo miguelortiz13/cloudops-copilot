@@ -276,13 +276,16 @@ class FabricaAws:
     cuenta_sin_permiso_de_costos: Optional[str] = None
     regla_que_puede_fallar: str = "aws.storage.public-access-not-blocked"
 
-    def _armar(self, **kw):
+    def _armar(self, con_terraform=True, **kw):
         from app.providers.aws.provider import AwsProvider
 
         cliente = ClienteAwsGrabado(**kw)
+        # Índice de estados de Terraform (TfStateService.get_index): el bucket está en IaC.
+        estados = (lambda: {"available": True, "managed_arns": {"arn:aws:s3:::lab-datos"}}) if con_terraform else None
         return AwsProvider(cliente, "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1",
                            costos={"database": "lab_costos", "table": "focus", "workgroup": "lab-costos"},
-                           pausa=lambda s: None, rol_miembro="lab-reader", sesion=lambda credenciales: cliente)
+                           pausa=lambda s: None, rol_miembro="lab-reader", sesion=lambda credenciales: cliente,
+                           estados=estados)
 
     def normal(self):
         return self._armar()
@@ -294,7 +297,7 @@ class FabricaAws:
         return self._armar(s3_falla=True)
 
     def sin_iac(self):
-        return self._armar()
+        return self._armar(con_terraform=False)
 
 
 # ---------------------------------------------------------------- memoria

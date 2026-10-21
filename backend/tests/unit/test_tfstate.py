@@ -162,8 +162,13 @@ def test_varias_cuentas_de_estado_se_suman_y_una_caida_no_invalida_las_demas():
         '<?xml version="1.0"?><EnumerationResults><Blobs>'
         '<Blob><Name>proyecto.tfstate</Name></Blob></Blobs><NextMarker/></EnumerationResults>'
     )
-    estado = json.dumps({"resources": [{"mode": "managed", "type": "azurerm_resource_group", "instances": [
-        {"attributes": {"id": "/subscriptions/s/resourceGroups/rg-a"}}]}]}).encode()
+    estado = json.dumps({"resources": [
+        {"mode": "managed", "type": "azurerm_resource_group", "instances": [
+            {"attributes": {"id": "/subscriptions/s/resourceGroups/rg-a"}}]},
+        # Un estado de Azure Storage puede gestionar también recursos de AWS.
+        {"mode": "managed", "type": "aws_s3_bucket", "instances": [
+            {"attributes": {"id": "datos", "arn": "arn:aws:s3:::datos"}}]},
+    ]}).encode()
 
     class Respuesta:
         def __init__(self, codigo, texto="", contenido=b""):
@@ -187,6 +192,7 @@ def test_varias_cuentas_de_estado_se_suman_y_una_caida_no_invalida_las_demas():
 
     assert indice["available"]
     assert indice["managed_ids"] == {"/subscriptions/s/resourcegroups/rg-a"}
+    assert indice["managed_arns"] == {"arn:aws:s3:::datos"}
     assert [e["name"] for e in indice["states"]] == ["cuentaa/tfstate/proyecto.tfstate"]
     assert len(indice["sources_failed"]) == 1 and "caida" in indice["sources_failed"][0]
 
@@ -220,3 +226,19 @@ if __name__ == "__main__":
     print()
     print(f"{len(pruebas) - fallos}/{len(pruebas)} pruebas pasaron")
     sys.exit(1 if fallos else 0)
+
+
+def test_los_recursos_de_aws_se_reconocen_por_su_arn():
+    """En AWS el `id` no es el ARN (i-0abc, el nombre del bucket): se toma el atributo `arn`."""
+    estado = {"resources": [
+        {"mode": "managed", "type": "aws_instance", "name": "web", "instances": [{"attributes": {
+            "id": "i-0abc", "arn": "arn:aws:ec2:us-east-1:111111111111:instance/i-0abc", "user_data": "SECRETO3"}}]},
+        {"mode": "managed", "type": "aws_iam_role_policy_attachment", "name": "x", "instances": [{"attributes": {
+            "id": "rol-20261014", "policy_arn": "arn:aws:iam::aws:policy/SecurityAudit"}}]},
+        {"mode": "data", "type": "aws_caller_identity", "name": "yo", "instances": [{"attributes": {
+            "arn": "arn:aws:sts::111111111111:assumed-role/x/y"}}]},
+    ]}
+    datos = TfStateService._extraer(json.dumps(estado).encode("utf-8"))
+    assert datos["arns"] == {"arn:aws:ec2:us-east-1:111111111111:instance/i-0abc"}
+    assert datos["ids"] == set() and datos["tipos"] == {"aws_instance": 1}
+    assert "SECRETO3" not in json.dumps(sorted(datos["arns"]))

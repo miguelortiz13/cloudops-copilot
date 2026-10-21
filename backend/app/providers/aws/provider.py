@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, FrozenSet, List, Optional, Sequence
 from app.providers.aws import actividad, seguridad
 from app.providers.aws.types import canonical_type
 from app.providers.base import (
-    Capacidad, Cobertura, CostoDiario, Cuenta, ProveedorError, Recurso, ResultadoActividad, ResultadoCostos,
+    Capacidad, CapacidadNoSoportada, Cobertura, CostoDiario, Cuenta, ProveedorError, Recurso, ResultadoActividad, ResultadoCostos,
     ResultadoSeguridad, requiere,
 )
 
@@ -120,14 +120,18 @@ class AwsProvider:
 
     def __init__(self, cliente: Callable[..., Any], vista_arn: str, identidad: Optional[Dict[str, Any]] = None,
                  costos: Optional[Dict[str, str]] = None, pausa: Callable[[float], None] = time.sleep,
-                 rol_miembro: Optional[str] = None, sesion: Optional[Callable[[Dict[str, str]], Callable[..., Any]]] = None):
+                 rol_miembro: Optional[str] = None, sesion: Optional[Callable[[Dict[str, str]], Callable[..., Any]]] = None,
+                 estados: Optional[Callable[[], Dict[str, Any]]] = None):
         """
         `cliente(servicio, region_name=None)` devuelve un cliente de boto3 (o un doble en las pruebas).
         `costos`: database, table y workgroup de Athena del export FOCUS; sin
         ellos la capacidad de costos no se declara.
         `rol_miembro`: nombre del rol de lectura en las cuentas miembro (StackSet);
         `sesion(credenciales)` arma el `cliente` de esa cuenta.
+        `estados()`: índice de los estados de Terraform que ya lee la plataforma
+        (TfStateService.get_index); sus `managed_arns` son los recursos de AWS en IaC.
         """
+        self._estados = estados
         self._cliente = cliente
         self._rol_miembro = rol_miembro
         self._sesion = sesion or _sesion_boto3
@@ -138,7 +142,7 @@ class AwsProvider:
         self.identidad = identidad
 
     @classmethod
-    def desde_entorno(cls) -> "AwsProvider":
+    def desde_entorno(cls, estados: Optional[Callable[[], Dict[str, Any]]] = None) -> "AwsProvider":
         """Credenciales federadas con AWS_ROLE_ARN, AWS_ENTRA_AUDIENCE y AWS_INVENTORY_VIEW_ARN."""
         import boto3
 
@@ -151,7 +155,7 @@ class AwsProvider:
                                aws_session_token=c.session_token, region_name=region)
         return cls(sesion.client, os.environ["AWS_INVENTORY_VIEW_ARN"],
                    identidad={"kind": "federacion_oidc", "client_id": None, "role_arn": rol},
-                   rol_miembro=os.getenv("AWS_MEMBER_ROLE_NAME") or None,
+                   rol_miembro=os.getenv("AWS_MEMBER_ROLE_NAME") or None, estados=estados,
                    costos={"database": os.getenv("AWS_COST_DATABASE", ""), "table": os.getenv("AWS_COST_TABLE", ""),
                            "workgroup": os.getenv("AWS_COST_WORKGROUP", "")})
 
@@ -161,7 +165,8 @@ class AwsProvider:
 
     def capacidades(self) -> FrozenSet[Capacidad]:
         return frozenset({Capacidad.INVENTARIO, Capacidad.SEGURIDAD, Capacidad.ACTIVIDAD}
-                         | ({Capacidad.COSTOS} if self._costos else set()))
+                         | ({Capacidad.COSTOS} if self._costos else set())
+                         | ({Capacidad.IAC} if self._estados else set()))
 
     # ------------------------------------------------------------ inventario
 
@@ -370,9 +375,17 @@ class AwsProvider:
             raise ProveedorError(f"CloudTrail no respondió: {e}") from None
         return ResultadoActividad(lista, desde, hasta)
 
-    # ------------------------------------------------------------ pendiente (fase 2, paso 6)
     # Sin declarar: el contrato pide rechazarlas, no devolver vacío.
 
     def recursos_gestionados(self) -> FrozenSet[str]:
-        requiere(self, Capacidad.IAC)
+        """Recursos de AWS que aparecen (por su ARN) en algún estado de Terraform accesible."""
+        if self._estados is None:
+            raise CapacidadNoSoportada("No hay estados de Terraform configurados (TFSTATE_ACCOUNT).")
+        try:
+            datos = self._estados()
+        except Exception as exc:
+            raise ProveedorError(f"No se pudieron leer los estados de Terraform: {exc}") from exc
+        if not datos.get("available"):
+            raise ProveedorError("Estados de Terraform no disponibles.")
+        return frozenset(resource_uid(a) for a in datos.get("managed_arns") or ())
 
