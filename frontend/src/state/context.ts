@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { Me, Role, Subscription } from '../lib/types';
+import type { CloudAccount, Me, Role, Subscription } from '../lib/types';
 
 export type AgentType = 'inventory' | 'finops' | 'secops' | 'k8s';
 export type Theme = 'light' | 'dark' | 'system';
@@ -10,19 +10,29 @@ export interface Toast {
 }
 
 export interface AppState {
-  /** Suscripciones visibles para la identidad de la plataforma. */
+  /** Suscripciones de Azure visibles para la identidad de la plataforma (vistas en vivo). */
   subscriptions: Subscription[];
   subscriptionsLoaded: boolean;
-  /** Suscripciones elegidas por el usuario. */
+  /** Cuentas de todas las nubes (azure:sub/…, aws:account/…) con su nube. */
+  accounts: CloudAccount[];
+  providerLabels: Record<string, string>;
+  /** uids de cuenta elegidos en el filtro del panel. */
   selected: string[];
-  setSelected: (ids: string[]) => void;
+  setSelected: (uids: string[]) => void;
   /**
-   * Scope que se envía al API: vacío cuando están todas seleccionadas, para
-   * que el backend resuelva "todas" sin una lista larga en la URL.
+   * Suscripciones de Azure del filtro para las vistas en vivo: vacío cuando
+   * están todas, para que el backend resuelva "todas" sin una lista larga.
    */
   scope: string[];
   /** Clave estable del scope, para las cachés de datos. */
   scopeKey: string;
+  /** El filtro no incluye ninguna suscripción de Azure: las vistas en vivo no tienen qué mostrar. */
+  azureNone: boolean;
+  /** uids del filtro para las vistas de la base; vacío = todas las cuentas. */
+  accountScope: string[];
+  accountKey: string;
+  /** Si una cuenta entra en el filtro. */
+  inScope: (accountUid: string | null | undefined) => boolean;
   theme: Theme;
   setTheme: (t: Theme) => void;
   toast: (text: string) => void;

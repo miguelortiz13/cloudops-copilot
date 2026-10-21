@@ -62,7 +62,7 @@ function tomorrow(): string {
  * recurso y la siguiente recolección lo confirma.
  */
 export function ManagementView() {
-  const { askAgent } = useApp();
+  const { askAgent, inScope } = useApp();
   const { data, error, loading, refreshing, reload } = useApi<ManagedFindings>('managed-findings', () => get('/api/findings'));
   const [filter, setFilter] = useState<Filter>('activos');
   const [selected, setSelected] = useState<ManagedFinding | null>(null);
@@ -80,10 +80,12 @@ export function ManagementView() {
   }
   if (!data) return null;
 
-  const n = (s: FindingStatus) => data.by_status[s] ?? 0;
-  const items = data.items.filter((f) =>
+  // Filtro del panel por nube y cuenta: en el navegador, la vista ya viene calculada.
+  const delAlcance = data.items.filter((f) => inScope(f.account_uid));
+  const n = (s: FindingStatus) => delAlcance.filter((f) => f.status === s).length;
+  const items = delAlcance.filter((f) =>
     filter === 'todos' ? true : filter === 'activos' ? f.status === 'abierto' || f.status === 'asumido' : f.status === filter);
-  const vencenPronto = data.items.filter((f) => f.status === 'aceptado' && f.accepted_until
+  const vencenPronto = delAlcance.filter((f) => f.status === 'aceptado' && f.accepted_until
     && (new Date(f.accepted_until).getTime() - ahora) / 86_400_000 <= 14).length;
 
   return (

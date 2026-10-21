@@ -5,6 +5,7 @@ import { AppProvider } from './state/AppContext';
 import { useApp, useRoute } from './state/hooks';
 import { AgentDock, Sidebar, SyncDialog, Topbar } from './components/layout';
 import { NAV } from './components/nav';
+import { AzureGuard } from './components/AzureGuard';
 import { SectionBoundary } from './components/SectionBoundary';
 import { Loading } from './components/ui';
 
@@ -54,11 +55,11 @@ function Shell() {
         <main className="content">
           <SectionBoundary name={LABELS[page]} key={page}>
             <Suspense fallback={<Loading />}>
-            {page === 'resumen' && <OverviewPage />}
-            {page === 'inventario' && <InventoryPage />}
+            {page === 'resumen' && <AzureGuard><OverviewPage /></AzureGuard>}
+            {page === 'inventario' && <AzureGuard><InventoryPage /></AzureGuard>}
             {page === 'finops' && <FinOpsPage view={sub} onView={(v) => navigate(`finops/${v}`)} />}
             {page === 'secops' && <SecOpsPage view={sub} onView={(v) => navigate(`secops/${v}`)} />}
-            {page === 'iac' && <IacPage />}
+            {page === 'iac' && <AzureGuard><IacPage /></AzureGuard>}
             {page === 'cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`cumplimiento/${v}`)} onGo={navigate} />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}

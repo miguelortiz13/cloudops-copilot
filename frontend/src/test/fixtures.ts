@@ -7,6 +7,7 @@
  * público y las capturas de regresión visual salen de aquí).
  */
 import type {
+  CloudAccounts,
   InventoryReport,
   ClassifiedAsset, ClassifiedAssets, ComplianceStatus, ConnectedAccounts, CostHistory, CostOverview, FindingEvent, FinOpsReport,
   HistorySeries, InventoryPage, InventoryResource, InventorySummary, ManagedFinding, ManagedFindings, ManualCreations,
@@ -255,7 +256,7 @@ const ISO = 'iso-27001-2022';
 
 function hallazgo(id: number, extra: Partial<ManagedFinding> & Pick<ManagedFinding, 'rule_id' | 'title' | 'severity' | 'resource_name'>): ManagedFinding {
   return {
-    id, remediation: 'Corregir la configuración del recurso.', controls: {}, status: 'abierto',
+    id, account_uid: `azure:sub/${SUB_PROD}`, remediation: 'Corregir la configuración del recurso.', controls: {}, status: 'abierto',
     resource_uid: `azure:/x/${extra.resource_name}`, resource_type: null, resource_group: 'rg-pagos-prod',
     account: 'Producción (demo)', details: {}, owner: null, due_date: null, accepted_until: null,
     first_seen: '2026-10-08T06:02:00Z', last_seen: '2026-10-10T06:02:00Z', resolved_at: null, ...extra,
@@ -340,6 +341,7 @@ export function complianceStatus(): ComplianceStatus {
 function activo(nombre: string, tipo: string, clase: ClassifiedAsset['classification'], cid: [number, number, number], extra: Partial<ClassifiedAsset> = {}): ClassifiedAsset {
   return {
     uid: `azure:/subscriptions/${SUB_PROD}/resourcegroups/rg/providers/${tipo}/${nombre}`, name: nombre, type: tipo,
+    account_uid: `azure:sub/${SUB_PROD}`,
     group: 'rg-pagos-prod', account: 'Producción (demo)', environment: 'prod', classification: clase,
     confidentiality: cid[0], integrity: cid[1], availability: cid[2], score: cid[0] + cid[1] + cid[2],
     risk_required: cid[0] + cid[1] + cid[2] >= 6, custodian: 'equipo-pagos', method: 'automatica',
@@ -463,3 +465,14 @@ export function inventoryReport(): InventoryReport {
     resources: [],
   };
 }
+
+/** Cuentas de las dos nubes para el filtro del panel. */
+export const cloudAccounts: CloudAccounts = {
+  configured: true,
+  providers: [{ name: 'aws', label: 'Amazon Web Services' }, { name: 'azure', label: 'Microsoft Azure' }],
+  accounts: [
+    { uid: 'aws:account/111111111111', provider: 'aws', native_id: '111111111111', name: 'AWS laboratorio (demo)', visible: true },
+    { uid: `azure:sub/${SUB_PROD}`, provider: 'azure', native_id: SUB_PROD, name: 'Producción (demo)', visible: true },
+    { uid: `azure:sub/${SUB_LAB}`, provider: 'azure', native_id: SUB_LAB, name: 'Laboratorio (demo)', visible: true },
+  ],
+};

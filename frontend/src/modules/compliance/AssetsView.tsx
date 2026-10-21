@@ -40,9 +40,23 @@ function ClassBadge({ value, manual }: { value: AssetClass | null; manual?: bool
  * de recurso). Un operador puede fijarla a mano con un motivo; el recolector la
  * respeta hasta que se restaure la automática. Cada cambio queda auditado.
  */
+function estadisticas(activos: ClassifiedAsset[]): ClassifiedAssets['stats'] {
+  const clasificados = activos.filter((a) => a.classification);
+  const by_class: ClassifiedAssets['stats']['by_class'] = {};
+  for (const a of clasificados) by_class[a.classification!] = (by_class[a.classification!] ?? 0) + 1;
+  const puntajes = clasificados.map((a) => a.score ?? 0);
+  return {
+    total: activos.length, classified: clasificados.length, by_class,
+    risk_required: activos.filter((a) => a.risk_required).length,
+    manual: activos.filter((a) => a.method === 'manual').length,
+    without_custodian: activos.filter((a) => !a.custodian).length,
+    average_score: puntajes.length ? puntajes.reduce((x, y) => x + y, 0) / puntajes.length : 0,
+  };
+}
+
 export function AssetsView({ onGo }: { onGo: (path: string) => void }) {
   const { data, error, loading, refreshing, reload } = useApi<ClassifiedAssets>('compliance-assets', () => get('/api/compliance/assets'));
-  const { toast } = useApp();
+  const { toast, inScope, accountScope } = useApp();
   const [filter, setFilter] = useState<'todos' | AssetClass | 'riesgo' | 'sin_custodio'>('todos');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -63,9 +77,11 @@ export function AssetsView({ onGo }: { onGo: (path: string) => void }) {
     return <Card><Empty title="Sin activos todavía">El recolector diario carga el inventario y lo clasifica. Vuelve después de la próxima recolección.</Empty></Card>;
   }
 
-  const st = data.stats;
+  const delAlcance = data.items.filter((a) => inScope(a.account_uid));
+  // Con el filtro del panel, las cifras salen de los activos filtrados.
+  const st = accountScope.length ? estadisticas(delAlcance) : data.stats;
   const q = query.trim().toLowerCase();
-  const items = data.items.filter((a) =>
+  const items = delAlcance.filter((a) =>
     (filter === 'todos' || (filter === 'riesgo' ? a.risk_required : filter === 'sin_custodio' ? !a.custodian : a.classification === filter))
     && (!q || [a.name, a.type, a.group, a.custodian, a.account].some((v) => v?.toLowerCase().includes(q))));
   const visible = items.slice((page - 1) * PAGE, page * PAGE);

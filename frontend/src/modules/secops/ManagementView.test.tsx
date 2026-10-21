@@ -26,6 +26,12 @@ describe('Gestión de hallazgos', () => {
     expect(screen.getByText('hasta el 31 de dic de 2026', { normalizer: (s) => s.replace(/\s+/g, ' ') })).toBeInTheDocument();
   });
 
+  it('respeta el filtro del panel por cuenta', async () => {
+    renderWithApp(<ManagementView />, { state: { accountScope: ['aws:account/1'], inScope: (u) => u === 'aws:account/1' } });
+    expect(await screen.findByRole('radio', { name: /Activos \(0\)/ })).toBeInTheDocument();
+    expect(screen.queryByText('Puerto de administración abierto a internet')).not.toBeInTheDocument();
+  });
+
   it('aceptar un riesgo exige fecha de vencimiento y justificación', async () => {
     api.post.mockResolvedValue({ ...managedFindings().items[1], status: 'aceptado', accepted_until: '2027-01-31' });
     const { user, app } = renderWithApp(<ManagementView />, { role: 'operador' });

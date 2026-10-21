@@ -53,6 +53,7 @@ function rutas(role: Role): Record<string, Handler> {
     'GET /api/me': () => fx.me(role),
     'GET /api/inventory/health': () => ({ azureConnected: true }),
     'GET /api/inventory/subscriptions': () => fx.subscriptions,
+    'GET /api/accounts': () => fx.cloudAccounts,
     'POST /api/inventory/summary': () => fx.inventorySummary,
     'POST /api/inventory/tag-compliance': () => fx.tagCompliance,
     'POST /api/inventory/history': () => fx.inventoryHistory,

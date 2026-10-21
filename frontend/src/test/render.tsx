@@ -10,9 +10,14 @@ import { me, subscriptions } from './fixtures';
 export function appState(role: Role = 'administrador', over: Partial<AppState> = {}): AppState {
   const usuario = me(role);
   const subs = subscriptions.subscriptions;
+  const cuentas = subs.map((s) => ({
+    uid: `azure:sub/${s.subscriptionId.toLowerCase()}`, provider: 'azure', native_id: s.subscriptionId, name: s.displayName, visible: true,
+  }));
   return {
-    subscriptions: subs, subscriptionsLoaded: true, selected: subs.map((s) => s.subscriptionId), setSelected: vi.fn(),
-    scope: [], scopeKey: 'all', theme: 'light', setTheme: vi.fn(), toast: vi.fn(), toasts: [],
+    subscriptions: subs, subscriptionsLoaded: true, accounts: cuentas, providerLabels: { azure: 'Microsoft Azure' },
+    selected: cuentas.map((a) => a.uid), setSelected: vi.fn(),
+    scope: [], scopeKey: 'all', azureNone: false, accountScope: [], accountKey: 'all', inScope: () => true,
+    theme: 'light', setTheme: vi.fn(), toast: vi.fn(), toasts: [],
     dockOpen: false, setDockOpen: vi.fn(), dockAgent: 'inventory', setDockAgent: vi.fn(), askAgent: vi.fn(),
     pendingQuestion: null, me: usuario, can: (r: Role) => usuario.permissions[r],
     ...over,

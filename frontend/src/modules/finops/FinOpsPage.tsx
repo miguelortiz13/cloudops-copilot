@@ -1,4 +1,5 @@
 import { PageHeader, Tabs } from '../../components/ui';
+import { AzureGuard } from '../../components/AzureGuard';
 import { CostsView } from './CostsView';
 import { HistoryView } from './HistoryView';
 import { SavingsView } from './SavingsView';
@@ -22,9 +23,9 @@ export function FinOpsPage({ view, onView }: { view: string | undefined; onView:
           { id: 'ahorro', label: 'Optimización y ahorro' },
         ]}
       />
-      {active === 'costos' && <CostsView />}
+      {active === 'costos' && <AzureGuard><CostsView /></AzureGuard>}
       {active === 'historial' && <HistoryView />}
-      {active === 'ahorro' && <SavingsView />}
+      {active === 'ahorro' && <AzureGuard><SavingsView /></AzureGuard>}
     </>
   );
 }

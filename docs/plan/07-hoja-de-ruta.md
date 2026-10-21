@@ -85,7 +85,7 @@ gantt
 | 5 | Reglas AWS del catálogo y recursos sin uso | **Implementado** (18-oct-2026): 5 reglas de seguridad (CIS AWS 3.0.0 e ISO) y 2 de recursos sin uso en la misma bandeja (`findings_aws`); el inventario deja fuera los recursos que AWS crea solo |
 | 6 | Estados de Terraform en S3 con resolución de ARN | Cobertura de IaC por nube |
 | 7 | Actividad desde CloudTrail | **Implementado** (18-oct-2026): quién creó cada recurso en los últimos 90 días (historial de eventos, sin trail); persona vs. automatización (Terraform, servicios de AWS) |
-| 8 | Filtros por proveedor y cuenta en todo el panel | |
+| 8 | Filtros por proveedor y cuenta en todo el panel | **Implementado** (18-oct-2026): selector único por nube y cuenta; hallazgos, activos y reporte se filtran en el navegador, el historial de costos en el servidor (por nube completa, precalculado); las vistas en vivo de Azure avisan si el filtro no incluye Azure |
 | 9 | Inventario de clústeres EKS | Página de Kubernetes con AKS y EKS |
 
 **Criterios de salida:** una cuenta de AWS de laboratorio aparece en todas las vistas con datos reales; ninguna llave de AWS guardada; la factura de AWS del mes coincide con el panel.

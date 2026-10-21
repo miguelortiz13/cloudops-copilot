@@ -25,7 +25,7 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
         <div className="brand-mark"><Cloud size={16} /></div>
         <div>
           <div className="brand-name">CloudOps Copilot</div>
-          <div className="brand-sub">Operaciones cloud en Azure</div>
+          <div className="brand-sub">Operaciones cloud · Azure y AWS</div>
         </div>
       </div>
       <nav className="nav" aria-label="Secciones">
@@ -88,27 +88,34 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, onOutside: ()
   }, [ref, onOutside]);
 }
 
-function ScopeSelector() {
-  const { subscriptions, selected, setSelected, subscriptionsLoaded } = useApp();
+export function ScopeSelector() {
+  const { accounts, providerLabels, selected, setSelected, subscriptionsLoaded } = useApp();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, () => setOpen(false));
 
+  const nubes = [...new Set(accounts.map((a) => a.provider))];
+  const etiqueta = (p: string) => providerLabels[p] ?? p;
+  const soloNube = nubes.find((n) => {
+    const propias = accounts.filter((a) => a.provider === n);
+    return propias.length === selected.length && propias.every((a) => selected.includes(a.uid));
+  });
   const label = !subscriptionsLoaded
     ? 'Cargando…'
-    : selected.length === subscriptions.length
-      ? `Todas las suscripciones (${subscriptions.length})`
+    : selected.length === accounts.length
+      ? `Todas las cuentas (${accounts.length})`
       : selected.length === 1
-        ? subscriptions.find((s) => s.subscriptionId === selected[0])?.displayName ?? '1 suscripción'
-        : `${selected.length} de ${subscriptions.length} suscripciones`;
+        ? accounts.find((a) => a.uid === selected[0])?.name ?? '1 cuenta'
+        : soloNube && nubes.length > 1 ? `Solo ${etiqueta(soloNube)}` : `${selected.length} de ${accounts.length} cuentas`;
 
-  const toggle = (id: string) => {
-    if (selected.includes(id)) {
-      // Siempre queda al menos una: un scope vacío no tiene datos que mostrar.
-      if (selected.length > 1) setSelected(selected.filter((s) => s !== id));
-    } else {
-      setSelected([...selected, id]);
-    }
+  // Siempre queda al menos una: un alcance vacío no tiene datos que mostrar.
+  const elegir = (uids: string[]) => { if (uids.length) setSelected(uids); };
+  const toggle = (uid: string) =>
+    elegir(selected.includes(uid) ? selected.filter((s) => s !== uid) : [...selected, uid]);
+  const toggleNube = (n: string) => {
+    const propias = accounts.filter((a) => a.provider === n).map((a) => a.uid);
+    const todas = propias.every((u) => selected.includes(u));
+    elegir(todas ? selected.filter((u) => !propias.includes(u)) : [...new Set([...selected, ...propias])]);
   };
 
   return (
@@ -121,26 +128,44 @@ function ScopeSelector() {
         <div className="popover">
           <div className="popover-head">
             <span>Alcance</span>
-            <button className="link-btn" onClick={() => setSelected(subscriptions.map((s) => s.subscriptionId))}>
+            <button className="link-btn" onClick={() => setSelected(accounts.map((a) => a.uid))}>
               Seleccionar todas
             </button>
           </div>
-          {subscriptions.map((s) => (
-            <label key={s.subscriptionId} className="popover-item">
-              <input
-                type="checkbox"
-                checked={selected.includes(s.subscriptionId)}
-                onChange={() => toggle(s.subscriptionId)}
-                style={{ accentColor: 'var(--accent)' }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <div className="truncate">{s.displayName}</div>
-                <div className="mono muted" style={{ fontSize: 11 }}>{s.subscriptionId.slice(0, 8)}…</div>
+          {nubes.map((n) => {
+            const propias = accounts.filter((a) => a.provider === n);
+            const marcadas = propias.filter((a) => selected.includes(a.uid)).length;
+            return (
+              <div key={n} role="group" aria-label={etiqueta(n)}>
+                <label className="popover-item" style={{ fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={marcadas === propias.length}
+                    ref={(el) => { if (el) el.indeterminate = marcadas > 0 && marcadas < propias.length; }}
+                    onChange={() => toggleNube(n)}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  <span>{etiqueta(n)}</span>
+                </label>
+                {propias.map((a) => (
+                  <label key={a.uid} className="popover-item" style={{ paddingLeft: 28 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(a.uid)}
+                      onChange={() => toggle(a.uid)}
+                      style={{ accentColor: 'var(--accent)' }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="truncate">{a.name}</div>
+                      <div className="mono muted" style={{ fontSize: 11 }}>{a.native_id.slice(0, 12)}{a.native_id.length > 12 ? '…' : ''}</div>
+                    </div>
+                  </label>
+                ))}
               </div>
-            </label>
-          ))}
-          {subscriptionsLoaded && !subscriptions.length && (
-            <div className="empty">La identidad no ve ninguna suscripción.</div>
+            );
+          })}
+          {subscriptionsLoaded && !accounts.length && (
+            <div className="empty">La identidad no ve ninguna cuenta.</div>
           )}
         </div>
       )}

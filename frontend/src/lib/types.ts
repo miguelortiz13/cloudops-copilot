@@ -321,6 +321,7 @@ export type FindingStatus = 'abierto' | 'asumido' | 'aceptado' | 'resuelto';
 
 /** Hallazgo con ciclo de vida, desde la base (/api/findings). */
 export interface ManagedFinding {
+  account_uid: string;
   id: number;
   rule_id: string;
   title: string;
@@ -455,6 +456,7 @@ export interface ComplianceStatus {
 export type AssetClass = 'Confidencial' | 'Restringido' | 'Uso interno';
 
 export interface ClassifiedAsset {
+  account_uid: string;
   uid: string;
   name: string;
   type: string;
@@ -587,5 +589,25 @@ export interface InventoryReport {
   cost_until: string | null;
   providers: InventoryReportProvider[];
   accounts: InventoryReportAccount[];
-  resources: { uid: string; provider: string; account: string; name: string; type: string; region: string | null; cost_30d: number | null }[];
+  resources: {
+    uid: string; provider: string; account_uid: string; account: string; name: string; type: string;
+    region: string | null; cost_30d: number | null; in_iac: boolean | null;
+  }[];
+}
+
+// ---------------------------------------------------------------- Filtro del panel: cuentas de todas las nubes
+
+export interface CloudAccount {
+  /** azure:sub/<id> · aws:account/<id> */
+  uid: string;
+  provider: string;
+  native_id: string;
+  name: string;
+  visible: boolean;
+}
+
+export interface CloudAccounts {
+  configured: boolean;
+  providers: { name: string; label: string }[];
+  accounts: CloudAccount[];
 }

@@ -70,7 +70,12 @@ def rango(periodo: str, hasta: date) -> Tuple[date, date, date, date, str]:
     raise PeriodoInvalido(f"Periodo desconocido: {periodo}. Opciones: {', '.join(PERIODOS)}")
 
 
-def costos(s: Session, periodo: str = "30d") -> Dict[str, Any]:
+def costos(s: Session, periodo: str = "30d", cuentas: Optional[List[str]] = None) -> Dict[str, Any]:
+    """`cuentas`: uids a los que se limita (filtro del panel); None = todas."""
+
+    def de(consulta):
+        return consulta.where(CostDaily.account_uid.in_(cuentas)) if cuentas else consulta
+
     hasta_datos = s.scalar(select(func.max(CostDaily.charge_date)))
     if hasta_datos is None:
         return {"available": False, "message": "Todavía no hay costos recolectados.", "period": periodo}
@@ -78,13 +83,13 @@ def costos(s: Session, periodo: str = "30d") -> Dict[str, Any]:
     desde, hasta, desde_ant, hasta_ant, etiqueta = rango(periodo, hasta_datos)
 
     def total(a: date, b: date) -> float:
-        return _f(s.scalar(select(func.sum(CostDaily.billed_cost)).where(CostDaily.charge_date.between(a, b))))
+        return _f(s.scalar(de(select(func.sum(CostDaily.billed_cost)).where(CostDaily.charge_date.between(a, b)))))
 
     actual, anterior = total(desde, hasta), total(desde_ant, hasta_ant)
     en_periodo = CostDaily.charge_date.between(desde, hasta)
 
     diario = {d: _f(c) for d, c in s.execute(
-        select(CostDaily.charge_date, func.sum(CostDaily.billed_cost)).where(en_periodo).group_by(CostDaily.charge_date))}
+        de(select(CostDaily.charge_date, func.sum(CostDaily.billed_cost)).where(en_periodo)).group_by(CostDaily.charge_date))}
     serie = []
     d = desde
     while d <= hasta:
@@ -92,7 +97,7 @@ def costos(s: Session, periodo: str = "30d") -> Dict[str, Any]:
         d += timedelta(days=1)
 
     def grupos(columna, limite: Optional[int] = None) -> List[Dict[str, Any]]:
-        q = (select(columna, func.sum(CostDaily.billed_cost).label("c")).where(en_periodo)
+        q = (de(select(columna, func.sum(CostDaily.billed_cost).label("c")).where(en_periodo))
              .group_by(columna).order_by(func.sum(CostDaily.billed_cost).desc()))
         if limite:
             q = q.limit(limite)
@@ -121,11 +126,11 @@ def costos(s: Session, periodo: str = "30d") -> Dict[str, Any]:
     for _ in range(12):
         inicio_meses = _mes_anterior(inicio_meses)
     meses: Dict[str, float] = {}
-    for dia, c in s.execute(select(CostDaily.charge_date, func.sum(CostDaily.billed_cost))
-                            .where(CostDaily.charge_date >= inicio_meses).group_by(CostDaily.charge_date)):
+    for dia, c in s.execute(de(select(CostDaily.charge_date, func.sum(CostDaily.billed_cost))
+                               .where(CostDaily.charge_date >= inicio_meses)).group_by(CostDaily.charge_date)):
         meses[dia.strftime("%Y-%m")] = meses.get(dia.strftime("%Y-%m"), 0.0) + _f(c)
 
-    moneda = s.scalar(select(CostDaily.currency).limit(1)) or "USD"
+    moneda = s.scalar(de(select(CostDaily.currency)).limit(1)) or "USD"
     primero = _cobertura_de_costos(s) or s.scalar(select(func.min(CostDaily.charge_date)))
     completo = bool(primero and primero <= desde_ant)
     return {
@@ -157,6 +162,7 @@ def _hallazgo(f: Finding, regla: Optional[Rule], recurso: Optional[Resource], cu
     detalle = f.details or {}
     return {
         "id": f.id,
+        "account_uid": f.account_uid,
         "rule_id": f.rule_id,
         "title": regla.title if regla else f.rule_id,
         "remediation": regla.remediation if regla else None,
