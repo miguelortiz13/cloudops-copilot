@@ -15,7 +15,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+# pip no hace falta en ejecucion y trae sus propias dependencias empaquetadas
+# (urllib3, certifi...), que Trivy reporta aunque la aplicacion no las use.
+RUN pip install -r requirements.txt && pip uninstall -y pip
 
 COPY app ./app
 COPY pipelines ./pipelines
