@@ -1,6 +1,6 @@
 # Cumplimiento
 
-Qué controles de **CIS Microsoft Azure Foundations Benchmark 2.0.0** y de **ISO/IEC 27001:2022 (Anexo A)** evidencia la plataforma, en qué estado están, el catálogo de reglas que los evalúa y la clasificación ISO de los activos de información.
+Qué controles de **CIS Microsoft Azure Foundations Benchmark 2.0.0**, **CIS Amazon Web Services Foundations Benchmark 3.0.0** y de **ISO/IEC 27001:2022 (Anexo A)** evidencia la plataforma, en qué estado están, el catálogo de reglas que los evalúa y la clasificación ISO de los activos de información.
 
 Todo sale de la base de datos que llena el [recolector diario](../adr/0007-almacen-de-datos-y-recolectores.md); el panel lo lee de la vista precalculada, sin despertar Azure SQL. Reemplaza a la hoja `12_inventario_iso` del Excel del pipeline y a `/api/governance/iso`.
 
@@ -27,6 +27,21 @@ Cada regla tiene un identificador estable, una severidad por defecto (el recolec
 \* **Evidencia parcial**: la regla comprueba una parte o una condición relacionada. Por ejemplo, `database.public-network` mira si el endpoint público está habilitado, pero no el contenido de las reglas de firewall que pide CIS 4.1.2. Una evidencia parcial nunca se presenta como directa.
 
 La numeración de CIS cambia entre versiones; se usa la 2.0.0 porque es la que Azure Policy publica como iniciativa integrada. Una prueba (`catalog.validar()`) impide citar un control que no esté en el catálogo de controles o dejar un control sin evidencia.
+
+### Reglas de AWS (CIS AWS Foundations 3.0.0)
+
+Las evalúa `app/providers/aws/seguridad.py` con llamadas de lectura gratuitas (sin Security Hub ni AWS Config), solo sobre los recursos que el inventario ya encontró y en sus regiones. Corren en su propia ejecución del job (`findings_aws`) y llegan a la misma bandeja que las de Azure.
+
+| Regla | CIS AWS 3.0.0 | ISO 27001:2022 |
+|---|---|---|
+| `aws.network.admin-port-open` — security group con 22 o 3389 abierto a 0.0.0.0/0 o ::/0 (crítica si está asociado) | 5.2, 5.3 | A.8.20, A.8.22\* |
+| `aws.storage.public-access-not-blocked` — bucket sin Block Public Access completo en la cuenta ni en el bucket (crítica si su política ya es pública) | 2.1.4 | A.5.15, A.8.3, A.8.12\* |
+| `aws.database.public-network` — instancia RDS `PubliclyAccessible` | 2.3.3 | A.8.20, A.8.3\* |
+| `aws.storage.disk-unencrypted` — volumen EBS sin cifrar | 2.2.1\* | A.8.24 |
+| `aws.identity.root-without-mfa` — usuario root sin MFA (crítica) | 1.5 | A.5.15\* |
+| `aws.cost.unattached-volume`, `aws.cost.unassociated-elastic-ip` — recursos sin uso que cobran | — | — |
+
+Cada regla pertenece a un proveedor (`Regla.proveedor`): su evidencia es la de la última ejecución de su recolector. Si AWS no está conectado, sus reglas no rebajan los controles ISO que comparten con Azure y el marco CIS AWS no se muestra. Las cuentas miembro se evalúan asumiendo su rol de lectura (`AWS_MEMBER_ROLE_NAME`, desplegado por StackSet); una cuenta sin ese rol deja las reglas sin evidencia.
 
 ### Agregar una regla
 

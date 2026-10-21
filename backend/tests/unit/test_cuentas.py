@@ -165,7 +165,7 @@ def test_aws_con_su_propia_ejecucion_de_inventario(monkeypatch):
     # La corrida de AWS no le quita la visibilidad a las cuentas de la otra nube.
     assert all(c["visible"] for c in v["accounts"])
     cuentas = {c["uid"]: c for c in v["accounts"]}
-    assert cuentas["aws:account/111111111111"]["resources"] == 3
+    assert cuentas["aws:account/111111111111"]["resources"] == 8
     # Costos del export FOCUS: su propia corrida (costs_aws), no la de la otra nube.
     assert (cuentas["aws:account/111111111111"]["cost_status"], cuentas["aws:account/111111111111"]["cost_30d"]) == ("con_permiso", 1.32)
     assert (cuentas["aws:account/222222222222"]["cost_status"], cuentas["aws:account/222222222222"]["cost_30d"]) == ("con_permiso", 0.0)
@@ -204,7 +204,7 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     nubes = {p["name"]: p for p in r["providers"]}
     assert (nubes["memoria"]["resources"], nubes["memoria"]["cost_30d"], nubes["memoria"]["open_findings"]) == (3, 1.6, 2)
     # AWS todavía no entrega costos: desconocido, no cero.
-    assert (nubes["aws"]["resources"], nubes["aws"]["cost_30d"], nubes["aws"]["iac_known"]) == (4, None, False)
+    assert (nubes["aws"]["resources"], nubes["aws"]["cost_30d"], nubes["aws"]["iac_known"]) == (9, None, False)
     assert {"key": "storage.bucket", "count": 1} in nubes["aws"]["by_type"]
     assert {"key": "global", "count": 1} in nubes["aws"]["by_region"]
     boveda = next(x for x in r["resources"] if x["uid"] == "memoria:res/a/vault-1")
@@ -219,7 +219,7 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     csv = TestClient(app).get("/api/inventory/report/export")
     assert csv.status_code == 200 and "inventario-multinube.csv" in csv.headers["content-disposition"]
     lineas = csv.text.lstrip("﻿").splitlines()
-    assert lineas[0].startswith("Nube,Cuenta,Recurso,Tipo") and len(lineas) == 1 + 7
+    assert lineas[0].startswith("Nube,Cuenta,Recurso,Tipo") and len(lineas) == 1 + 12
     assert any(line.startswith("aws,Laboratorio,lab-datos,storage.bucket") for line in lineas)
 
 
@@ -236,3 +236,30 @@ def test_costos_de_aws_antes_de_la_primera_entrega(monkeypatch):
     assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "parcial"
     cuenta = next(c for c in vista()["accounts"] if c["uid"] == "aws:account/111111111111")
     assert (cuenta["cost_status"], cuenta["cost_30d"]) == ("sin_dato", None)
+
+
+def test_hallazgos_de_aws_en_la_bandeja_y_en_cumplimiento(monkeypatch):
+    """Las reglas AWS se evalúan en su propia corrida y evidencian CIS AWS e ISO."""
+    from app.providers.aws.provider import AwsProvider
+    from app.readmodel import cumplimiento, queries
+    from tests.contract.proveedores import FabricaAws
+
+    recolectar(FabricaMemoria().normal())
+    with db.session_scope() as s:
+        antes = {m["id"] for m in cumplimiento.cumplimiento(s)["frameworks"]}
+    assert "cis-aws-3.0.0" not in antes, "sin AWS conectado el marco no aparece"
+
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls: FabricaAws().normal()))
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+    assert run.ejecutar("findings_aws", run.hallazgos_aws, ctx) == "ok"
+
+    with db.session_scope() as s:
+        bandeja = queries.hallazgos(s)
+        vista = cumplimiento.cumplimiento(s)
+    reglas = {h["rule_id"] for h in bandeja["items"]}
+    assert {"aws.network.admin-port-open", "aws.cost.unattached-volume", "web.https-not-enforced"} <= reglas
+    cis_aws = next(m for m in vista["frameworks"] if m["id"] == "cis-aws-3.0.0")
+    controles = {c["id"]: c["status"] for c in cis_aws["controls"]}
+    assert controles["5.2"] == "no_cumple" and controles["1.5"] == "cumple"
+    assert "aws.network.admin-port-open" not in vista["failed_rules"]

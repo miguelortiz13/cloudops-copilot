@@ -191,19 +191,63 @@ class _PaginadorGrabado:
 class ClienteAwsGrabado:
     """Doble de boto3: Organizations, Resource Explorer, Athena, Glue y S3 sobre respuestas grabadas."""
 
-    def __init__(self, inventario_roto=False, athena_falla=False, export_vacio=False):
+    def __init__(self, inventario_roto=False, athena_falla=False, export_vacio=False, s3_falla=False):
         aws = GRABACIONES.parent / "aws"
         self._datos = {**json.loads((aws / "inventario.json").read_text(encoding="utf-8")),
-                       **json.loads((aws / "costos.json").read_text(encoding="utf-8"))}
+                       **json.loads((aws / "costos.json").read_text(encoding="utf-8")),
+                       **json.loads((aws / "seguridad.json").read_text(encoding="utf-8"))}
         self._roto, self._athena_falla, self._export_vacio = inventario_roto, athena_falla, export_vacio
+        self._s3_falla = s3_falla
+        self._servicio = ""
         self.consultas: List[str] = []
         self._estados = iter(["QUEUED", "RUNNING", "FAILED" if athena_falla else "SUCCEEDED"])
 
-    def __call__(self, servicio: str):
+    def __call__(self, servicio: str, **kw):
+        self._servicio = servicio
         return self
 
     def get_paginator(self, operacion: str):
         return _PaginadorGrabado(self._datos[operacion], self._roto and operacion == "list_resources")
+
+    @staticmethod
+    def _error(codigo: str, operacion: str):
+        from botocore.exceptions import ClientError
+
+        return ClientError({"Error": {"Code": codigo, "Message": codigo}}, operacion)
+
+    # STS, EC2, RDS, IAM y S3 (reglas de seguridad)
+    def get_caller_identity(self):
+        return {"Account": "111111111111"}
+
+    def assume_role(self, RoleArn, RoleSessionName):
+        if ":role/lab-reader" not in RoleArn:
+            raise self._error("AccessDenied", "AssumeRole")
+        return {"Credentials": {"AccessKeyId": "ASIA", "SecretAccessKey": "s", "SessionToken": "t"}}
+
+    def describe_security_groups(self, GroupIds):
+        return {"SecurityGroups": [g for g in self._datos["describe_security_groups"]["SecurityGroups"] if g["GroupId"] in GroupIds]}
+
+    def describe_network_interfaces(self, Filters):
+        return self._datos["describe_network_interfaces"]
+
+    def describe_volumes(self, VolumeIds):
+        return self._datos["describe_volumes"]
+
+    def describe_addresses(self):
+        return self._datos["describe_addresses"]
+
+    def get_account_summary(self):
+        return self._datos["get_account_summary"]
+
+    def get_public_access_block(self, **kw):
+        if self._s3_falla:
+            raise self._error("AccessDenied", "GetPublicAccessBlock")
+        if self._servicio == "s3control":  # la cuenta no tiene bloqueo propio
+            raise self._error("NoSuchPublicAccessBlockConfiguration", "GetPublicAccessBlock")
+        return self._datos["s3_bucket_public_access_block"]
+
+    def get_bucket_policy_status(self, Bucket):
+        return self._datos["get_bucket_policy_status"]
 
     # Athena
     def start_query_execution(self, QueryString, WorkGroup):
@@ -229,20 +273,24 @@ class FabricaAws:
     cuenta_con_costos: str = "aws:account/111111111111"
     # El export cubre a toda la organización: no hay cuentas sin permiso de costos.
     cuenta_sin_permiso_de_costos: Optional[str] = None
-    regla_que_puede_fallar: str = ""
+    regla_que_puede_fallar: str = "aws.storage.public-access-not-blocked"
 
     def _armar(self, **kw):
         from app.providers.aws.provider import AwsProvider
 
-        return AwsProvider(ClienteAwsGrabado(**kw), "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1",
+        cliente = ClienteAwsGrabado(**kw)
+        return AwsProvider(cliente, "arn:aws:resource-explorer-2:us-east-1:111111111111:view/v/1",
                            costos={"database": "lab_costos", "table": "focus", "workgroup": "lab-costos"},
-                           pausa=lambda s: None)
+                           pausa=lambda s: None, rol_miembro="lab-reader", sesion=lambda credenciales: cliente)
 
     def normal(self):
         return self._armar()
 
     def inventario_roto(self):
         return self._armar(inventario_roto=True)
+
+    def regla_sin_evidencia(self):
+        return self._armar(s3_falla=True)
 
     def sin_iac(self):
         return self._armar()

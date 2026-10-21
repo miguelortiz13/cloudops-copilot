@@ -13,6 +13,13 @@ El catalogo es la fuente de verdad: el recolector lo sincroniza con la tabla
 
 * CIS Microsoft Azure Foundations Benchmark 2.0.0, la version que Azure Policy
   publica como iniciativa integrada (los numeros cambian entre versiones).
+* CIS Amazon Web Services Foundations Benchmark 3.0.0, la version de los
+  controles de Security Hub (sin activar Security Hub: las reglas las evalua
+  la plataforma con llamadas de lectura).
+
+Cada regla pertenece a un proveedor: la evalua su recolector de hallazgos
+(`findings` en Azure, `findings_aws` en AWS) y solo cuenta para los controles
+de su marco y de ISO.
 * ISO/IEC 27001:2022, Anexo A.
 
 Solo se listan los controles que alguna regla o la clasificacion de activos
@@ -47,14 +54,21 @@ class Regla(NamedTuple):
     # marco -> ((control, alcance), ...)
     frameworks: Dict[str, Tuple[Tuple[str, str], ...]]
     references: Tuple[str, ...] = ()
+    proveedor: str = "azure"
 
 
 CIS = "cis-azure-2.0.0"
+CIS_AWS = "cis-aws-3.0.0"
 ISO = "iso-27001-2022"
+
+# Recolector que evalua las reglas de cada proveedor (app/collectors/run.py).
+RECOLECTOR_DE_HALLAZGOS = {"azure": "findings", "aws": "findings_aws"}
 
 MARCOS: Dict[str, Marco] = {
     CIS: Marco(CIS, "CIS Microsoft Azure Foundations Benchmark", "2.0.0",
                "https://www.cisecurity.org/benchmark/azure"),
+    CIS_AWS: Marco(CIS_AWS, "CIS Amazon Web Services Foundations Benchmark", "3.0.0",
+                   "https://www.cisecurity.org/benchmark/amazon_web_services"),
     ISO: Marco(ISO, "ISO/IEC 27001:2022 · Anexo A", "2022",
                "https://www.iso.org/standard/27001"),
 }
@@ -68,6 +82,12 @@ _CONTROLES: List[Control] = [
     Control(CIS, "7.4", "Ensure that 'Unattached disks' are encrypted with 'Customer Managed Key' (CMK)"),
     Control(CIS, "8.7", "Ensure that Private Endpoints are Used for Azure Key Vault"),
     Control(CIS, "9.2", "Ensure Web App Redirects All HTTP traffic to HTTPS in Azure App Service"),
+    Control(CIS_AWS, "1.5", "Ensure MFA is enabled for the 'root' user account"),
+    Control(CIS_AWS, "2.1.4", "Ensure that S3 is configured with 'Block Public Access' enabled"),
+    Control(CIS_AWS, "2.2.1", "Ensure EBS volume encryption is enabled in all regions"),
+    Control(CIS_AWS, "2.3.3", "Ensure that public access is not given to RDS Instance"),
+    Control(CIS_AWS, "5.2", "Ensure no security groups allow ingress from 0.0.0.0/0 to remote server administration ports"),
+    Control(CIS_AWS, "5.3", "Ensure no security groups allow ingress from ::/0 to remote server administration ports"),
     Control(ISO, "A.5.9", "Inventario de información y otros activos asociados"),
     Control(ISO, "A.5.12", "Clasificación de la información"),
     Control(ISO, "A.5.14", "Transferencia de información"),
@@ -149,12 +169,78 @@ REGLAS: Dict[str, Regla] = {
         "provisioningState = Failed en cualquier tipo de recurso.",
         {ISO: (("A.8.9", "directa"),)},
     ),
+    # ---------------------------------------------------------------- AWS
+    "aws_sg": Regla(
+        "aws.network.admin-port-open", "security", "Security group con puerto de administración abierto a internet", "alta",
+        "Restringir el origen a rangos corporativos o usar Session Manager en lugar de SSH/RDP.",
+        "Una regla de entrada de un security group permite SSH (22) o RDP (3389) desde cualquier dirección. "
+        "Es la vía de entrada más atacada: los escaneos automáticos prueban credenciales en minutos.",
+        "Reglas de entrada con origen 0.0.0.0/0 o ::/0 cuyo rango de puertos incluye 22 o 3389 (o todos los "
+        "puertos). Sube a crítica si el grupo está asociado a alguna interfaz de red.",
+        {CIS_AWS: (("5.2", "directa"), ("5.3", "directa")), ISO: (("A.8.20", "directa"), ("A.8.22", "parcial"))},
+        ("https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html",), "aws",
+    ),
+    "aws_s3": Regla(
+        "aws.storage.public-access-not-blocked", "security", "Bucket S3 sin bloqueo de acceso público", "alta",
+        "Activar las cuatro opciones de Block Public Access en la cuenta (cubre todos los buckets) o en el bucket.",
+        "Ni la cuenta ni el bucket bloquean el acceso público: basta una política o una ACL para exponer su "
+        "contenido sin credenciales.",
+        "Block Public Access incompleto en la cuenta y en el bucket. Sube a crítica si la política del bucket "
+        "ya lo hace público.",
+        {CIS_AWS: (("2.1.4", "directa"),), ISO: (("A.5.15", "directa"), ("A.8.3", "directa"), ("A.8.12", "parcial"))},
+        ("https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",), "aws",
+    ),
+    "aws_rds": Regla(
+        "aws.database.public-network", "security", "Instancia RDS accesible públicamente", "alta",
+        "Desactivar PubliclyAccessible y conectarse desde la VPC.",
+        "La instancia tiene una dirección pública y su acceso queda en manos de los security groups, que suelen "
+        "abrirse de más.",
+        "PubliclyAccessible = true.",
+        {CIS_AWS: (("2.3.3", "directa"),), ISO: (("A.8.20", "directa"), ("A.8.3", "parcial"))},
+        ("https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html",), "aws",
+    ),
+    "aws_ebs": Regla(
+        "aws.storage.disk-unencrypted", "security", "Volumen EBS sin cifrar", "media",
+        "Activar el cifrado por defecto de EBS en la región y migrar el volumen a uno cifrado (snapshot cifrada).",
+        "El volumen guarda sus datos sin cifrar. El control CIS pide el cifrado por defecto en la región; la regla "
+        "mira cada volumen, por eso la evidencia es parcial.",
+        "Volúmenes con Encrypted = false.",
+        {CIS_AWS: (("2.2.1", "parcial"),), ISO: (("A.8.24", "directa"),)},
+        ("https://docs.aws.amazon.com/ebs/latest/userguide/encryption-by-default.html",), "aws",
+    ),
+    "aws_root": Regla(
+        "aws.identity.root-without-mfa", "security", "Usuario root sin MFA", "critica",
+        "Activar MFA (llave física o passkey) para el usuario root y no usarlo en el día a día.",
+        "El usuario root tiene acceso total a la cuenta y no se puede restringir con políticas: sin MFA, una "
+        "contraseña filtrada entrega la cuenta entera.",
+        "AccountMFAEnabled = 0 en el resumen de IAM de la cuenta.",
+        {CIS_AWS: (("1.5", "directa"),), ISO: (("A.5.15", "parcial"),)},
+        ("https://docs.aws.amazon.com/IAM/latest/UserGuide/enable-virt-mfa-for-root.html",), "aws",
+    ),
+    # Recursos sin uso: cobran sin servir a nada. No evidencian controles.
+    "aws_ebs_libre": Regla(
+        "aws.cost.unattached-volume", "cost", "Volumen EBS sin adjuntar", "media",
+        "Tomar una snapshot si los datos importan y borrar el volumen.",
+        "El volumen no está conectado a ninguna instancia y se cobra por GB al mes igual que si lo estuviera.",
+        "Volúmenes en estado available.",
+        {}, ("https://docs.aws.amazon.com/ebs/latest/userguide/ebs-deleting-volume.html",), "aws",
+    ),
+    "aws_eip_libre": Regla(
+        "aws.cost.unassociated-elastic-ip", "cost", "IP elástica sin asociar", "media",
+        "Liberar la dirección si no se va a usar.",
+        "AWS cobra cada dirección IPv4 pública por hora, esté asociada o no; una sin asociar es gasto sin uso.",
+        "Direcciones elásticas sin AssociationId.",
+        {}, ("https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html",), "aws",
+    ),
 }
 
 # Nombre de la consulta de SecOpsService que alimenta cada tipo: si la
 # consulta fallo, los hallazgos de esa regla no pueden darse por resueltos.
 CONSULTA_DE_TIPO = {"nsg": "nsgs", "storage": "storage", "keyvault": "keyvaults", "sql": "sql",
-                    "https": "https", "disco": "discos", "failed": "failed"}
+                    "https": "https", "disco": "discos", "failed": "failed",
+                    # AWS: llamada que evalua cada regla (app/providers/aws/seguridad.py).
+                    "aws_sg": "security_groups", "aws_s3": "s3", "aws_rds": "rds", "aws_ebs": "ebs", "aws_root": "iam",
+                    "aws_ebs_libre": "ebs", "aws_eip_libre": "eips"}
 
 POR_ID: Dict[str, Regla] = {r.id: r for r in REGLAS.values()}
 
@@ -178,6 +264,8 @@ def validar() -> List[str]:
     if set(REGLAS) != set(CONSULTA_DE_TIPO):
         errores.append("cada tipo necesita su consulta")
     for r in REGLAS.values():
+        if r.proveedor not in RECOLECTOR_DE_HALLAZGOS:
+            errores.append(f"{r.id}: proveedor desconocido {r.proveedor}")
         for marco, controles in r.frameworks.items():
             if marco not in MARCOS:
                 errores.append(f"{r.id}: marco desconocido {marco}")

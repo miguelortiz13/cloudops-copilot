@@ -1,0 +1,106 @@
+{
+  "_nota": "Respuestas ficticias con la forma real de las llamadas de lectura que evalúan las reglas AWS del catálogo.",
+  "describe_security_groups": {
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-abierto",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-cerrado",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [
+              {
+                "CidrIp": "10.0.0.0/8"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "describe_network_interfaces": {
+    "NetworkInterfaces": [
+      {
+        "Groups": [
+          {
+            "GroupId": "sg-abierto"
+          }
+        ]
+      }
+    ]
+  },
+  "describe_volumes": {
+    "Volumes": [
+      {
+        "VolumeId": "vol-suelto",
+        "Encrypted": false,
+        "State": "available",
+        "Size": 8,
+        "VolumeType": "gp3"
+      }
+    ]
+  },
+  "describe_addresses": {
+    "Addresses": [
+      {
+        "AllocationId": "eipalloc-libre",
+        "PublicIp": "203.0.113.10"
+      }
+    ]
+  },
+  "describe_db_instances": [
+    {
+      "DBInstances": [
+        {
+          "DBInstanceArn": "arn:aws:rds:us-east-1:111111111111:db:pagos",
+          "PubliclyAccessible": true,
+          "Engine": "postgres"
+        }
+      ]
+    }
+  ],
+  "get_account_summary": {
+    "SummaryMap": {
+      "AccountMFAEnabled": 1
+    }
+  },
+  "s3_bucket_public_access_block": {
+    "PublicAccessBlockConfiguration": {
+      "BlockPublicAcls": true,
+      "IgnorePublicAcls": true,
+      "BlockPublicPolicy": false,
+      "RestrictPublicBuckets": false
+    }
+  },
+  "get_bucket_policy_status": {
+    "PolicyStatus": {
+      "IsPublic": false
+    }
+  }
+}

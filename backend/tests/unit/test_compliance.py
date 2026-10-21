@@ -94,7 +94,8 @@ def test_el_catalogo_es_coherente():
 def test_cada_regla_tiene_detalle_y_al_menos_un_control():
     for r in catalog.REGLAS.values():
         assert r.description and r.detection and r.remediation, r.id
-        assert any(r.frameworks.values()), r.id
+        # Las de costo (recursos sin uso) no evidencian controles de seguridad.
+        assert r.capability == "cost" or any(r.frameworks.values()), r.id
 
 
 def test_el_recolector_guarda_el_mapeo_en_la_base():
