@@ -6,7 +6,8 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
 
 Orden: migraciones -> inventario (Azure y, si esta configurado, AWS) -> clasificacion ISO
 (costos de AWS despues de los de Azure) -> costos -> hallazgos -> KPIs -> cache de la
-vision general de costos -> vistas precalculadas para el panel (app/readmodel). Cada
+vision general de costos -> vistas precalculadas para el panel (app/readmodel) -> avisos
+(app/collectors/notify.py). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
 de salida es 1 si alguno termino en error, para que Container Apps lo marque
@@ -23,7 +24,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, Dict, List
 
-from app.collectors import classification, costs, findings, inventory, kpis
+from app.collectors import classification, costs, findings, inventory, kpis, notify
 from app.collectors.common import Contexto, Resultado, ahora
 from app.db import engine as db
 from app.db.models import CollectorRun
@@ -115,6 +116,8 @@ RECOLECTORES: Dict[str, Callable] = {
     "kpis": kpis.recolectar,
     "costcache": precalentar_costos_en_vivo,
     "readmodel": precalcular_vistas,
+    # Al final: avisa de lo que dejaron los pasos anteriores de esta misma corrida.
+    "notify": notify.recolectar,
 }
 
 # Reanudar una base serverless pausada puede tardar; el job tiene tiempo.

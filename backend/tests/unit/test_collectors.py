@@ -362,3 +362,63 @@ def test_una_regla_sin_evidencia_no_resuelve_sus_hallazgos_en_ninguna_nube():
                                   proveedor=proveedor, cuentas=proveedor.cuentas()))
     assert r.status == "parcial" and r.detail["rules_without_evidence"] == [fabrica.regla_que_puede_fallar]
     assert r.detail["resueltos"] == 0
+
+
+# ---------------------------------------------------------------- avisos
+
+class Webhook:
+    def __init__(self, codigo=200):
+        self.enviados, self.codigo = [], codigo
+
+    def __call__(self, url, json=None, timeout=None):
+        self.enviados.append((url, json))
+        return type("R", (), {"status_code": self.codigo})()
+
+
+def avisar(monkeypatch, momento, webhook, url="https://prod.westus.logic.azure.com/workflows/x?sig=SECRETO"):
+    from app.collectors import notify
+    monkeypatch.setenv("NOTIFY_WEBHOOK_URL", url)
+    monkeypatch.setattr(notify.requests, "post", webhook)
+    return run.ejecutar("notify", notify.recolectar, contexto(momento))
+
+
+def test_un_hallazgo_critico_se_avisa_una_sola_vez(monkeypatch):
+    sec = SecOps()
+    sec.findings = [hallazgo_kv()]
+    correr(findings, contexto(sec=sec))
+    webhook = Webhook()
+
+    assert avisar(monkeypatch, DIA, webhook) == "ok"
+    assert len(webhook.enviados) == 1
+    tarjeta = webhook.enviados[0][1]["attachments"][0]["content"]
+    assert "kv1" in tarjeta["body"][1]["text"] and tarjeta["actions"][0]["url"].endswith("/#/secops/gestion")
+
+    # Sigue abierto al dia siguiente: no hay evento nuevo, no se repite.
+    correr(findings, contexto(DIA + timedelta(days=1), sec=sec))
+    assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
+    assert len(webhook.enviados) == 1
+
+
+def test_si_el_webhook_falla_se_reintenta_sin_exponer_la_url(monkeypatch):
+    sec = SecOps()
+    sec.findings = [hallazgo_kv()]
+    correr(findings, contexto(sec=sec))
+
+    assert avisar(monkeypatch, DIA, Webhook(500)) == "error"
+    with db.session_scope() as s:
+        error = s.scalars(select(CollectorRun).where(CollectorRun.collector == "notify")).one().error
+    assert "SECRETO" not in error and "500" in error
+
+    webhook = Webhook()
+    assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
+    assert len(webhook.enviados) == 1
+
+
+def test_dos_fallas_seguidas_de_un_recolector_se_avisan_por_slack(monkeypatch):
+    with db.session_scope() as s:
+        for dias in (2, 1):
+            momento = DIA - timedelta(days=dias) + timedelta(hours=1)
+            s.add(CollectorRun(collector="costs", started_at=momento, finished_at=momento, status="error", items=0, detail={}))
+    webhook = Webhook()
+    assert avisar(monkeypatch, DIA, webhook, url="https://hooks.slack.com/services/T/B/x") == "ok"
+    assert "costs" in webhook.enviados[0][1]["text"]

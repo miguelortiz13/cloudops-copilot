@@ -22,6 +22,9 @@ locals {
     # Mismo File Share que el API: ahi deja las vistas precalculadas del panel
     # (app/readmodel), para que leerlas no despierte la base.
     DATA_DIR = local.data_mount_path
+    # Titulo y enlace de los avisos (app/collectors/notify.py).
+    APP_NAME     = var.app_display_name
+    FRONTEND_URL = module.web.url
   }
   # Federación con AWS (aws.tf): rol a asumir y audiencia del token de Entra.
   aws_env = local.aws_enabled ? {
@@ -55,4 +58,8 @@ module "collector" {
   command = ["python", "-m", "app.collectors.run"]
   volumes = { (local.data_share) = local.data_mount_path }
   env     = merge(local.collector_env, local.aws_env)
+
+  # La URL del webhook es una credencial: va como secreto, no como variable.
+  secrets    = local.notify_enabled ? { "notify-webhook-url" = var.notify_webhook_url } : {}
+  secret_env = local.notify_enabled ? { NOTIFY_WEBHOOK_URL = "notify-webhook-url" } : {}
 }

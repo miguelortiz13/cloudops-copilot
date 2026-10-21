@@ -90,7 +90,7 @@ Completa:
 - las cuentas de estados de Terraform (incluida la de la propia plataforma, para que se reconozca como gestionada);
 - tu nombre en `org_name`.
 
-La clave de Gemini, si la usas, mejor como variable de entorno: `export TF_VAR_gemini_api_key=...`.
+La clave de Gemini y el webhook de avisos, si los usas, mejor como variables de entorno: `export TF_VAR_gemini_api_key=...` y `export TF_VAR_notify_webhook_url=...`.
 
 ### 3. Desplegar
 

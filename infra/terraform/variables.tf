@@ -133,6 +133,13 @@ variable "local_redirect_uris" {
 # ---------------------------------------------------------------------------
 # Motor cognitivo (opcional)
 # ---------------------------------------------------------------------------
+variable "notify_webhook_url" {
+  description = "Webhook de Teams (Workflows) o Slack para los avisos del job. Vacio = sin avisos."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "gemini_api_key" {
   description = "API key de Google Gemini. Vacia = motor de reglas local."
   type        = string
