@@ -26,7 +26,7 @@ showback_tags  = ["Project", "Environment"]
 # Motor cognitivo (opcional). Mejor como variable de entorno: TF_VAR_gemini_api_key
 # gemini_api_key = ""
 
-# Avisos del job a Teams (Workflows) o Slack (opcional). Es una credencial:
+# Avisos del job a Discord, Slack o Teams (Workflows) (opcional). Es una credencial:
 # mejor como variable de entorno, TF_VAR_notify_webhook_url
 # notify_webhook_url = ""
 

@@ -1,7 +1,7 @@
 """
 Avisos al terminar el job (fase 3; eventos en docs/plan/02-arquitectura-objetivo.md#eventos-y-acciones).
 
-Envia a un webhook (Teams Workflows o Slack, segun el host de `NOTIFY_WEBHOOK_URL`):
+Envia a un webhook (Discord, Slack o Teams Workflows, segun el host de `NOTIFY_WEBHOOK_URL`):
 
 - `finding.opened`: hallazgos de severidad alta o critica detectados, reabiertos
   o con la aceptacion vencida desde el ultimo aviso.
@@ -94,7 +94,11 @@ def mensaje(hallazgos: List[Dict], caidos: List[str]) -> Dict[str, object]:
 
 def payload(url: str, m: Dict[str, object]) -> Dict[str, object]:
     texto = "\n".join(m["lineas"])
-    if (urlparse(url).hostname or "").endswith("hooks.slack.com"):
+    host = urlparse(url).hostname or ""
+    if host in ("discord.com", "discordapp.com"):
+        # Discord ya entiende **negrita**; la descripción de un embed admite 4096 caracteres.
+        return {"embeds": [{"title": m["titulo"], "description": texto[:4096], "url": m["enlace"], "color": 0xEF4444}]}
+    if host.endswith("hooks.slack.com"):
         return {"text": f"*{m['titulo']}*\n{texto.replace('**', '*')}\n<{m['enlace']}|Abrir en el panel>"}
     # Teams: webhook de Workflows con tarjeta adaptable (los conectores de Office 365 se retiraron).
     return {"type": "message", "attachments": [{

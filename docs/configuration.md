@@ -53,7 +53,7 @@ Sin Service Principal, el agente usa `DefaultAzureCredential`: la **identidad ad
 | `BOT_AUTH_ENABLED` | `true` | Valida el JWT de Bot Framework en el webhook de Teams |
 | `MICROSOFT_APP_ID` | `AZURE_CLIENT_ID` | App Id del bot (audiencia esperada) |
 | `TEAMS_WEBHOOK_URL` | vacío | Webhook entrante opcional para el reporte semanal |
-| `NOTIFY_WEBHOOK_URL` | vacío | Webhook de Teams (Workflows) o Slack para los avisos del job: hallazgos altos o críticos nuevos y recolectores con dos fallas seguidas. En Terraform, `TF_VAR_notify_webhook_url` |
+| `NOTIFY_WEBHOOK_URL` | vacío | Webhook de Discord, Slack o Teams (Workflows) para los avisos del job: hallazgos altos o críticos nuevos y recolectores con dos fallas seguidas. En Terraform, `TF_VAR_notify_webhook_url` |
 
 ## Costos (Cost Management)
 

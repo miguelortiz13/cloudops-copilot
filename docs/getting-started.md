@@ -4,7 +4,7 @@
 
 | Herramienta | Versión | Para |
 |---|---|---|
-| Python | 3.11+ (probado con 3.12 y 3.13) | Backend |
+| Python | 3.11+ (probado con 3.13) | Backend |
 | Node.js | 20+ (probado con 22) | Frontend |
 | Azure CLI | 2.60+ | Autenticación local y despliegue |
 | Terraform | 1.5+ | Solo para desplegar |

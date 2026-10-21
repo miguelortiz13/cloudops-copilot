@@ -422,3 +422,13 @@ def test_dos_fallas_seguidas_de_un_recolector_se_avisan_por_slack(monkeypatch):
     webhook = Webhook()
     assert avisar(monkeypatch, DIA, webhook, url="https://hooks.slack.com/services/T/B/x") == "ok"
     assert "costs" in webhook.enviados[0][1]["text"]
+
+
+def test_discord_recibe_un_embed_con_enlace(monkeypatch):
+    sec = SecOps()
+    sec.findings = [hallazgo_kv()]
+    correr(findings, contexto(sec=sec))
+    webhook = Webhook(204)
+    assert avisar(monkeypatch, DIA, webhook, url="https://discord.com/api/webhooks/1/x") == "ok"
+    embed = webhook.enviados[0][1]["embeds"][0]
+    assert "kv1" in embed["description"] and embed["url"].endswith("/#/secops/gestion")
