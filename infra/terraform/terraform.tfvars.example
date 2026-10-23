@@ -30,6 +30,10 @@ showback_tags  = ["Project", "Environment"]
 # mejor como variable de entorno, TF_VAR_notify_webhook_url
 # notify_webhook_url = ""
 
+# Presupuesto mensual en USD por nube: avisa al 80 % y al 100 %, y si el
+# pronóstico del mes lo supera.
+# monthly_budgets_usd = { azure = 5, aws = 5 }
+
 # Miembros de cada grupo de seguridad de la plataforma (Admin, Operator,
 # Reader). Vacío = quien aplica Terraform, en Admin.
 # Ver docs/security.md#autorización-por-rol.
