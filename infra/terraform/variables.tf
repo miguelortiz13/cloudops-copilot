@@ -133,6 +133,12 @@ variable "local_redirect_uris" {
 # ---------------------------------------------------------------------------
 # Motor cognitivo (opcional)
 # ---------------------------------------------------------------------------
+variable "monthly_budgets_usd" {
+  description = "Presupuesto mensual en USD por nube para los avisos del job, p. ej. { azure = 5, aws = 5 }. Vacio = sin avisos de presupuesto."
+  type        = map(number)
+  default     = {}
+}
+
 variable "notify_webhook_url" {
   description = "Webhook de Discord, Slack o Teams (Workflows) para los avisos del job. Vacio = sin avisos."
   type        = string

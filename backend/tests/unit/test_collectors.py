@@ -432,3 +432,51 @@ def test_discord_recibe_un_embed_con_enlace(monkeypatch):
     assert avisar(monkeypatch, DIA, webhook, url="https://discord.com/api/webhooks/1/x") == "ok"
     embed = webhook.enviados[0][1]["embeds"][0]
     assert "kv1" in embed["description"] and embed["url"].endswith("/#/secops/gestion")
+
+
+def gasto(dia, monto, cuenta=f"azure:sub/{SUB}"):
+    with db.session_scope() as s:
+        s.add(CostDaily(charge_date=dia, account_uid=cuenta, resource_uid="", service_name="x",
+                        billed_cost=monto, effective_cost=monto, currency="USD", source="query"))
+
+
+def test_una_anomalia_sembrada_se_avisa_una_vez(monkeypatch):
+    monkeypatch.delenv("MONTHLY_BUDGETS_USD", raising=False)
+    for i in range(2, 17):
+        gasto(DIA.date() - timedelta(days=i), 0.20)
+    gasto(DIA.date() - timedelta(days=1), 3.00)  # 15 veces la media
+    webhook = Webhook()
+
+    assert avisar(monkeypatch, DIA, webhook) == "ok"
+    embed = webhook.enviados[0][1]["attachments"][0]["content"]["body"][1]["text"]
+    assert "Gasto diario anómalo" in embed and "3.00 USD" in embed
+
+    # El dia sigue en la ventana de revision al dia siguiente: no se repite.
+    assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
+    assert len(webhook.enviados) == 1
+
+
+def test_un_gasto_normal_no_es_anomalia(monkeypatch):
+    monkeypatch.delenv("MONTHLY_BUDGETS_USD", raising=False)
+    for i in range(1, 17):
+        gasto(DIA.date() - timedelta(days=i), 0.20 + (i % 3) * 0.05)
+    webhook = Webhook()
+    assert avisar(monkeypatch, DIA, webhook) == "ok" and webhook.enviados == []
+
+
+def test_el_presupuesto_avisa_al_80_y_al_100_una_vez_cada_uno(monkeypatch):
+    monkeypatch.setenv("MONTHLY_BUDGETS_USD", "azure=5,aws=5")
+    for d in range(1, 8):
+        gasto(date(2026, 10, d), 0.60)  # 4.20 de 5: 84 %
+    webhook = Webhook()
+
+    assert avisar(monkeypatch, DIA, webhook) == "ok"
+    texto = webhook.enviados[0][1]["attachments"][0]["content"]["body"][1]["text"]
+    assert "AZURE llegó al 80 % de su presupuesto: 4.20 de 5.00" in texto and "AWS" not in texto
+
+    assert avisar(monkeypatch, DIA + timedelta(hours=1), webhook) == "ok"
+    assert len(webhook.enviados) == 1
+
+    gasto(date(2026, 10, 8), 1.00)
+    assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
+    assert "AZURE superó su presupuesto: 5.20" in webhook.enviados[1][1]["attachments"][0]["content"]["body"][1]["text"]
