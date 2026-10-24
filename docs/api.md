@@ -94,6 +94,22 @@ Solo para el rol administrador. Abren la base (la despiertan si estaba pausada):
 | `POST` | `/api/k8s/chat` | Chat del agente SRE con contexto del clúster |
 | `POST` | `/api/k8s/reinit` | Reinicializa la conexión |
 
+## Historia, hallazgos y reportes (desde la base)
+
+Responden desde las vistas que deja el job ([modelo de datos](data-model.md#lecturas-sin-abrir-la-base)). Sin base configurada, o con la base pausada por agotar el cupo gratuito, responden `503` y el panel vuelve a las vistas en vivo. `accounts` es el filtro del panel: uids separados por coma (vacío = todas).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/accounts` | Cuentas de todas las nubes para el filtro del panel |
+| `GET` | `/api/history/costs?period=&accounts=` | Costos por periodo (`7d`, `30d`, `90d`, `mtd`, `last_month`): total, comparación, serie diaria, por servicio, cuenta, recurso y mes |
+| `GET` | `/api/history/kpis?days=` | KPIs de gobernanza de 7 a 400 días |
+| `GET` | `/api/findings` | Hallazgos de todas las nubes con su estado |
+| `GET` | `/api/findings/{id}/events` | Historia de un hallazgo |
+| `POST` | `/api/findings/{id}/status` | **Operador.** Asumir, aceptar con vencimiento o reabrir; queda auditado |
+| `GET` | `/api/inventory/report` | Inventario multinube por cuenta, tipo y región, con gasto y cobertura de Terraform |
+| `GET` | `/api/inventory/report/export?accounts=` | El mismo inventario en CSV |
+| `GET` | `/api/reports/monthly?month=AAAA-MM` | Reporte ejecutivo del mes en PDF ([avisos y reportes](modules/notifications-reports.md)) |
+
 ## Pipeline de inventario
 
 | Método | Ruta | Descripción |
@@ -110,7 +126,7 @@ Solo para el rol administrador. Abren la base (la despiertan si estaba pausada):
 
 ## Heredados y en desuso
 
-Se conservan por compatibilidad con versiones anteriores del panel. Serán retirados (ver [roadmap](roadmap.md)).
+Se conservan por compatibilidad con versiones anteriores del panel. Serán retirados (ver [pendientes](roadmap.md#deuda-técnica)).
 
 | Método | Ruta | Reemplazo |
 |---|---|---|

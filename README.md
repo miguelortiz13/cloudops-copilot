@@ -3,20 +3,22 @@
 [![CI](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/ci.yml)
 [![CD](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/cd.yml/badge.svg)](https://github.com/miguelortiz13/cloudops-copilot/actions/workflows/cd.yml)
 ![Azure](https://img.shields.io/badge/Cloud-Azure-0089D6?logo=microsoftazure&logoColor=white)
+![AWS](https://img.shields.io/badge/Cloud-AWS-232F3E?logo=amazonwebservices&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
 ![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Copiloto de operaciones cloud para Azure.** Reúne en un solo panel, y en un chat con agentes de IA, las preguntas que un equipo de plataforma se hace todos los días:
+**Copiloto de operaciones cloud para Azure y AWS.** Reúne en un solo panel, y en un chat con agentes de IA, las preguntas que un equipo de plataforma se hace todos los días:
 
-- **¿Qué tenemos?** Inventario multi-suscripción en tiempo real, con cumplimiento de tags y candidatos a Shadow IT.
-- **¿Cuánto cuesta y dónde se desperdicia?** FinOps sobre la factura real de Cost Management, no sobre tarifas supuestas.
+- **¿Qué tenemos?** Inventario de todas las suscripciones de Azure y cuentas de AWS en un solo modelo, con cumplimiento de tags, candidatos a Shadow IT y quién creó cada recurso.
+- **¿Cuánto cuesta y dónde se desperdicia?** FinOps sobre la facturación real (Cost Management y el export FOCUS de AWS), con presupuestos y anomalías.
 - **¿Qué está expuesto?** Hallazgos de seguridad ordenados por severidad y por el dinero que hay detrás.
 - **¿Qué está codificado?** Cobertura real de Terraform leída de los estados, y generación de HCL para importar lo que falta.
 - **¿Qué le pasa al clúster?** Diagnóstico de AKS con un agente SRE.
+- **¿Qué tengo que saber hoy?** Avisos en Discord, Slack o Teams y un reporte ejecutivo mensual en PDF.
 
-Todo con una identidad administrada de **solo lectura** sobre el tenant: la plataforma observa y recomienda; los cambios los aprueba y aplica una persona. Se despliega en Azure por centavos al mes: Container Apps con escala a cero, Static Web App gratuita y Entra ID ([despliegue](docs/deployment.md)).
+Todo con identidades de **solo lectura**: Reader en Azure y un rol de lectura en AWS asumido por federación, sin llaves guardadas: la plataforma observa y recomienda; los cambios los aprueba y aplica una persona. Se despliega en Azure por centavos al mes: Container Apps con escala a cero, un job diario, Azure SQL gratuita, Static Web App gratuita y Entra ID ([despliegue](docs/deployment.md)).
 
 ---
 
@@ -37,18 +39,17 @@ flowchart LR
     W -->|REST + Entra ID| A[API FastAPI<br/>Container Apps]
     B -->|JWT Bot Framework| A
 
-    subgraph API[Backend]
-      A --> S[Servicios de dominio<br/>inventario · costos · seguridad · IaC]
+    subgraph Plataforma
+      A --> FS[(File Share<br/>vistas precalculadas)]
+      J[Job diario<br/>Container Apps Job] --> DB[(Azure SQL<br/>modelo canónico)]
+      J --> FS
       A --> G[Agentes IA<br/>Gemini + motor de reglas]
-      G --> S
     end
 
-    S -->|KQL| ARG[(Azure Resource Graph)]
-    S --> CM[(Cost Management)]
-    S --> MON[(Azure Monitor)]
-    S --> TFS[(Estados de Terraform)]
-    S --> AKS[(AKS Run Command)]
-    S --> FS[(File Share<br/>caché e histórico)]
+    J -->|Reader| AZ[(Azure<br/>Resource Graph · Cost Management<br/>Activity Log · estados de Terraform)]
+    J -->|OIDC, solo lectura| AWS[(AWS<br/>Resource Explorer · FOCUS + Athena<br/>CloudTrail)]
+    A -->|en vivo| AZ
+    J --> N[Avisos y reporte mensual<br/>Discord · Slack · Teams]
 ```
 
 Detalle completo en [docs/architecture.md](docs/architecture.md).
@@ -78,24 +79,32 @@ Sin credenciales de Azure la plataforma arranca igual y responde en modo degrada
 | IaC | Cobertura real desde los estados de Terraform y generador de HCL con `import {}` | [iac.md](docs/modules/iac.md) |
 | Agentes de IA | Chat de inventario, FinOps y SecOps con contexto acotado y reglas compartidas | [ai-agents.md](docs/modules/ai-agents.md) |
 | Kubernetes SRE | Salud, incidentes y logs de AKS con comandos validados | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |
+| Avisos y reportes | Hallazgos críticos, recolectores caídos, anomalías de gasto y presupuestos en Discord, Slack o Teams; reporte ejecutivo mensual en PDF | [notifications-reports.md](docs/modules/notifications-reports.md) |
 | Teams | Bot conversacional y reportes proactivos | [teams.md](docs/integrations/teams.md) |
 
 ## Estructura del repositorio
 
 ```
 cloudops-copilot/
-├── backend/                  API FastAPI
+├── backend/                  API FastAPI y job diario (misma imagen)
 │   ├── app/
-│   │   ├── core/             configuración central y contenedor de servicios
+│   │   ├── core/             configuración central, contenedor de servicios, roles y auditoría
+│   │   ├── providers/        acceso a cada nube detrás de un contrato común (Azure y AWS)
+│   │   ├── collectors/       pasos del job diario: inventario, costos, hallazgos, KPIs, reporte y avisos
+│   │   ├── db/               modelo canónico (SQLAlchemy) sobre Azure SQL
+│   │   ├── readmodel/        vistas del panel desde la base, precalculadas
+│   │   ├── reports/          reporte ejecutivo mensual en PDF
 │   │   ├── agents/           agente de chat y generador de IaC
-│   │   ├── providers/        acceso a cada nube (hoy Azure: credenciales y Resource Graph)
 │   │   ├── routers/          endpoints REST por módulo
-│   │   ├── services/         lógica de dominio (inventario, costos, seguridad...)
+│   │   ├── services/         lógica de dominio de las vistas en vivo
 │   │   └── schemas/          modelos Pydantic
+│   ├── migrations/           migraciones de Alembic
 │   ├── pipelines/inventory/  pipeline semanal de inventario a Excel
-│   └── tests/                unitarias (sin Azure) e integración (tenant real)
-├── frontend/                 panel React + TypeScript + Vite (módulos, sistema de diseño, gráficos SVG)
-├── infra/terraform/          infraestructura de la plataforma en Azure
+│   └── tests/                unitarias, de contrato (respuestas grabadas) e integración
+├── frontend/                 panel React + TypeScript + Vite, con Vitest y Playwright
+├── infra/
+│   ├── terraform/            infraestructura de la plataforma en Azure
+│   └── modules/aws-onboarding/  federación, rol de lectura, Resource Explorer y export de costos en AWS
 ├── integrations/teams-bot/   manifiesto de la app de Teams
 ├── scripts/                  dev, bootstrap del estado, deploy y destroy
 └── docs/                     documentación
@@ -105,12 +114,14 @@ cloudops-copilot/
 
 Empieza por el [índice de documentación](docs/README.md). Lo más consultado:
 
+- [Requerimientos](docs/requirements.md), [arquitectura](docs/architecture.md), [flujos](docs/flows.md) y [modelo de datos](docs/data-model.md).
+- [Operación](docs/operations.md): recursos, costo y tareas del día a día.
 - [Configuración](docs/configuration.md): todas las variables de entorno.
 - [Despliegue en Azure](docs/deployment.md): permisos, Terraform y publicación.
 - [API](docs/api.md): catálogo de endpoints.
 - [Seguridad](docs/security.md): modelo de amenazas y controles.
 - [Plan de evolución](docs/plan/README.md): arquitectura objetivo, AWS y multinube, mejoras por módulo y hoja de ruta.
-- [Roadmap](docs/roadmap.md): tareas pendientes.
+- [Pendientes e integraciones futuras](docs/roadmap.md).
 
 ## Comandos útiles
 

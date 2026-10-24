@@ -2,7 +2,7 @@
 
 ## El problema
 
-Un equipo de plataforma en Azure suele tener la información que necesita repartida en cinco portales: Resource Graph para saber qué existe, Cost Management para saber cuánto cuesta, Defender o revisiones manuales para saber qué está expuesto, los estados de Terraform para saber qué está codificado, y `kubectl` para saber qué le pasa al clúster. Cada fuente responde una pregunta aislada, y las preguntas útiles cruzan varias:
+Un equipo de plataforma en Azure y AWS suele tener la información que necesita repartida en cinco portales por nube: Resource Graph o Resource Explorer para saber qué existe, Cost Management o la factura de AWS para saber cuánto cuesta, Defender o revisiones manuales para saber qué está expuesto, los estados de Terraform para saber qué está codificado, y `kubectl` para saber qué le pasa al clúster. Cada fuente responde una pregunta aislada, y las preguntas útiles cruzan varias:
 
 - *¿Cuál de las cuentas de almacenamiento públicas es la más cara?* (seguridad × costo)
 - *¿Qué recursos se crearon a mano esta semana y quién los creó?* (inventario × historial de cambios)
@@ -10,18 +10,19 @@ Un equipo de plataforma en Azure suele tener la información que necesita repart
 
 ## Qué es CloudOps Copilot
 
-Una capa de observación y recomendación sobre un tenant de Azure que:
+Una capa de observación y recomendación sobre Azure y AWS que:
 
 1. **Consolida** inventario, costo real, postura de seguridad, cobertura de IaC y salud de Kubernetes.
 2. **Cruza** esas fuentes con reglas de dominio definidas una sola vez y compartidas por el panel, los reportes y el chat.
 3. **Explica** en lenguaje natural, a través de agentes de IA que reciben el mismo contexto que muestra el panel.
-4. **Propone** remediaciones como código (HCL de Terraform, comandos `az`) para que una persona las revise y aplique.
+4. **Avisa** en Discord, Slack o Teams de hallazgos críticos, recolectores caídos, anomalías de gasto y presupuestos, y envía un reporte ejecutivo cada mes.
+5. **Propone** remediaciones como código (HCL de Terraform, comandos `az`) para que una persona las revise y aplique.
 
 ## Principios
 
 | Principio | En la práctica |
 |---|---|
-| **Solo lectura** | La identidad de la plataforma tiene rol `Reader`. Nada se modifica en Azure sin aprobación humana. La única excepción, el diagnóstico de AKS por Run Command, está acotada y validada (ver [security.md](security.md)). |
+| **Solo lectura** | La identidad de la plataforma tiene rol `Reader` en Azure y un rol de lectura en AWS, asumido por federación sin llaves. Nada se modifica en las nubes sin aprobación humana. La única excepción, el diagnóstico de AKS por Run Command, está acotada y validada (ver [security.md](security.md)). |
 | **Una definición por regla** | Qué es Shadow IT, un disco huérfano o un Key Vault expuesto vive en un solo módulo (`governance.py`, `kql.py`, `pricing.py`). Si el panel y el chat dan cifras distintas, es un bug. |
 | **Procedencia explícita** | Cada cifra declara si es facturación real, parcial o estimada, y sobre cuántas suscripciones se calculó. Nada se rellena con ceros. |
 | **Evidencia antes que heurística** | Un recurso en un estado de Terraform *está* gestionado; un tag solo dice que alguien lo etiquetó. La plataforma distingue ambas cosas. |
@@ -29,7 +30,7 @@ Una capa de observación y recomendación sobre un tenant de Azure que:
 
 ## Para quién
 
-- Equipos de plataforma, DevOps y SRE que operan Azure multi-suscripción.
+- Equipos de plataforma, DevOps y SRE que operan Azure multi-suscripción y AWS multicuenta.
 - Responsables de FinOps que necesitan showback por tag sobre la factura real.
 - Equipos de seguridad que quieren priorizar hallazgos por impacto.
 
@@ -37,7 +38,7 @@ Una capa de observación y recomendación sobre un tenant de Azure que:
 
 - **No es un CSPM completo.** Las reglas de seguridad cubren los hallazgos más frecuentes; no reemplazan a Defender for Cloud.
 - **No remedia automáticamente.** Genera código y comandos; aplicarlos es decisión del equipo.
-- **No es multi-nube (todavía).** Ver [roadmap.md](roadmap.md).
+- **No cubre todas las nubes (todavía).** Azure y AWS sí; GCP es el siguiente proveedor ([pendientes](roadmap.md#integraciones-futuras)).
 
 ## Origen
 
