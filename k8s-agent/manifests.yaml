@@ -18,6 +18,10 @@ rules:
   - apiGroups: [""]
     resources: [nodes, namespaces, pods, services, events]
     verbs: [get, list]
+  # Solo para las últimas líneas de los pods con problemas (INCLUDE_LOGS).
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets]
     verbs: [get, list]
@@ -73,6 +77,9 @@ spec:
                 secretKeyRef: {name: cloudops-agent, key: upload-url}
             - name: INTERVAL_SECONDS
               value: "300"
+            # false: la foto no lleva líneas de log de los pods con problemas.
+            - name: INCLUDE_LOGS
+              value: "true"
             - name: PYTHONDONTWRITEBYTECODE
               value: "1"
           resources:

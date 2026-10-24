@@ -233,3 +233,9 @@ variable "kubernetes_agent_sas_expiry" {
   type        = string
   default     = "2027-10-31"
 }
+
+variable "kubernetes_watch_cron" {
+  description = "Cada cuánto el job k8s-watch revisa las fotos de los clústeres y avisa (cron, UTC). Cada ejecución dura segundos y no abre la base."
+  type        = string
+  default     = "*/10 * * * *"
+}

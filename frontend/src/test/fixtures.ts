@@ -520,7 +520,12 @@ export const k8sHomelab: K8sClusterDetail = {
   ],
   problem_pods: [
     { namespace: 'monitoring', name: 'grafana-7d9c6b5f4-x2kqp', phase: 'Running', reason: 'CrashLoopBackOff', ready: 0, containers: 1,
-      restarts: 14, node: 'nodo-2', owner_kind: 'ReplicaSet', owner: 'grafana-7d9c6b5f4' },
+      restarts: 14, node: 'nodo-2', owner_kind: 'ReplicaSet', owner: 'grafana-7d9c6b5f4',
+      log: { container: 'grafana', previous: true, lines: [
+        'logger=settings t=2026-10-10T14:55:58Z level=info msg="Starting Grafana" version=11.3.0',
+        'logger=sqlstore t=2026-10-10T14:55:59Z level=error msg="Database error" error="unable to open database file: permission denied"',
+        'Error: ✗ failed to initialize database: unable to open database file: permission denied',
+      ] } },
   ],
   events: [
     { namespace: 'monitoring', kind: 'Pod', name: 'grafana-7d9c6b5f4-x2kqp', reason: 'BackOff',

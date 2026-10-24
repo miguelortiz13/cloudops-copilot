@@ -115,6 +115,17 @@ jobs:
             --image "${{ needs.image.outputs.ref }}" \
             --output none
 
+      # Avisos de Kubernetes (infra/terraform/kubernetes.tf): solo existe con
+      # clústeres y webhook configurados; su nombre sale del del recolector.
+      - name: Actualizar la imagen del job de avisos de Kubernetes
+        run: |
+          job="${{ vars.CONTAINER_APP_JOB }}"
+          job="${job%-collector}-k8s-watch"
+          if az containerapp job show --name "$job" --resource-group "${{ vars.RESOURCE_GROUP }}" --output none 2>/dev/null; then
+            az containerapp job update --name "$job" --resource-group "${{ vars.RESOURCE_GROUP }}" \
+              --image "${{ needs.image.outputs.ref }}" --output none
+          fi
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22

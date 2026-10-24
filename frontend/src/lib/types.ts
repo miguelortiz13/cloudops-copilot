@@ -655,6 +655,8 @@ export interface K8sWorkload { kind: string; namespace: string; name: string; de
 export interface K8sPod {
   namespace: string; name: string; phase: string; reason: string | null; ready: number; containers: number;
   restarts: number; node: string | null; owner_kind: string | null; owner: string | null;
+  /** Últimas líneas del contenedor con problemas (de la ejecución anterior si se reinició). */
+  log?: { container: string; previous: boolean; lines: string[] };
 }
 
 export interface K8sEvent {

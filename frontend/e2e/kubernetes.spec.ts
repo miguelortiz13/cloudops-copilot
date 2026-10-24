@@ -4,6 +4,10 @@ test('la página de Kubernetes muestra el clúster y avisa del que no reporta', 
   await abrir(page, 'kubernetes', 'Kubernetes');
   await expect(page.getByText('CrashLoopBackOff: grafana-7d9c6b5f4-x2kqp')).toBeVisible();
 
+  await page.getByRole('button', { name: 'Ver log' }).click();
+  await expect(page.getByText('failed to initialize database', { exact: false })).toBeVisible();
+  await page.keyboard.press('Escape');
+
   await page.getByRole('tab', { name: 'aks-lab' }).click();
   await expect(page).toHaveURL(/#\/kubernetes\/aks-lab/);
   await expect(page.getByText('El agente de aks-lab todavía no envió ninguna foto', { exact: false })).toBeVisible();

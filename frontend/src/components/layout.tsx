@@ -299,7 +299,7 @@ const AGENTS: { id: AgentType; label: string; desc: string; suggestions: string[
     suggestions: ['¿Qué debo remediar primero?', '¿Qué recursos están expuestos a internet?'],
   },
   {
-    id: 'k8s', label: 'Kubernetes', desc: 'Diagnóstico de clústeres AKS',
+    id: 'k8s', label: 'Kubernetes', desc: 'Diagnóstico de clústeres con sus logs',
     suggestions: ['Hazme un diagnóstico del clúster', '¿Qué pods tienen problemas?'],
   },
 ];

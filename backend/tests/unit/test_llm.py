@@ -157,17 +157,24 @@ def test_iac_con_modelo_y_respaldo_de_plantillas():
     assert r["generation_mode"] != "llm_falso" and "st1" in r["main_tf"]
 
 
-def test_k8s_sin_modelo_responde_con_el_estado_del_cluster():
-    from app.services.k8s_service import K8sService
+def test_k8s_chat_usa_la_foto_y_cae_al_estado_si_el_modelo_falla():
+    from app.services import k8s_chat
 
-    llm.reiniciar(None)
-    s = K8sService.__new__(K8sService)
-    s.cluster_name = "aks-lab"
-    s.get_incidents = lambda req: {"clusterHealthScore": 92, "summary": {"HIGH": 1, "LOW": 0}}
-    s._get_nodes_status = lambda: ([], 3, 3)
-    s._get_problem_pods = lambda ns=None: []
-    r = s.chat("¿qué pasa?", {})
-    assert r["mode"] == "rules" and "92/100" in r["answer"] and "HIGH: 1" in r["answer"]
+    d = {"name": "homelab", "health": 71, "nodes": 2, "nodes_ready": 2, "pods": 9, "pods_running": 8,
+         "collected_at": "2026-10-24T12:00:00+00:00", "incidents": {"critica": 1, "alta": 0, "media": 0},
+         "incident_list": [{"severity": "critica", "category": "pod", "title": "CrashLoopBackOff: web-1", "resource": "pod/web-1",
+                            "namespace": "demo", "detail": "12 reinicios", "recommendation": "kubectl logs web-1 -n demo --previous"}],
+         "problem_pods": [{"name": "web-1", "namespace": "demo", "log": {"container": "web", "previous": True, "lines": ["panic: sin base"]}}],
+         "workload_list": [], "node_list": [], "events": []}
+    falso = ProveedorFalso("causa: la base")
+    llm.reiniciar(falso)
+    r = k8s_chat.responder("¿por qué falla web?", d, usuario="ana@x")
+    assert (r["answer"], r["mode"]) == ("causa: la base", "llm_falso")
+    assert "panic: sin base" in falso.llamadas[0]["mensaje"] and "No puedes ejecutar" in falso.llamadas[0]["sistema"]
+
+    llm.reiniciar(ProveedorFalso(error="caído"))
+    r = k8s_chat.responder("¿qué pasa?", d)
+    assert r["mode"] == "fallback" and "71/100" in r["answer"] and "kubectl logs web-1" in r["answer"]
     assert "GEMINI_API_KEY" not in r["answer"]
 
 

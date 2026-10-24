@@ -56,10 +56,10 @@ class ApiFalsa:
              "spec": {"nodeName": "nodo1", "containers": [{"name": "web", "image": "nginx:latest",
                                                             "env": [{"name": "CLAVE", "value": "secreto"}]}]},
              "status": {"phase": "Running", "containerStatuses": [
-                 {"ready": False, "restartCount": 12, "state": {"waiting": {"reason": "CrashLoopBackOff"}}}]}},
+                 {"name": "web", "ready": False, "restartCount": 12, "state": {"waiting": {"reason": "CrashLoopBackOff"}}}]}},
             {"metadata": {"namespace": "default", "name": "web-2", "creationTimestamp": HACE_UNA_HORA},
              "spec": {"containers": [{"name": "web", "image": "nginx:1.27", "resources": {"limits": {"cpu": "1"}}}]},
-             "status": {"phase": "Running", "containerStatuses": [{"ready": True, "restartCount": 0, "state": {"running": {}}}]}},
+             "status": {"phase": "Running", "containerStatuses": [{"name": "web", "ready": True, "restartCount": 0, "state": {"running": {}}}]}},
             {"metadata": {"namespace": "default", "name": "migracion", "creationTimestamp": HACE_UNA_HORA},
              "spec": {"containers": [{"name": "m"}]}, "status": {"phase": "Succeeded"}},
         ],
@@ -77,9 +77,14 @@ class ApiFalsa:
 
     def __init__(self):
         self.consultas = []
+        self.logs = []
 
     def get(self, ruta):
         return self.RESPUESTAS[ruta]
+
+    def texto(self, ruta):
+        self.logs.append(ruta)
+        return "arrancando\nconectando con DB_PASSWORD=hunter2\npanic: no se pudo conectar a la base\n"
 
     def listar(self, ruta, **params):
         self.consultas.append((ruta, params))
@@ -196,3 +201,131 @@ def test_rutas_de_clusteres(cliente):
 
     assert cliente.get("/api/k8s/clusters/sin-agente").status_code == 404
     assert cliente.get("/api/k8s/clusters/desconocido").status_code == 404
+
+
+def test_la_foto_trae_el_log_enmascarado_de_los_pods_con_problemas():
+    api = ApiFalsa()
+    pods = {p["name"]: p for p in agente.foto(api, "homelab")["pods"]}
+    log = pods["web-1"]["log"]
+    assert (log["container"], log["previous"]) == ("web", True)
+    assert log["lines"] == ["arrancando", "conectando con DB_PASSWORD=***", "panic: no se pudo conectar a la base"]
+    assert "log" not in pods["web-2"] and "previous=true" in api.logs[0]
+    # Con INCLUDE_LOGS=false no se pide ningún log.
+    api = ApiFalsa()
+    assert "log" not in {p["name"]: p for p in agente.foto(api, "homelab", con_logs=False)["pods"]}["web-1"]
+    assert api.logs == []
+
+
+@pytest.mark.parametrize("linea,esperada", [
+    ("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc", "Authorization: *** ***"),
+    ('token: "abc123" ok', 'token: "***" ok'),
+    # Llave falsa armada en tiempo de ejecución: escrita literal, gitleaks la toma por real.
+    ("clave " + "AKIA" + "Z" * 16 + " usada", "clave *** usada"),
+    ("error normal", "error normal"),
+])
+def test_enmascarar(linea, esperada):
+    assert agente.enmascarar(linea) == esperada
+
+
+# ---------------------------------------------------------------- avisos casi en vivo
+
+def _foto(minutos_atras=3, roto=True):
+    f = foto_homelab()
+    f["collected_at"] = (AHORA - timedelta(minutes=minutos_atras)).isoformat()
+    if not roto:
+        f["pods"] = [p for p in f["pods"] if p["name"] != "web-1"]
+    return f
+
+
+def test_el_aviso_necesita_dos_fotos_y_avisa_la_resolucion():
+    from app.collectors import k8s_watch
+
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(8), {}, AHORA)
+    assert lineas == [] and "default/pod/web-1" in estado["pendientes"]
+    # La misma foto otra vez no cuenta como segunda.
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(8), estado, AHORA)
+    assert lineas == []
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(3), estado, AHORA)
+    assert lineas == ["- [critica] CrashLoopBackOff: web-1 (default)"]
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(1), estado, AHORA)
+    assert lineas == []
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(0, roto=False), estado, AHORA)
+    assert lineas == ["- Resuelta: CrashLoopBackOff: web-1"] and estado["abiertas"] == {}
+
+
+def test_agente_sin_reportar_avisa_una_vez_y_su_regreso():
+    from app.collectors import k8s_watch
+
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(40), {"abiertas": {"x": "algo"}}, AHORA)
+    assert lineas == ["- El agente dejó de reportar: última foto hace 40 min"] and estado["abiertas"] == {"x": "algo"}
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(41), estado, AHORA)
+    assert lineas == []
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(1), estado, AHORA)
+    assert lineas[0] == "- El agente volvió a reportar"
+
+
+def test_ejecutar_envia_al_webhook_y_guarda_el_estado_solo_si_salio(monkeypatch, tmp_path):
+    from app.collectors import k8s_watch, notify
+    from app.core import config
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setenv("NOTIFY_WEBHOOK_URL", "https://discord.com/api/webhooks/1/SECRETO")
+    monkeypatch.setenv("K8S_CLUSTERS", "homelab")
+    fotos = iter([_foto(8), _foto(3), _foto(2)])
+    monkeypatch.setattr(k8s_fleet, "leer", lambda cred, nombre: next(fotos))
+    enviados = []
+    monkeypatch.setattr(notify.requests, "post", lambda url, json=None, timeout=None: enviados.append(json) or SimpleNamespace(status_code=204))
+
+    assert k8s_watch.ejecutar(None, AHORA) == 0
+    assert k8s_watch.ejecutar(None, AHORA) == 1
+    embed = enviados[0]["embeds"][0]
+    assert embed["title"].endswith("Kubernetes · homelab") and "CrashLoopBackOff: web-1" in embed["description"]
+    assert embed["url"].endswith("/#/kubernetes/homelab")
+
+    # Si el webhook falla, el estado no avanza: la próxima vez se reintenta.
+    antes = (tmp_path / "k8s_watch.json").read_text()
+    monkeypatch.setattr(notify.requests, "post", lambda url, json=None, timeout=None: SimpleNamespace(status_code=500))
+    monkeypatch.setattr(k8s_fleet, "leer", lambda cred, nombre: _foto(0, roto=False))
+    with pytest.raises(RuntimeError) as error:
+        k8s_watch.ejecutar(None, AHORA)
+    assert "SECRETO" not in str(error.value)
+    assert (tmp_path / "k8s_watch.json").read_text() == antes
+
+
+# ---------------------------------------------------------------- chat sobre la foto
+
+def test_el_chat_elige_el_cluster_y_responde_sin_modelo(monkeypatch):
+    from app import llm
+    from app.services import k8s_chat
+
+    resumenes = [{"name": "homelab", "reporting": True}, {"name": "aks-lab", "reporting": True}, {"name": "x", "reporting": False}]
+    assert k8s_chat.elegir("¿qué pasa en aks-lab?", None, resumenes) == "aks-lab"
+    assert k8s_chat.elegir("hola", "x", resumenes) == "homelab"  # x no reporta
+
+    d = k8s_fleet.detalle("homelab", foto_homelab(), AHORA)
+    ctx = k8s_chat.contexto(d)
+    assert ctx["pods_con_problemas"][0]["log"]["lines"][-1] == "panic: no se pudo conectar a la base"
+    assert "images" not in ctx["pods_con_problemas"][0]
+
+    monkeypatch.setattr(llm, "disponible", lambda: False)
+    r = k8s_chat.responder("¿por qué falla web?", d)
+    assert r["mode"] == "rules" and "CrashLoopBackOff: web-1" in r["answer"]
+
+
+def test_ruta_del_chat(cliente, monkeypatch):
+    from app import llm
+
+    monkeypatch.setattr(llm, "disponible", lambda: False)
+    r = cliente.post("/api/k8s/chat", json={"message": "¿qué pasa?"})
+    assert r.status_code == 200 and r.json()["context_summary"]["cluster"] == "homelab"
+
+
+def test_sin_log_anterior_usa_el_de_la_ejecucion_actual():
+    class SinAnterior(ApiFalsa):
+        def texto(self, ruta):
+            self.logs.append(ruta)
+            return "unable to retrieve container logs for containerd://x" if "previous=true" in ruta else "error actual\n"
+
+    api = SinAnterior()
+    log = {p["name"]: p for p in agente.foto(api, "homelab")["pods"]}["web-1"]["log"]
+    assert (log["previous"], log["lines"]) == (False, ["error actual"]) and len(api.logs) == 2

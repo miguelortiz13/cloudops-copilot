@@ -92,7 +92,7 @@ Solo para el rol administrador. Abren la base (la despiertan si estaba pausada):
 | `POST` | `/api/k8s/overview` | Nodos, pods, servicios y score de salud |
 | `POST` | `/api/k8s/incidents` | Incidencias activas por severidad |
 | `GET` | `/api/k8s/pod-logs` | Últimas líneas de log de un pod (parámetros validados RFC 1123) |
-| `POST` | `/api/k8s/chat` | Chat del agente SRE con contexto del clúster |
+| `POST` | `/api/k8s/chat` | **Operador.** Chat del agente SRE sobre la última foto del clúster (`clusterName` opcional) |
 | `POST` | `/api/k8s/reinit` | Reinicializa la conexión |
 
 ## Historia, hallazgos y reportes (desde la base)

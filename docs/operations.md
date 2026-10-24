@@ -11,6 +11,7 @@ Todo se crea con Terraform desde `infra/terraform`, en un grupo de recursos por 
 | Container Apps Environment (consumo) | Aloja el API y el job | USD 0 (cupo gratuito) |
 | Container App del API | FastAPI, 0 a 1 réplicas, escala a cero | USD 0 |
 | Container Apps Job | Job diario de recolección (`collector_cron`) | USD 0 |
+| Container Apps Job `k8s-watch` | Avisos de Kubernetes cada 10 minutos (solo con clústeres y webhook) | USD 0 |
 | Static Web App Free | Panel React con cabeceras de seguridad | USD 0 |
 | Azure SQL, oferta gratuita serverless | Base del modelo canónico; se pausa sola | USD 0 |
 | Storage + File Share | Vistas precalculadas, caché de costos, Excel y snapshots | Centavos |

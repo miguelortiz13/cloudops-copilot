@@ -15,12 +15,14 @@ instalar nada:
     python agent.py --print     # imprime la foto sin subirla
 
 Nunca lee secrets ni configmaps, ni guarda variables de entorno o el spec
-completo de los pods.
+completo de los pods. De los pods con problemas incluye las últimas líneas de
+log (con credenciales evidentes enmascaradas); INCLUDE_LOGS=false lo desactiva.
 """
 
 import gzip
 import json
 import os
+import re
 import ssl
 import sys
 import time
@@ -30,12 +32,21 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, Iterator, List, Optional
 
-AGENT_VERSION = "1.0.0"
+AGENT_VERSION = "1.1.0"
 SCHEMA = 1
 SA = "/var/run/secrets/kubernetes.io/serviceaccount"
 MAX_EVENTS = 200
 MAX_MESSAGE = 300
 TIMEOUT = 30
+MAX_LOGS = 10
+LOG_LINES = 40
+LOG_LINE_CHARS = 300
+MOTIVOS_GRAVES = {"CrashLoopBackOff", "OOMKilled", "Error", "ImagePullBackOff", "ErrImagePull",
+                  "CreateContainerConfigError", "CreateContainerError"}
+# Lo que suele delatar una credencial en un log: el valor se reemplaza por ***.
+_SECRETO = re.compile(r"(?i)((?:password|passwd|pwd|secret|token|api[_-]?key|authorization)[\"']?\s*[:=]\s*[\"']?)([^\s\"',;]+)")
+_BEARER = re.compile(r"(?i)\b(bearer|basic)\s+[a-z0-9._~+/=-]{8,}")
+_AWS_KEY = re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{16}\b")
 
 
 class Kubernetes:
@@ -51,13 +62,20 @@ class Kubernetes:
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
                                                   urllib.request.HTTPSHandler(context=contexto))
 
-    def get(self, ruta: str) -> Dict:
+    def _abrir(self, ruta: str):
         # El token proyectado rota: se lee en cada llamada.
         with open(f"{SA}/token") as f:
             token = f.read().strip()
         peticion = urllib.request.Request(self.base + ruta, headers={"Authorization": f"Bearer {token}"})
-        with self.opener.open(peticion, timeout=TIMEOUT) as r:
+        return self.opener.open(peticion, timeout=TIMEOUT)
+
+    def get(self, ruta: str) -> Dict:
+        with self._abrir(ruta) as r:
             return json.load(r)
+
+    def texto(self, ruta: str) -> str:
+        with self._abrir(ruta) as r:
+            return r.read().decode("utf-8", errors="replace")
 
     def listar(self, ruta: str, **params) -> Iterator[Dict]:
         """Todos los elementos de una lista, de 500 en 500."""
@@ -190,7 +208,46 @@ def distribucion(version: str, nodos: List[Dict]) -> str:
     return "kubernetes"
 
 
-def foto(k: Kubernetes, cluster: str) -> Dict:
+def enmascarar(linea: str) -> str:
+    linea = _BEARER.sub(lambda m: m.group(1) + " ***", linea)
+    linea = _SECRETO.sub(lambda m: m.group(1) + "***", linea)
+    return _AWS_KEY.sub("***", linea)[:LOG_LINE_CHARS]
+
+
+def con_problema(p: Dict) -> Optional[str]:
+    """Contenedor del pod cuyo log explica el problema, o None si el pod está sano."""
+    estado = p.get("status", {})
+    for c in estado.get("containerStatuses", []):
+        espera = c.get("state", {}).get("waiting", {}).get("reason")
+        fin = c.get("lastState", {}).get("terminated", {}).get("reason")
+        if espera in MOTIVOS_GRAVES or (c.get("restartCount", 0) and not c.get("ready")) or fin == "OOMKilled":
+            return c["name"]
+    if estado.get("phase") == "Failed" and p.get("spec", {}).get("containers"):
+        return p["spec"]["containers"][0]["name"]
+    return None
+
+
+def log(k: Kubernetes, p: Dict, contenedor: str) -> Optional[Dict]:
+    """Últimas líneas del contenedor: las de la ejecución anterior si se reinició (ahí está el error)."""
+    meta = p["metadata"]
+    reinicios = next((c.get("restartCount", 0) for c in p.get("status", {}).get("containerStatuses", [])
+                      if c["name"] == contenedor), 0)
+    base = f"/api/v1/namespaces/{meta['namespace']}/pods/{meta['name']}/log"
+    for anterior in ([True, False] if reinicios else [False]):
+        consulta = urllib.parse.urlencode({"container": contenedor, "tailLines": LOG_LINES, "limitBytes": 16384,
+                                           **({"previous": "true"} if anterior else {})})
+        try:
+            lineas = k.texto(f"{base}?{consulta}").splitlines()[-LOG_LINES:]
+        except (urllib.error.URLError, OSError):
+            continue
+        # El kubelet responde 200 con este texto si el contenedor anterior ya no existe.
+        if not lineas or lineas[0].startswith("unable to retrieve container logs"):
+            continue
+        return {"container": contenedor, "previous": anterior, "lines": [enmascarar(x) for x in lineas]}
+    return None
+
+
+def foto(k: Kubernetes, cluster: str, con_logs: bool = True) -> Dict:
     version = k.get("/version").get("gitVersion", "")
     nodos = list(k.listar("/api/v1/nodes"))
     listos: Dict[str, int] = {}
@@ -200,6 +257,14 @@ def foto(k: Kubernetes, cluster: str) -> Dict:
             clave = f"{s['metadata']['namespace']}/{dueno}"
             listos[clave] = listos.get(clave, 0) + sum(
                 1 for e in s.get("endpoints") or [] if (e.get("conditions") or {}).get("ready", True))
+    pods_crudos = list(k.listar("/api/v1/pods"))
+    pods = [pod(p) for p in pods_crudos]
+    if con_logs:
+        problemas = [(i, c) for i, p in enumerate(pods_crudos) if (c := con_problema(p))][:MAX_LOGS]
+        for i, contenedor in problemas:
+            registro = log(k, pods_crudos[i], contenedor)
+            if registro:
+                pods[i]["log"] = registro
     eventos = sorted((evento(e) for e in k.listar("/api/v1/events", fieldSelector="type=Warning")),
                      key=lambda e: e["last"] or "", reverse=True)[:MAX_EVENTS]
     return {
@@ -214,7 +279,7 @@ def foto(k: Kubernetes, cluster: str) -> Dict:
         "workloads": [carga(tipo, w) for tipo, ruta in (("Deployment", "deployments"), ("StatefulSet", "statefulsets"),
                                                          ("DaemonSet", "daemonsets"))
                       for w in k.listar(f"/apis/apps/v1/{ruta}")],
-        "pods": [pod(p) for p in k.listar("/api/v1/pods")],
+        "pods": pods,
         "services": [servicio(s, listos) for s in k.listar("/api/v1/services")],
         "events": eventos,
     }
@@ -249,7 +314,7 @@ def main(argv: List[str]) -> int:
     while True:
         inicio = time.monotonic()
         try:
-            datos = foto(k, cluster)
+            datos = foto(k, cluster, con_logs=os.environ.get("INCLUDE_LOGS", "true").lower() != "false")
             if "--print" in argv:
                 print(json.dumps(datos, indent=2))
             else:
