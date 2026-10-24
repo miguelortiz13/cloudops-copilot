@@ -219,7 +219,8 @@ def test_la_foto_trae_el_log_enmascarado_de_los_pods_con_problemas():
 @pytest.mark.parametrize("linea,esperada", [
     ("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc", "Authorization: *** ***"),
     ('token: "abc123" ok', 'token: "***" ok'),
-    ("clave AKIAABCDEFGHIJKLMNOP usada", "clave *** usada"),
+    # Llave falsa armada en tiempo de ejecución: escrita literal, gitleaks la toma por real.
+    ("clave " + "AKIA" + "Z" * 16 + " usada", "clave *** usada"),
     ("error normal", "error normal"),
 ])
 def test_enmascarar(linea, esperada):

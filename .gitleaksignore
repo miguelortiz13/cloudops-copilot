@@ -1,0 +1,3 @@
+# Falsos positivos revisados (formato: commit:archivo:regla:línea).
+# Llave de AWS ficticia de una prueba del enmascarado de logs; ya no está en el código.
+1656946c67f30710ac1f95f80f0a421055cc167c:backend/tests/unit/test_k8s_agente.py:aws-access-token:222
