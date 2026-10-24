@@ -1,13 +1,14 @@
 name: CD
 
 # Publica la imagen del API en GitHub Container Registry y despliega en el
-# ambiente `dev` cada vez que algo llega a `main`.
+# ambiente `dev` cada vez que algo llega a `main`, con los workflows estándar de
+# miguelortiz13/github-workflows.
 #
 # - Sin secretos de larga vida: Azure se autentica por OIDC con una identidad
 #   administrada (infra/terraform/cicd.tf) que solo puede actuar sobre el grupo
 #   de recursos de la plataforma, y GHCR con el GITHUB_TOKEN de la ejecución.
-# - En los PRs solo se construye y publica la imagen (etiqueta pr-N), para
-#   detectar fallos de build antes del merge; no se despliega nada.
+# - En los PRs la imagen se construye y escanea, pero no se publica ni despliega.
+# - Solo se despliega una imagen firmada (Cosign) con su SBOM atestado.
 # - Los cambios de infraestructura no pasan por aquí: se aplican con Terraform.
 
 on:
@@ -25,141 +26,87 @@ concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/cloudops-copilot-api
-
 jobs:
   image:
     name: Imagen del API
-    runs-on: ubuntu-latest
-    # Los PRs desde forks no pueden publicar en el registro del repositorio.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.3.0
     permissions:
       contents: read
       packages: write
-    outputs:
-      ref: ${{ steps.tag.outputs.ref }}
-    steps:
-      - uses: actions/checkout@v7
-      - id: tag
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "tags=${IMAGE}:pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
-            echo "ref=${IMAGE}:pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tags=${IMAGE}:${{ github.sha }},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
-            echo "ref=${IMAGE}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
-        with:
-          context: backend
-          push: true
-          tags: ${{ steps.tag.outputs.tags }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=API de CloudOps Copilot
+    with:
+      image-name: cloudops-copilot-api
+      context: backend
+      # Vulnerabilidades altas o críticas con corrección disponible: las que no
+      # tienen parche no son accionables y solo generarían ruido.
+      fail-severity: HIGH,CRITICAL
+      push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
 
-  deploy-dev:
-    name: Desplegar en dev
+  sign:
+    name: Firma y SBOM
     needs: image
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: needs.image.outputs.ref != ''
+    uses: miguelortiz13/github-workflows/.github/workflows/container-sign.yml@v0.3.0
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      image-ref: ${{ needs.image.outputs.ref }}
+
+  api:
+    name: Desplegar el API en dev
+    needs: [image, sign]
+    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-container-app.yml@v0.3.0
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      environment: dev
+      app-name: ${{ vars.CONTAINER_APP }}
+      resource-group: ${{ vars.RESOURCE_GROUP }}
+      image: ${{ needs.image.outputs.image }}:${{ needs.image.outputs.tag }}
+      # El recolector diario usa la misma imagen (no se ejecuta aquí: cada
+      # ejecución despierta la base). El job de avisos de Kubernetes solo existe
+      # con clústeres configurados (infra/terraform/kubernetes.tf).
+      jobs: ${{ vars.CONTAINER_APP_JOB }} ${{ vars.CONTAINER_APP_JOB_K8S }}?
+      health-path: /api/inventory/health
+
+  web:
+    name: Publicar el panel en dev
+    needs: api
+    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-static-web-app.yml@v0.3.0
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      environment: dev
+      app-name: ${{ vars.STATIC_WEB_APP }}
+      resource-group: ${{ vars.RESOURCE_GROUP }}
+      working-directory: frontend
+      build-command: npm ci --no-audit --no-fund && npm run build
+      build-env: |
+        VITE_USER_DISPLAY_NAME=${{ vars.USER_DISPLAY_NAME }}
+    secrets:
+      build-secrets: |
+        VITE_API_URL=${{ secrets.VITE_API_URL }}
+        VITE_AZURE_AD_CLIENT_ID=${{ secrets.VITE_AZURE_AD_CLIENT_ID }}
+        VITE_AZURE_AD_TENANT_ID=${{ secrets.VITE_AZURE_AD_TENANT_ID }}
+        VITE_API_SCOPE=${{ secrets.VITE_API_SCOPE }}
+
+  smoke:
+    name: Prueba de humo
+    needs: web
     runs-on: ubuntu-latest
     environment: dev
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v7
-
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Actualizar la imagen del API
-        run: |
-          az containerapp update \
-            --name "${{ vars.CONTAINER_APP }}" \
-            --resource-group "${{ vars.RESOURCE_GROUP }}" \
-            --image "${{ needs.image.outputs.ref }}" \
-            --output none
-
-      - name: Esperar la nueva revisión
-        run: |
-          for i in $(seq 1 40); do
-            read -r estado salud <<< "$(az containerapp revision list \
-              --name "${{ vars.CONTAINER_APP }}" --resource-group "${{ vars.RESOURCE_GROUP }}" \
-              --query "sort_by([?properties.template.containers[0].image=='${{ needs.image.outputs.ref }}'], &properties.createdTime)[-1].[properties.provisioningState, properties.healthState]" \
-              -o tsv)"
-            echo "intento $i: aprovisionamiento=${estado:-?} salud=${salud:-?}"
-            [ "$estado" = "Failed" ] && exit 1
-            [ "$estado" = "Provisioned" ] && [ "$salud" != "Unhealthy" ] && exit 0
-            sleep 15
-          done
-          echo "La revisión no quedó lista a tiempo" && exit 1
-
-      # El recolector diario usa la misma imagen. No se ejecuta aquí: cada
-      # ejecución despierta la base y consume el cupo gratuito.
-      - name: Actualizar la imagen del recolector
-        run: |
-          az containerapp job update \
-            --name "${{ vars.CONTAINER_APP_JOB }}" \
-            --resource-group "${{ vars.RESOURCE_GROUP }}" \
-            --image "${{ needs.image.outputs.ref }}" \
-            --output none
-
-      # Avisos de Kubernetes (infra/terraform/kubernetes.tf): solo existe con
-      # clústeres y webhook configurados; su nombre sale del del recolector.
-      - name: Actualizar la imagen del job de avisos de Kubernetes
-        run: |
-          job="${{ vars.CONTAINER_APP_JOB }}"
-          job="${job%-collector}-k8s-watch"
-          if az containerapp job show --name "$job" --resource-group "${{ vars.RESOURCE_GROUP }}" --output none 2>/dev/null; then
-            az containerapp job update --name "$job" --resource-group "${{ vars.RESOURCE_GROUP }}" \
-              --image "${{ needs.image.outputs.ref }}" --output none
-          fi
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Compilar el panel
-        working-directory: frontend
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_AZURE_AD_CLIENT_ID: ${{ secrets.VITE_AZURE_AD_CLIENT_ID }}
-          VITE_AZURE_AD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          VITE_API_SCOPE: ${{ secrets.VITE_API_SCOPE }}
-          VITE_USER_DISPLAY_NAME: ${{ vars.USER_DISPLAY_NAME }}
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
-
-      - name: Token de despliegue de la Static Web App
-        id: swa
-        run: |
-          token=$(az staticwebapp secrets list --name "${{ vars.STATIC_WEB_APP }}" \
-            --resource-group "${{ vars.RESOURCE_GROUP }}" --query properties.apiKey -o tsv)
-          echo "::add-mask::$token"
-          echo "token=$token" >> "$GITHUB_OUTPUT"
-
-      - name: Publicar el panel
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
-          action: upload
-          app_location: frontend/dist
-          skip_app_build: true
-          skip_api_build: true
 
       - name: Prueba de humo
         env:
@@ -172,7 +119,7 @@ jobs:
           comprobar() { if [ "$2" = "$3" ]; then echo "OK    $1"; else echo "FALLA $1 (esperado $3, obtenido $2)"; falla=1; fi; }
 
           # El primer arranque tras escalar a cero puede tardar.
-          for i in $(seq 1 20); do
+          for _ in $(seq 1 20); do
             codigo=$(curl -s -m 30 -o /dev/null -w "%{http_code}" "$API/api/inventory/health")
             [ "$codigo" = "200" ] && break; sleep 10
           done

@@ -1,5 +1,7 @@
 name: CI
 
+# Pasos estándar con miguelortiz13/github-workflows; las pruebas E2E, el
+# terraform validate y la auditoría completa de dependencias son propios.
 on:
   push:
     branches: [main]
@@ -11,40 +13,23 @@ permissions:
 jobs:
   backend:
     name: Backend (ruff + pytest)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-dev.txt
-      - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: ruff check app tests
-      - run: python -m pytest
+    uses: miguelortiz13/github-workflows/.github/workflows/build-python.yml@v0.3.0
+    with:
+      python-version: "3.13"
+      working-directory: backend
+      requirements: requirements.txt requirements-dev.txt
+      commands: |
+        ruff check app tests
+        python -m pytest
 
   frontend:
     name: Frontend (eslint + Vitest + build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci --no-audit --no-fund
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+    uses: miguelortiz13/github-workflows/.github/workflows/build-node.yml@v0.3.0
+    with:
+      node-version: "22"
+      working-directory: frontend
+      install-command: npm ci --no-audit --no-fund
+      scripts: lint test build
 
   e2e:
     name: Frontend E2E (Playwright)
@@ -87,18 +72,11 @@ jobs:
       - run: terraform validate
 
   secrets:
-    name: Escaneo de secretos (gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      # Binario oficial sobre todo el historial: no depende del API de GitHub
-      # (la accion necesita listar los commits del PR) ni de licencia.
-      - name: gitleaks detect
-        run: |
-          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.3 \
-            detect --source /repo --redact --verbose --no-banner
+    name: Seguridad (gitleaks + dependency review)
+    uses: miguelortiz13/github-workflows/.github/workflows/security-baseline.yml@v0.3.0
+    permissions:
+      contents: read
+      pull-requests: write
 
   dependencies:
     name: Vulnerabilidades en dependencias
@@ -121,17 +99,15 @@ jobs:
           npm ci --no-audit --no-fund
           npm audit --audit-level=high
 
-  docker:
-    name: Docker build + Trivy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: docker build -t cloudops-api:ci ./backend
-      - run: docker build -t cloudops-web:ci ./frontend
-      # Falla con vulnerabilidades altas o críticas que ya tengan corrección:
-      # las que no tienen parche no son accionables y solo generarían ruido.
-      - name: Trivy (imagen del API)
-        run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:0.74.0 image --quiet --exit-code 1 \
-            --severity HIGH,CRITICAL --ignore-unfixed cloudops-api:ci
+  # La imagen del API se construye y escanea en cd.yml (umbral HIGH,CRITICAL).
+  # Aquí solo se comprueba que la del panel compile; no se publica.
+  web-image:
+    name: Imagen del panel (build + Trivy)
+    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.3.0
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: cloudops-copilot-web
+      context: frontend
+      push: false
