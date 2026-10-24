@@ -113,9 +113,14 @@ def anomalias(session, hoy: date) -> List[Dict]:
     return salida
 
 
+def limites_de_presupuesto() -> Dict[str, float]:
+    """`MONTHLY_BUDGETS_USD="azure=5,aws=5"` -> {"azure": 5.0, "aws": 5.0}."""
+    return {nube.strip(): float(monto) for nube, monto in
+            (p.split("=", 1) for p in os.getenv("MONTHLY_BUDGETS_USD", "").split(",") if p.strip())}
+
+
 def presupuestos(session, hoy: date) -> List[Dict]:
-    limites = {nube.strip(): float(monto) for nube, monto in
-               (p.split("=", 1) for p in os.getenv("MONTHLY_BUDGETS_USD", "").split(",") if p.strip())}
+    limites = limites_de_presupuesto()
     if not limites:
         return []
     inicio = hoy.replace(day=1)
@@ -168,12 +173,12 @@ def mensaje(hallazgos: List[Dict], caidos: List[str], costos: Optional[Dict[str,
     return {"titulo": f"{config.APP_NAME}: requiere atención", "lineas": lineas, "enlace": enlace}
 
 
-def payload(url: str, m: Dict[str, object]) -> Dict[str, object]:
+def payload(url: str, m: Dict[str, object], color: int = 0xEF4444) -> Dict[str, object]:
     texto = "\n".join(m["lineas"])
     host = urlparse(url).hostname or ""
     if host in ("discord.com", "discordapp.com"):
         # Discord ya entiende **negrita**; la descripción de un embed admite 4096 caracteres.
-        return {"embeds": [{"title": m["titulo"], "description": texto[:4096], "url": m["enlace"], "color": 0xEF4444}]}
+        return {"embeds": [{"title": m["titulo"], "description": texto[:4096], "url": m["enlace"], "color": color}]}
     if host.endswith("hooks.slack.com"):
         return {"text": f"*{m['titulo']}*\n{texto.replace('**', '*')}\n<{m['enlace']}|Abrir en el panel>"}
     # Teams: webhook de Workflows con tarjeta adaptable (los conectores de Office 365 se retiraron).
@@ -185,6 +190,16 @@ def payload(url: str, m: Dict[str, object]) -> Dict[str, object]:
                      {"type": "TextBlock", "text": texto, "wrap": True}],
             "actions": [{"type": "Action.OpenUrl", "title": "Abrir en el panel", "url": m["enlace"]}],
         }}]}
+
+
+def enviar(url: str, **cuerpo) -> None:
+    """POST al webhook. La URL es una credencial: el error que queda en collector_runs solo lleva el host."""
+    try:
+        respuesta = requests.post(url, timeout=30, **cuerpo)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"El webhook ({urlparse(url).hostname}) no respondio: {type(exc).__name__}") from None
+    if respuesta.status_code >= 300:
+        raise RuntimeError(f"El webhook ({urlparse(url).hostname}) respondio {respuesta.status_code}")
 
 
 def recolectar(ctx: Contexto, session) -> Resultado:
@@ -208,12 +223,6 @@ def recolectar(ctx: Contexto, session) -> Resultado:
         # Sin enviar nada, tampoco se marca nada como enviado.
         detalle["sent"] = sorted(enviadas)
         return Resultado(status="parcial", detail={**detalle, "reason": "NOTIFY_WEBHOOK_URL sin configurar"})
-    # La URL es una credencial: el error que queda en collector_runs solo lleva el host.
     # Sin `until` registrado (error), la siguiente ejecucion vuelve a avisar lo mismo.
-    try:
-        respuesta = requests.post(url, json=payload(url, mensaje(hallazgos, caidos, costos)), timeout=30)
-    except requests.RequestException as exc:
-        raise RuntimeError(f"El webhook ({urlparse(url).hostname}) no respondio: {type(exc).__name__}") from None
-    if respuesta.status_code >= 300:
-        raise RuntimeError(f"El webhook ({urlparse(url).hostname}) respondio {respuesta.status_code}")
+    enviar(url, json=payload(url, mensaje(hallazgos, caidos, costos)))
     return Resultado(items=len(hallazgos) + len(caidos) + detalle["cost_alerts"], detail=detalle)

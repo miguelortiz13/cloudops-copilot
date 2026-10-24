@@ -108,7 +108,7 @@ gantt
 | Vista de cumplimiento por control con excepciones | Cumplimiento |
 | Agentes con herramientas, citas y conjunto de evaluación | Agentes |
 | Página de Kubernetes y hallazgos de clúster | Kubernetes |
-| Reporte ejecutivo mensual en PDF | Reportes |
+| Reporte ejecutivo mensual en PDF | Reportes · **Hecho** (23-oct-2026): PDF de costos contra presupuesto, hallazgos, inventario y salud del job, descargable en Reportes; el paso `report` del job lo envía solo el día 4 al webhook de avisos (adjunto en Discord, enlace en Slack y Teams) |
 | Bot de Teams con credencial federada | Integraciones |
 | Bloque "Qué cambió" y "Mis pendientes" en el resumen | Resumen |
 

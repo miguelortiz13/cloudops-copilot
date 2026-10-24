@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Download, Send } from 'lucide-react';
-import { get, post, downloadUrl } from '../../lib/api';
+import { Download, FileText, Send } from 'lucide-react';
+import { download, get, post, downloadUrl } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 import type { Snapshot } from '../../lib/types';
 import { useApp } from '../../state/hooks';
@@ -13,6 +13,46 @@ function readWebhook(): string {
   } catch {
     return '';
   }
+}
+
+function previousMonth(): string {
+  const d = new Date();
+  d.setDate(0); // último día del mes anterior
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function MonthlyReport() {
+  const { toast } = useApp();
+  const [month, setMonth] = useState(previousMonth);
+  const [busy, setBusy] = useState(false);
+
+  const descargar = async () => {
+    setBusy(true);
+    try {
+      await download(`/api/reports/monthly?month=${month}`, undefined, `reporte-${month}.pdf`);
+    } catch (e) {
+      toast(`No se pudo generar el reporte: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card footer={<span>El job lo envía solo al canal de avisos el día 4 de cada mes.</span>}>
+      <div className="spread">
+        <div>
+          <div className="card-title">Reporte ejecutivo mensual</div>
+          <div className="card-subtitle">Costos contra presupuesto, hallazgos, inventario y salud del job, en PDF</div>
+        </div>
+        <div className="row-actions">
+          <input className="input" type="month" aria-label="Mes del reporte" value={month} onChange={(e) => setMonth(e.target.value)} />
+          <button className="btn btn-primary" onClick={descargar} disabled={!month || busy}>
+            <FileText size={14} /> {busy ? 'Generando…' : 'Descargar PDF'}
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export function ReportsPage({ onSync }: { onSync: () => void }) {
@@ -46,9 +86,10 @@ export function ReportsPage({ onSync }: { onSync: () => void }) {
     <>
       <PageHeader
         title="Reportes y automatización"
-        description="Inventario de todas las nubes, inventario maestro en Excel, snapshots semanales y alertas a Microsoft Teams."
+        description="Inventario de todas las nubes, reporte ejecutivo mensual, inventario maestro en Excel, snapshots semanales y alertas a Microsoft Teams."
       />
       <div style={{ marginBottom: 24 }}><InventoryReport /></div>
+      <div style={{ marginBottom: 24 }}><MonthlyReport /></div>
       <div className="grid grid-2">
         <Section title="Inventario maestro" description="Excel con las revisiones manuales del equipo, actualizado por el pipeline de inventario.">
           <Card

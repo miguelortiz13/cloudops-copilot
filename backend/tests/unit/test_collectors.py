@@ -370,8 +370,9 @@ class Webhook:
     def __init__(self, codigo=200):
         self.enviados, self.codigo = [], codigo
 
-    def __call__(self, url, json=None, timeout=None):
-        self.enviados.append((url, json))
+    def __call__(self, url, json=None, timeout=None, data=None, files=None):
+        # Discord con adjunto: el mensaje va en payload_json y el archivo en files.
+        self.enviados.append((url, json if data is None else __import__("json").loads(data["payload_json"]), files))
         return type("R", (), {"status_code": self.codigo})()
 
 
@@ -480,3 +481,65 @@ def test_el_presupuesto_avisa_al_80_y_al_100_una_vez_cada_uno(monkeypatch):
     gasto(date(2026, 10, 8), 1.00)
     assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
     assert "AZURE superó su presupuesto: 5.20" in webhook.enviados[1][1]["attachments"][0]["content"]["body"][1]["text"]
+
+
+DISCORD = "https://discord.com/api/webhooks/1/SECRETO"
+
+
+def reportar(monkeypatch, momento, webhook, url=DISCORD):
+    from app.collectors import notify, report
+    monkeypatch.setenv("NOTIFY_WEBHOOK_URL", url)
+    monkeypatch.setattr(notify.requests, "post", webhook)
+    return run.ejecutar("report", report.recolectar, contexto(momento))
+
+
+def test_el_reporte_del_mes_va_a_discord_con_el_pdf_una_vez(monkeypatch):
+    monkeypatch.setenv("MONTHLY_BUDGETS_USD", "azure=5,aws=5")
+    sec = SecOps()
+    sec.findings = [hallazgo_kv()]
+    correr(findings, contexto(sec=sec))
+    gasto(date(2026, 10, 8), 4.50)
+    webhook = Webhook()
+
+    # Antes del dia 4 los costos de octubre no estan cerrados.
+    assert reportar(monkeypatch, datetime(2026, 11, 3, 6, tzinfo=timezone.utc), webhook) == "ok"
+    assert webhook.enviados == []
+
+    assert reportar(monkeypatch, datetime(2026, 11, 4, 6, tzinfo=timezone.utc), webhook) == "ok"
+    _, cuerpo, archivos = webhook.enviados[0]
+    assert cuerpo["embeds"][0]["title"].endswith("reporte de octubre 2026")
+    assert "AZURE 4.50 de 5.00" in cuerpo["embeds"][0]["description"]
+    nombre, pdf, tipo = archivos["files[0]"]
+    assert (nombre, tipo) == ("reporte-2026-10.pdf", "application/pdf")
+    assert pdf.startswith(b"%PDF-1.4") and b"Octubre 2026" in pdf and b"(Hallazgos abiertos hoy: 1)" in pdf
+
+    assert reportar(monkeypatch, datetime(2026, 11, 5, 6, tzinfo=timezone.utc), webhook) == "ok"
+    assert len(webhook.enviados) == 1
+
+
+def test_el_reporte_no_se_envia_de_un_mes_sin_datos_y_a_teams_va_el_enlace(monkeypatch):
+    webhook = Webhook()
+    teams = "https://prod.westus.logic.azure.com/workflows/x?sig=SECRETO"
+    # La primera ejecucion es de octubre: no hay reporte de septiembre.
+    assert reportar(monkeypatch, DIA, webhook, teams) == "ok" and webhook.enviados == []
+
+    assert reportar(monkeypatch, datetime(2026, 11, 4, 6, tzinfo=timezone.utc), webhook, teams) == "ok"
+    _, cuerpo, archivos = webhook.enviados[0]
+    assert archivos is None
+    assert cuerpo["attachments"][0]["content"]["actions"][0]["url"].endswith("/#/reportes")
+
+
+def test_el_pdf_es_valido_aunque_el_texto_traiga_parentesis_y_tildes():
+    from app.reports.pdf import Pdf
+    p = Pdf()
+    for i in range(80):  # obliga a una segunda pagina
+        p.fila([(0, f"Fila {i} (año) \\ ñandú — ≥")])
+    datos = p.bytes()
+    assert b"/Count 2" in datos and "(año\\) \\\\ ñandú — ?".encode("cp1252") in datos
+    # Cada entrada de la tabla xref apunta al inicio de su objeto.
+    xref = int(datos.rsplit(b"startxref\n", 1)[1].split(b"\n")[0])
+    filas = datos[xref:].split(b"\n")[3:]
+    for numero, fila in enumerate(filas, 1):
+        if not fila.endswith(b" n "):
+            break
+        assert datos[int(fila[:10]):].startswith(b"%d 0 obj" % numero)
