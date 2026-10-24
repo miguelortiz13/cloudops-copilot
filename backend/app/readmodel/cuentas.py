@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core import config
 from app.db.models import Account, CollectorRun, CostDaily, Finding, Resource
 
-ETIQUETA = {"azure": "Microsoft Azure", "aws": "Amazon Web Services", "gcp": "Google Cloud"}
+ETIQUETA = {"azure": "Microsoft Azure", "aws": "Amazon Web Services", "gcp": "Google Cloud", "kubernetes": "Kubernetes"}
 # Qué rol falta cuando una cuenta no entrega costos, por proveedor.
 ROL_DE_COSTOS = {"azure": "Cost Management Reader"}
 DIAS_DE_COSTO = 30

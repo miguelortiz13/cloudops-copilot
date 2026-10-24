@@ -37,10 +37,10 @@ def contexto(d: Dict) -> Dict:
         "salud": d.get("health"), "nodos_listos": f"{d.get('nodes_ready')}/{d.get('nodes')}",
         "pods_en_ejecucion": f"{d.get('pods_running')}/{d.get('pods')}",
         "incidencias": d["incident_list"],
-        "pods_con_problemas": [{**{k: v for k, v in p.items() if k not in ("images", "log")},
+        "pods_con_problemas": [{**{k: v for k, v in p.items() if k != "log"},
                                 "log": ({**p["log"], "lines": p["log"]["lines"][-MAX_LINEAS_LOG:]} if p.get("log") else None)}
                                for p in d["problem_pods"]],
-        "cargas_degradadas": [w for w in d["workload_list"] if w["ready"] < w["desired"]],
+        "cargas_degradadas": [{k: v for k, v in w.items() if k != "security"} for w in d["workload_list"] if w["ready"] < w["desired"]],
         "nodos": [{k: n.get(k) for k in ("name", "ready", "pressure", "roles", "kubelet", "cpu_m", "memory_mib")}
                   for n in d["node_list"]],
         "eventos_recientes": d["events"][:MAX_EVENTOS],

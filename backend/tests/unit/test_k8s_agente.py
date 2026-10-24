@@ -46,7 +46,13 @@ class ApiFalsa:
                        "capacity": {"cpu": "4", "memory": "8000000Ki"}}}],
         "/api/v1/namespaces": [{"metadata": {"name": "default"}}, {"metadata": {"name": "kube-system"}}],
         "/apis/apps/v1/deployments": [{"metadata": {"namespace": "default", "name": "web"},
-                                       "spec": {"replicas": 2}, "status": {"readyReplicas": 1}}],
+                                       "spec": {"replicas": 2, "template": {"spec": {
+                                           "securityContext": {"runAsUser": 101},
+                                           "containers": [{"name": "web", "image": "nginx:latest",
+                                                           "securityContext": {"allowPrivilegeEscalation": False},
+                                                           "env": [{"name": "CLAVE", "value": "secreto"}]}],
+                                           "volumes": [{"name": "h", "hostPath": {"path": "/var/run"}}]}}},
+                                       "status": {"readyReplicas": 1}}],
         "/apis/apps/v1/statefulsets": [],
         "/apis/apps/v1/daemonsets": [{"metadata": {"namespace": "kube-system", "name": "svclb"},
                                       "status": {"desiredNumberScheduled": 1, "numberReady": 1}}],
@@ -100,7 +106,9 @@ def test_la_foto_resume_el_cluster_sin_datos_sensibles():
     assert (n["ready"], n["roles"], n["cpu_m"], n["memory_mib"], n["pressure"]) == (True, ["control-plane"], 4000, 7812, [])
     web1 = next(p for p in foto["pods"] if p["name"] == "web-1")
     assert (web1["reason"], web1["restarts"], web1["ready"], web1["containers"]) == ("CrashLoopBackOff", 12, 0, 1)
-    assert web1["images"] == [{"name": "web", "image": "nginx:latest", "limits": False, "privileged": False}]
+    seg = next(w for w in foto["workloads"] if w["name"] == "web")["security"]
+    assert seg == {"host_network": False, "host_pid": False, "host_ipc": False, "host_path": True, "containers": [
+        {"name": "web", "image": "nginx:latest", "limits": False, "privileged": False, "no_escalation": True, "non_root": True}]}
     assert {s["name"]: s["endpoints"] for s in foto["services"]} == {"web": 1, "huerfano": 0}
     assert ("/api/v1/events", {"fieldSelector": "type=Warning"}) in api.consultas
     # Ni variables de entorno ni el spec completo viajan en la foto.

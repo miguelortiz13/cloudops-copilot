@@ -32,7 +32,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, Iterator, List, Optional
 
-AGENT_VERSION = "1.1.0"
+AGENT_VERSION = "1.2.0"
 SCHEMA = 1
 SA = "/var/run/secrets/kubernetes.io/serviceaccount"
 MAX_EVENTS = 200
@@ -158,13 +158,34 @@ def pod(p: Dict) -> Dict:
         "owner_kind": duenos[0].get("kind"),
         "owner": duenos[0].get("name"),
         "created": meta.get("creationTimestamp"),
-        # Para los hallazgos de seguridad del clúster (parte 3): solo banderas, nada del spec.
-        "host_network": bool(spec.get("hostNetwork")),
-        "images": [{"name": c["name"], "image": c.get("image"),
-                    "limits": bool(c.get("resources", {}).get("limits")),
-                    "privileged": bool((c.get("securityContext") or {}).get("privileged"))}
-                   for c in spec.get("containers", [])],
     }
+
+
+def seguridad(plantilla: Dict) -> Dict:
+    """
+    Banderas de seguridad de la plantilla de pods de una carga, para las reglas
+    del catálogo (docs/plan/08-kubernetes.md, parte 3). Solo banderas: ni
+    comandos, ni variables de entorno, ni rutas montadas.
+    """
+    spec = plantilla.get("spec", {})
+    pod_sc = spec.get("securityContext") or {}
+    contenedores = []
+    for c in spec.get("containers", []) + spec.get("initContainers", []):
+        sc = c.get("securityContext") or {}
+        usuario = sc.get("runAsUser", pod_sc.get("runAsUser"))
+        contenedores.append({
+            "name": c["name"],
+            "image": c.get("image"),
+            "limits": bool((c.get("resources") or {}).get("limits")),
+            "privileged": bool(sc.get("privileged")),
+            # Solo un false explícito impide escalar privilegios.
+            "no_escalation": sc.get("allowPrivilegeEscalation") is False and not sc.get("privileged"),
+            "non_root": sc.get("runAsNonRoot", pod_sc.get("runAsNonRoot")) is True or (usuario is not None and usuario != 0),
+        })
+    return {"host_network": bool(spec.get("hostNetwork")), "host_pid": bool(spec.get("hostPID")),
+            "host_ipc": bool(spec.get("hostIPC")),
+            "host_path": any("hostPath" in v for v in spec.get("volumes") or []),
+            "containers": contenedores}
 
 
 def carga(tipo: str, w: Dict) -> Dict:
@@ -174,7 +195,8 @@ def carga(tipo: str, w: Dict) -> Dict:
     else:
         deseadas, listas = spec.get("replicas", 1), estado.get("readyReplicas", 0)
     return {"kind": tipo, "namespace": w["metadata"]["namespace"], "name": w["metadata"]["name"],
-            "desired": deseadas, "ready": listas, "created": w["metadata"].get("creationTimestamp")}
+            "desired": deseadas, "ready": listas, "created": w["metadata"].get("creationTimestamp"),
+            "security": seguridad(spec.get("template", {}))}
 
 
 def servicio(s: Dict, listos: Dict[str, int]) -> Dict:

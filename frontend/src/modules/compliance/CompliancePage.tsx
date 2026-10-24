@@ -9,7 +9,7 @@ import {
 } from '../../components/ui';
 import { AssetsView } from './AssetsView';
 import { ControlRefs, ControlStatusBadge } from './controls';
-import { CONTROL_STATUS, SHORT } from './status';
+import { CONTROL_STATUS, SHORT, frameworkLabel } from './status';
 
 type View = 'controles' | 'reglas' | 'activos';
 
@@ -90,7 +90,7 @@ function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refr
 
       <div className="toolbar">
         <Segmented label="Marco" value={fw.id} onChange={(v) => { setFrameworkId(v); setFilter('todos'); }}
-          options={data.frameworks.map((f) => ({ id: f.id, label: SHORT[f.id] === 'CIS' ? `CIS Azure ${f.version}` : 'ISO 27001:2022' }))} />
+          options={data.frameworks.map((f) => ({ id: f.id, label: frameworkLabel(f) }))} />
       </div>
 
       <div className="grid grid-4">
@@ -103,7 +103,7 @@ function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refr
       </div>
 
       <Section
-        title={`${fw.name} ${SHORT[fw.id] === 'CIS' ? fw.version : ''}`.trim()}
+        title={`${fw.name} ${fw.id.startsWith('cis-') ? fw.version : ''}`.trim()}
         description={`La plataforma evalúa ${fw.controls_evaluated} controles de este marco. No es un puntaje de certificación: los controles que ninguna regla evidencia no se listan ni cuentan.`}
         actions={
           <Segmented label="Estado" value={filter} onChange={setFilter} options={[

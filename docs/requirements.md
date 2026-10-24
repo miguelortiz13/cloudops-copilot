@@ -9,7 +9,7 @@ Qué debe hacer la plataforma y bajo qué condiciones. El estado de cada requeri
 | RF-01 | Inventario de Azure (suscripciones y management groups) y de AWS (Resource Explorer) en un modelo canónico único | Hecho |
 | RF-02 | Costos diarios reales: Azure por la API de consultas de Cost Management, AWS por el export FOCUS 1.2 consultado con Athena; un año de historia | Hecho (AWS sin comparar todavía con una factura cerrada) |
 | RF-03 | Comparación por periodo (7, 30 y 90 días, mes en curso, mes anterior), por nube y por cuenta | Hecho |
-| RF-04 | Hallazgos de seguridad con un catálogo de reglas mapeado a CIS Azure 2.0.0, CIS AWS 3.0.0 e ISO 27001:2022 | Hecho |
+| RF-04 | Hallazgos de seguridad con un catálogo de reglas mapeado a CIS Azure 2.0.0, CIS AWS 3.0.0, CIS Kubernetes 1.9.0 e ISO 27001:2022 | Hecho |
 | RF-05 | Ciclo de vida de hallazgos: abierto, asumido, aceptado con vencimiento, resuelto automático, reabierto | Hecho |
 | RF-06 | Cobertura real de Terraform leída de los estados (Azure por id, AWS por ARN) y generación de HCL con bloques `import {}` | Hecho |
 | RF-07 | Quién creó cada recurso (Activity Log de Azure, CloudTrail de AWS) | Hecho |
@@ -19,7 +19,7 @@ Qué debe hacer la plataforma y bajo qué condiciones. El estado de cada requeri
 | RF-11 | Avisos automáticos a Discord, Slack o Teams sin repetirse | Hecho |
 | RF-12 | Presupuesto mensual por nube con aviso al 80 %, al 100 % y por pronóstico | Hecho |
 | RF-13 | Reporte ejecutivo mensual en PDF, descargable desde el panel y enviado solo | Hecho |
-| RF-14 | Diagnóstico de AKS con un agente SRE (`kubectl` validado vía Run Command) | Hecho (sin página propia en el panel) |
+| RF-14 | Clústeres de Kubernetes (AKS, EKS o fuera de la nube) con un agente de solo lectura: salud, incidencias, logs, avisos, chat SRE, inventario y hallazgos mapeados a CIS Kubernetes | Hecho en parte: falta la historia de incidencias y la flota |
 
 ## No funcionales
 

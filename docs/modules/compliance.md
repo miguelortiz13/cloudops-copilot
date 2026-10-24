@@ -43,6 +43,22 @@ Las evalúa `app/providers/aws/seguridad.py` con llamadas de lectura gratuitas (
 
 Cada regla pertenece a un proveedor (`Regla.proveedor`): su evidencia es la de la última ejecución de su recolector. Si AWS no está conectado, sus reglas no rebajan los controles ISO que comparten con Azure y el marco CIS AWS no se muestra. Las cuentas miembro se evalúan asumiendo su rol de lectura (`AWS_MEMBER_ROLE_NAME`, desplegado por StackSet); una cuenta sin ese rol deja las reglas sin evidencia.
 
+### Reglas de Kubernetes (CIS Kubernetes Benchmark 1.9.0)
+
+Las evalúa el paso `findings_kubernetes` del job diario sobre la foto que envía el agente de cada clúster ([Kubernetes](kubernetes-sre.md#hallazgos-de-seguridad)). Cada hallazgo es de una carga (Deployment, StatefulSet o DaemonSet).
+
+| Regla | CIS Kubernetes 1.9.0 | ISO 27001:2022 |
+|---|---|---|
+| `k8s.workload.privileged` · contenedor privilegiado (alta) | 5.2.2 | A.8.2, A.8.9* |
+| `k8s.workload.host-namespaces` · hostNetwork, hostPID o hostIPC (alta) | 5.2.3, 5.2.4, 5.2.5 | A.8.22* |
+| `k8s.workload.host-path` · volumen hostPath (media) | 5.2.12 | A.8.3* |
+| `k8s.workload.privilege-escalation` · sin `allowPrivilegeEscalation: false` (media) | 5.2.6 | A.8.2* |
+| `k8s.workload.run-as-root` · sin `runAsNonRoot` ni usuario distinto de 0 (media) | 5.2.7 | A.8.2* |
+| `k8s.workload.no-resource-limits` · contenedor sin límites (media) | — | A.8.6 |
+| `k8s.workload.mutable-image-tag` · imagen `latest` o sin etiqueta (media) | — | A.8.9* |
+
+\* evidencia parcial. Las cargas de `kube-system`, `kube-public` y `kube-node-lease` no se evalúan (`K8S_EXCLUDED_NAMESPACES`): son componentes de la distribución que no se corrigen desde el clúster. Si un clúster no tiene foto de las últimas 24 h, sus hallazgos no cambian; con un agente anterior a 1.2.0, las reglas quedan sin evidencia.
+
 ### Agregar una regla
 
 1. La consulta KQL en `services/kql.py` y su tipo en `SecOpsService.build_report`.

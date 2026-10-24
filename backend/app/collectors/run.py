@@ -4,7 +4,8 @@ Job diario de recoleccion (Container Apps Job, ADR 0007).
     python -m app.collectors.run                 # todos
     python -m app.collectors.run --only costs    # uno o varios, separados por coma
 
-Orden: migraciones -> inventario (Azure y, si esta configurado, AWS) -> clasificacion ISO
+Orden: migraciones -> inventario (Azure y, si estan configurados, AWS y los clusteres de
+Kubernetes con agente) -> clasificacion ISO
 (costos de AWS despues de los de Azure) -> costos -> hallazgos -> KPIs -> cache de la
 vision general de costos -> vistas precalculadas para el panel (app/readmodel) -> reporte
 mensual (app/collectors/report.py) -> avisos (app/collectors/notify.py). Cada
@@ -22,7 +23,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 from app.collectors import classification, costs, findings, inventory, kpis, notify, report
 from app.collectors.common import Contexto, Resultado, ahora
@@ -98,6 +99,33 @@ def hallazgos_aws(ctx: Contexto, session) -> Resultado:
     return findings.recolectar(_contexto_aws(ctx), session)
 
 
+def _contexto_k8s(ctx: Contexto) -> Optional[Contexto]:
+    """Clústeres con foto de las últimas 24 h (app/providers/kubernetes); None si no hay ninguno."""
+    from app.providers.kubernetes import KubernetesProvider
+
+    proveedor = KubernetesProvider.desde_entorno(ctx.momento)
+    cuentas = proveedor.cuentas()
+    if not cuentas:
+        return None
+    return Contexto(azure=None, inventory=None, cost=None, secops=None, momento=ctx.momento,
+                    proveedor=proveedor, cuentas=cuentas)
+
+
+SIN_FOTO = Resultado(status="parcial", detail={"reason": "Ningún clúster tiene una foto de las últimas 24 h."})
+
+
+def inventario_k8s(ctx: Contexto, session) -> Resultado:
+    """Clústeres, nodos y cargas de los clústeres con agente, en su propia ejecución."""
+    k8s = _contexto_k8s(ctx)
+    return inventory.recolectar(k8s, session) if k8s else SIN_FOTO
+
+
+def hallazgos_k8s(ctx: Contexto, session) -> Resultado:
+    """Reglas k8s.* del catálogo sobre las cargas de cada clúster."""
+    k8s = _contexto_k8s(ctx)
+    return findings.recolectar(k8s, session) if k8s else SIN_FOTO
+
+
 def precalcular_vistas(ctx: Contexto, session) -> Resultado:
     """Deja las vistas por defecto del panel en la cache compartida (app/readmodel)."""
     from app.readmodel.service import precalentar
@@ -108,11 +136,13 @@ def precalcular_vistas(ctx: Contexto, session) -> Resultado:
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
     "inventory_aws": inventario_aws,
+    "inventory_kubernetes": inventario_k8s,
     "classification": classification.recolectar,
     "costs": costs.recolectar,
     "costs_aws": costos_aws,
     "findings": findings.recolectar,
     "findings_aws": hallazgos_aws,
+    "findings_kubernetes": hallazgos_k8s,
     "kpis": kpis.recolectar,
     "costcache": precalentar_costos_en_vivo,
     "readmodel": precalcular_vistas,
@@ -194,7 +224,10 @@ def main(argv: List[str] = None) -> int:
 
     from app.providers.aws.provider import AwsProvider
 
-    por_defecto = [n for n in RECOLECTORES if not n.endswith("_aws") or AwsProvider.configurado()]
+    from app.providers.kubernetes import KubernetesProvider
+
+    opcionales = {"_aws": AwsProvider.configurado(), "_kubernetes": KubernetesProvider.configurado()}
+    por_defecto = [n for n in RECOLECTORES if all(not n.endswith(sufijo) or activo for sufijo, activo in opcionales.items())]
     elegidos = [n.strip() for n in args.only.split(",") if n.strip()] or por_defecto
     desconocidos = [n for n in elegidos if n not in RECOLECTORES]
     if desconocidos:

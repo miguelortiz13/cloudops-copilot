@@ -26,6 +26,9 @@ locals {
     APP_NAME            = var.app_display_name
     FRONTEND_URL        = module.web.url
     MONTHLY_BUDGETS_USD = join(",", [for nube, monto in var.monthly_budgets_usd : "${nube}=${monto}"])
+    # Clústeres con agente: inventario y hallazgos desde sus fotos (kubernetes.tf).
+    K8S_CLUSTERS         = join(",", sort(var.kubernetes_clusters))
+    K8S_SNAPSHOT_ACCOUNT = module.storage.name
   }
   # Federación con AWS (aws.tf): rol a asumir y audiencia del token de Entra.
   aws_env = local.aws_enabled ? {

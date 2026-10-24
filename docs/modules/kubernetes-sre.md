@@ -23,6 +23,12 @@ La plataforma ve cada clúster a través de un **agente de solo lectura que corr
 
 El score resta 25 por incidencia crítica, 10 por alta y 4 por media.
 
+## Hallazgos de seguridad
+
+El job diario guarda cada clúster como una cuenta (`kubernetes:cluster/<nombre>`) y el clúster, sus nodos y sus cargas en el inventario (pasos `inventory_kubernetes` y `findings_kubernetes`). Sobre las banderas de seguridad de cada carga evalúa 7 reglas mapeadas a CIS Kubernetes 1.9.0 e ISO 27001: contenedores privilegiados, namespaces del nodo compartidos, hostPath, escalada de privilegios, root, sin límites de recursos e imágenes `latest` ([detalle](compliance.md#reglas-de-kubernetes-cis-kubernetes-benchmark-190)).
+
+Los hallazgos aparecen en *Seguridad → Gestión de hallazgos* con el mismo ciclo de vida que los de Azure y AWS (asumir, aceptar con vencimiento, resolverse solos al corregir la carga), se filtran por el clúster en el selector de cuentas y cuentan para *Cumplimiento*, donde aparece el marco CIS Kubernetes. Los namespaces del sistema no se evalúan (`K8S_EXCLUDED_NAMESPACES`).
+
 ## Logs de los pods con problemas
 
 En cada foto, el agente agrega las últimas 40 líneas de hasta 10 pods con problemas (CrashLoop, OOMKilled, error de imagen o de configuración, reinicios sin estar listo, o fallidos). Si el contenedor se reinició, toma las de la **ejecución anterior**, que es donde está el error. Antes de enviar enmascara lo que parece una credencial (`password=`, `token:`, `api_key=`, `Authorization: Bearer …`, llaves de AWS) y corta cada línea a 300 caracteres.
@@ -87,7 +93,7 @@ Para ver la foto sin subirla: `kubectl -n cloudops exec deploy/cloudops-agent --
 | Control | Detalle |
 |---|---|
 | Solo lectura | El ClusterRole tiene `get` y `list` sobre nodos, namespaces, pods, servicios, eventos, cargas de `apps` y EndpointSlices, y `get` sobre `pods/log`. Nunca lee `secrets` ni `configmaps` |
-| Poco y nada sensible en la foto | Por pod solo viaja el estado, el dueño y, por contenedor, la imagen y dos banderas (si tiene límites y si es privilegiado). Ni variables de entorno, ni comandos, ni volúmenes. Los logs de los pods con problemas van enmascarados y se pueden desactivar (`INCLUDE_LOGS=false`) |
+| Poco y nada sensible en la foto | Por pod solo viaja el estado y el dueño; por carga, la imagen de cada contenedor y banderas de seguridad (privilegiado, límites, usuario no root, escalada, namespaces del nodo, si monta hostPath). Ni variables de entorno, ni comandos, ni rutas montadas. Los logs de los pods con problemas van enmascarados y se pueden desactivar (`INCLUDE_LOGS=false`) |
 | Contenedor endurecido | Sin root (UID 65534), sistema de archivos de solo lectura, sin capacidades, sin escalada de privilegios, `seccomp` por defecto |
 | Credencial mínima | Cada clúster tiene su propio contenedor y una SAS que solo puede crear y escribir en él: no puede leer ni listar nada. Vence en `kubernetes_agent_sas_expiry` |
 | Revocar | Rotar la clave de la cuenta de almacenamiento invalida todas las SAS; después, `terraform apply` y actualizar el secret en cada clúster |
