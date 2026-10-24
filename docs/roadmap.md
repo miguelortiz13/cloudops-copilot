@@ -37,7 +37,7 @@ No avanzan hasta que exista un recurso o se tome una decisión fuera del código
 |---|---|
 | StackSet de cuentas miembro de AWS | Una cuenta miembro en la organización de AWS (hoy solo existe la de gestión). La organización y sus SCP se gobiernan fuera de este proyecto |
 | Leer estados de Terraform guardados en S3 | Un bucket de estados de Terraform en AWS |
-| Inventario detallado y página de clústeres EKS | Un clúster EKS (los clústeres ya entran al inventario como `kubernetes.cluster`) |
+| Probar el agente en EKS | Un clúster EKS (el agente es el mismo para cualquier clúster) |
 | PR de remediación automático | Una GitHub App con permiso para abrir PRs en los repositorios de IaC |
 | Presupuesto en el PDF descargado del panel | Pasar `MONTHLY_BUDGETS_USD` también al API con un `terraform apply` (hoy solo lo tiene el job; el PDF enviado sí lo trae) |
 
@@ -54,7 +54,7 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 | Seguimiento del ahorro realizado | Registrar recomendaciones aplicadas y el ahorro medido después | Sin empezar |
 | Cumplimiento por control con excepciones | Excepciones aprobadas por control, con vencimiento | Sin empezar |
 | Agentes con herramientas, citas y evaluación | El agente usa herramientas, cita la fuente y supera el 90 % de un conjunto de preguntas verificables (criterio de salida) | Sin empezar |
-| Página de Kubernetes | Vista propia de AKS y EKS con hallazgos de clúster (hoy solo en el agente) | Sin empezar |
+| Kubernetes con agente en el clúster | Partes 2 a 5 del [plan del módulo](plan/08-kubernetes.md): historia, hallazgos de clúster, avisos, logs y chat, flota y retiro de Run Command. La parte 1 (agente y página) está hecha | En parte |
 | Bot de Teams con credencial federada | Volver a aprovisionar el bot sin secreto de cliente | Sin empezar |
 | "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario | Sin empezar |
 

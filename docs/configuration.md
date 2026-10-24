@@ -107,15 +107,17 @@ Sin Service Principal, el agente usa `DefaultAzureCredential`: la **identidad ad
 | `INVENTORY_CACHE_TTL_SECONDS` | `300` | Caché de inventario |
 | `PORT` / `HOST` | `8000` / `127.0.0.1` | Solo informativos en local; uvicorn recibe los suyos por línea de comandos |
 
-## Kubernetes SRE
+## Kubernetes
 
 | Variable | Descripción |
 |---|---|
-| `K8S_CLUSTER_NAME` | Clúster AKS a diagnosticar |
-| `K8S_RESOURCE_GROUP` | Su grupo de recursos |
-| `K8S_SUBSCRIPTION_ID` | Su suscripción |
+| `K8S_CLUSTERS` | Clústeres que reportan con el agente, separados por coma. En Terraform, `kubernetes_clusters` |
+| `K8S_SNAPSHOT_ACCOUNT` | Cuenta de almacenamiento donde los agentes dejan sus fotos (la de la plataforma) |
+| `K8S_CLUSTER_NAME` | *Agente SRE heredado.* Clúster AKS para el chat y los logs por Run Command |
+| `K8S_RESOURCE_GROUP` | *Agente SRE heredado.* Su grupo de recursos |
+| `K8S_SUBSCRIPTION_ID` | *Agente SRE heredado.* Su suscripción |
 
-Con alguna vacía el agente queda en modo *offline*.
+Sin las tres variables del agente heredado, el chat de Kubernetes queda en modo *offline*. Guía del agente en [Kubernetes](modules/kubernetes-sre.md#conectar-un-clúster).
 
 ## Frontend (tiempo de compilación)
 

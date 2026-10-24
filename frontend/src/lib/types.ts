@@ -611,3 +611,61 @@ export interface CloudAccounts {
   providers: { name: string; label: string }[];
   accounts: CloudAccount[];
 }
+
+// ---------------------------------------------------------------- Kubernetes (agente en el clúster)
+
+export interface K8sClusterSummary {
+  name: string;
+  reporting: boolean;
+  error?: string;
+  distribution?: string;
+  version?: string;
+  agent_version?: string;
+  collected_at?: string;
+  age_seconds?: number | null;
+  stale?: boolean;
+  nodes?: number;
+  nodes_ready?: number;
+  pods?: number;
+  pods_running?: number;
+  namespaces?: number;
+  workloads?: number;
+  health?: number;
+  incidents?: Record<Severity, number>;
+}
+
+export interface K8sIncident {
+  severity: Severity;
+  category: 'nodo' | 'pod' | 'carga' | 'red';
+  title: string;
+  resource: string;
+  namespace: string | null;
+  detail: string;
+  recommendation: string;
+}
+
+export interface K8sNode {
+  name: string; ready: boolean; pressure: string[]; unschedulable: boolean; roles: string[];
+  kubelet: string | null; os: string | null; runtime: string | null; arch: string | null;
+  cpu_m: number | null; memory_mib: number | null; created: string | null;
+}
+
+export interface K8sWorkload { kind: string; namespace: string; name: string; desired: number; ready: number }
+
+export interface K8sPod {
+  namespace: string; name: string; phase: string; reason: string | null; ready: number; containers: number;
+  restarts: number; node: string | null; owner_kind: string | null; owner: string | null;
+}
+
+export interface K8sEvent {
+  namespace: string | null; kind: string | null; name: string | null; reason: string | null;
+  message: string; count: number; last: string | null;
+}
+
+export interface K8sClusterDetail extends K8sClusterSummary {
+  incident_list: K8sIncident[];
+  node_list: K8sNode[];
+  workload_list: K8sWorkload[];
+  problem_pods: K8sPod[];
+  events: K8sEvent[];
+}
