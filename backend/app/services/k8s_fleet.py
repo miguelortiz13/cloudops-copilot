@@ -7,7 +7,8 @@ aquí las incidencias y el score de salud. No toca el clúster ni la base.
 """
 
 import os
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
 
 import requests
@@ -26,8 +27,38 @@ MOTIVOS_GRAVES = {"CrashLoopBackOff", "OOMKilled", "Error", "ImagePullBackOff", 
 ORDEN = {"critica": 0, "alta": 1, "media": 2}
 
 
+# Fin del soporte de cada versión menor de Kubernetes y su último parche, según el
+# calendario oficial (https://endoflife.date/kubernetes, consultado el 24-oct-2026).
+# AKS y EKS tienen calendarios propios, en general más largos; k3s y RKE2 siguen al
+# upstream. Una versión que no está aquí se muestra "sin dato", nunca como vigente.
+# shortcut: tabla fija; actualizarla al salir cada versión menor (~4 meses), o leerla de endoflife.date si pesa.
+SOPORTE = {
+    "1.37": ("2027-10-28", "1.37.1"), "1.36": ("2027-06-28", "1.36.5"), "1.35": ("2027-02-28", "1.35.9"),
+    "1.34": ("2026-10-27", "1.34.12"), "1.33": ("2026-06-28", "1.33.13"), "1.32": ("2026-02-28", "1.32.13"),
+    "1.31": ("2025-11-11", "1.31.14"), "1.30": ("2025-07-15", "1.30.14"), "1.29": ("2025-02-28", "1.29.15"),
+    "1.28": ("2024-10-28", "1.28.15"), "1.27": ("2024-06-28", "1.27.16"), "1.26": ("2024-02-28", "1.26.15"),
+}
+POR_VENCER_DIAS = 90
+
+
 class FotoNoDisponible(RuntimeError):
     pass
+
+
+def soporte(version: Optional[str], ahora: datetime) -> Dict:
+    """Fin de soporte de la versión: vigente, por_vencer (< 90 días), sin_soporte o sin_dato."""
+    m = re.match(r"v?(\d+)\.(\d+)(?:\.(\d+))?", version or "")
+    if not m:
+        return {"status": "sin_dato", "minor": None, "eol": None, "latest_patch": None, "days_left": None}
+    menor = f"{m.group(1)}.{m.group(2)}"
+    if menor not in SOPORTE:
+        return {"status": "sin_dato", "minor": menor, "eol": None, "latest_patch": None, "days_left": None}
+    fin, parche = SOPORTE[menor]
+    dias = (date.fromisoformat(fin) - ahora.date()).days
+    estado = "sin_soporte" if dias < 0 else "por_vencer" if dias < POR_VENCER_DIAS else "vigente"
+    actual = tuple(int(x) for x in m.groups(default="0"))
+    return {"status": estado, "minor": menor, "eol": fin, "days_left": dias,
+            "latest_patch": parche if tuple(int(x) for x in parche.split(".")) > actual else None}
 
 
 def configurados() -> List[str]:
@@ -127,6 +158,7 @@ def resumen(nombre: str, foto: Optional[Dict], ahora: datetime) -> Dict:
         "reporting": True,
         "distribution": foto.get("distribution"),
         "version": foto.get("kubernetes_version"),
+        "support": soporte(foto.get("kubernetes_version"), ahora),
         "agent_version": foto.get("agent_version"),
         "collected_at": foto.get("collected_at"),
         "age_seconds": int(edad) if edad is not None else None,

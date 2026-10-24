@@ -54,7 +54,7 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 | Seguimiento del ahorro realizado | Registrar recomendaciones aplicadas y el ahorro medido después | Sin empezar |
 | Cumplimiento por control con excepciones | Excepciones aprobadas por control, con vencimiento | Sin empezar |
 | Agentes con herramientas, citas y evaluación | El agente usa herramientas, cita la fuente y supera el 90 % de un conjunto de preguntas verificables (criterio de salida) | Sin empezar |
-| Kubernetes con agente en el clúster | Del [plan del módulo](plan/08-kubernetes.md) faltan la historia de incidencias (parte 2) y la flota con retiro de Run Command (parte 5). Hechas la 1 (agente y página), la 3 (inventario y hallazgos) y la 4 (avisos, logs y chat) | En parte |
+| Kubernetes: historia de incidencias | Lo que falta del [plan del módulo](plan/08-kubernetes.md) (parte 2): incidencias con hora de inicio y fin y su duración. Las partes 1, 3, 4 y 5 están hechas | En parte |
 | Bot de Teams con credencial federada | Volver a aprovisionar el bot sin secreto de cliente | Sin empezar |
 | "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario | Sin empezar |
 

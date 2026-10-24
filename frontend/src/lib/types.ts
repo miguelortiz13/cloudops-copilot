@@ -614,12 +614,23 @@ export interface CloudAccounts {
 
 // ---------------------------------------------------------------- Kubernetes (agente en el clúster)
 
+export interface K8sSupport {
+  status: 'vigente' | 'por_vencer' | 'sin_soporte' | 'sin_dato';
+  minor: string | null;
+  /** Fin de soporte de la versión menor (calendario oficial de Kubernetes). */
+  eol: string | null;
+  days_left: number | null;
+  /** Último parche de la versión menor, si el clúster no lo tiene. */
+  latest_patch: string | null;
+}
+
 export interface K8sClusterSummary {
   name: string;
   reporting: boolean;
   error?: string;
   distribution?: string;
   version?: string;
+  support?: K8sSupport;
   agent_version?: string;
   collected_at?: string;
   age_seconds?: number | null;

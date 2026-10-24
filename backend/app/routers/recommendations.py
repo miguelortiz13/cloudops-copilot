@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Body
 from typing import List, Optional
 from app.schemas.inventory import *
-from app.schemas.k8s import *
 from app.schemas.requests import *
 from pydantic import BaseModel
 

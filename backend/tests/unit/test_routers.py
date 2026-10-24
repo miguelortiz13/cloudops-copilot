@@ -54,7 +54,6 @@ def servicios():
         metrics=Registro(),
         finops=Registro(),
         secops=Registro(build_report={"findings": [], "severity_summary": {}}),
-        k8s=Registro(),
         risk=Registro(),
         tfstate=Registro(),
         cost_overview=Registro(build={"basis": "actual", "totals": {"last_period": 12.5}}),

@@ -78,7 +78,7 @@ Sin credenciales de Azure la plataforma arranca igual y responde en modo degrada
 | Cumplimiento | Estado de los controles de CIS Azure 2.0.0 e ISO 27001:2022 con su evidencia, catálogo de reglas y clasificación ISO de activos con corrección manual auditada | [compliance.md](docs/modules/compliance.md) |
 | IaC | Cobertura real desde los estados de Terraform y generador de HCL con `import {}` | [iac.md](docs/modules/iac.md) |
 | Agentes de IA | Chat de inventario, FinOps y SecOps con contexto acotado y reglas compartidas | [ai-agents.md](docs/modules/ai-agents.md) |
-| Kubernetes | Clústeres de AKS, EKS o fuera de la nube con un agente de solo lectura: salud, nodos, cargas e incidencias | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |
+| Kubernetes | Clústeres de AKS, EKS o fuera de la nube con un agente de solo lectura: flota con fin de soporte, salud, incidencias, logs, avisos, chat y hallazgos CIS | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |
 | Avisos y reportes | Hallazgos críticos, recolectores caídos, anomalías de gasto y presupuestos en Discord, Slack o Teams; reporte ejecutivo mensual en PDF | [notifications-reports.md](docs/modules/notifications-reports.md) |
 | Teams | Bot conversacional y reportes proactivos | [teams.md](docs/integrations/teams.md) |
 

@@ -22,7 +22,7 @@ Una capa de observación y recomendación sobre Azure y AWS que:
 
 | Principio | En la práctica |
 |---|---|
-| **Solo lectura** | La identidad de la plataforma tiene rol `Reader` en Azure y un rol de lectura en AWS, asumido por federación sin llaves. Nada se modifica en las nubes sin aprobación humana. La única excepción, el diagnóstico de AKS por Run Command, está acotada y validada (ver [security.md](security.md)). |
+| **Solo lectura** | La identidad de la plataforma tiene rol `Reader` en Azure y un rol de lectura en AWS, asumido por federación sin llaves. Nada se modifica en las nubes sin aprobación humana. Los clústeres de Kubernetes se leen con un agente de solo lectura dentro de cada uno (ver [security.md](security.md#agente-de-kubernetes)). |
 | **Una definición por regla** | Qué es Shadow IT, un disco huérfano o un Key Vault expuesto vive en un solo módulo (`governance.py`, `kql.py`, `pricing.py`). Si el panel y el chat dan cifras distintas, es un bug. |
 | **Procedencia explícita** | Cada cifra declara si es facturación real, parcial o estimada, y sobre cuántas suscripciones se calculó. Nada se rellena con ceros. |
 | **Evidencia antes que heurística** | Un recurso en un estado de Terraform *está* gestionado; un tag solo dice que alguien lo etiquetó. La plataforma distingue ambas cosas. |

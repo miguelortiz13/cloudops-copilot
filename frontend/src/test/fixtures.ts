@@ -481,7 +481,8 @@ export const cloudAccounts: CloudAccounts = {
 // ---------------------------------------------------------------- Kubernetes
 
 const homelab: K8sClusterSummary = {
-  name: 'homelab', reporting: true, distribution: 'k3s', version: 'v1.31.4+k3s1', agent_version: '1.0.0',
+  name: 'homelab', reporting: true, distribution: 'k3s', version: 'v1.31.4+k3s1', agent_version: '1.2.0',
+  support: { status: 'sin_soporte', minor: '1.31', eol: '2025-11-11', days_left: -333, latest_patch: '1.31.14' },
   collected_at: '2026-10-10T14:57:00Z', age_seconds: 180, stale: false, nodes: 3, nodes_ready: 3, pods: 42,
   pods_running: 40, namespaces: 9, workloads: 21, health: 63, incidents: { critica: 1, alta: 1, media: 2 },
 };

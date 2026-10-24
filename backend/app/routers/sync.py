@@ -1,7 +1,6 @@
 
 from fastapi import APIRouter, BackgroundTasks
 from app.schemas.inventory import *
-from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core.audit import auditar
 from app.core.authz import Usuario, requiere

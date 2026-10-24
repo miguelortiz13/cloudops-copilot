@@ -56,6 +56,7 @@ Las evalúa el paso `findings_kubernetes` del job diario sobre la foto que enví
 | `k8s.workload.run-as-root` · sin `runAsNonRoot` ni usuario distinto de 0 (media) | 5.2.7 | A.8.2* |
 | `k8s.workload.no-resource-limits` · contenedor sin límites (media) | — | A.8.6 |
 | `k8s.workload.mutable-image-tag` · imagen `latest` o sin etiqueta (media) | — | A.8.9* |
+| `k8s.cluster.unsupported-version` · versión sin soporte (alta) o que vence en menos de 90 días (media); hallazgo del clúster | — | A.8.8 |
 
 \* evidencia parcial. Las cargas de `kube-system`, `kube-public` y `kube-node-lease` no se evalúan (`K8S_EXCLUDED_NAMESPACES`): son componentes de la distribución que no se corrigen desde el clúster. Si un clúster no tiene foto de las últimas 24 h, sus hallazgos no cambian; con un agente anterior a 1.2.0, las reglas quedan sin evidencia.
 
