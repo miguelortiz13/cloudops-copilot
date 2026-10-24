@@ -2,7 +2,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 from app.schemas.inventory import *
-from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core.deps import AzureDep, RiskDep, SecOpsDep
 

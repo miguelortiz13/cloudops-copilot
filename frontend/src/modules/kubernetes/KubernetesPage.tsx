@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { get } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
-import { dateTime, number, plural } from '../../lib/format';
-import type { K8sClusterDetail, K8sClusterSummary, K8sIncident, K8sPod } from '../../lib/types';
+import { dateTime, day, number, plural } from '../../lib/format';
+import type { K8sClusterDetail, K8sClusterSummary, K8sIncident, K8sPod, K8sSupport } from '../../lib/types';
 import {
-  Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile, Tabs,
+  Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile,
 } from '../../components/ui';
 
 const DISTRIBUCION: Record<string, string> = {
@@ -49,14 +49,56 @@ export function KubernetesPage({ cluster, onCluster }: { cluster?: string; onClu
       />
       {clusters.length === 0 ? <SinClusteres /> : (
         <div className="stack" style={{ gap: 24 }}>
-          {clusters.length > 1 && (
-            <Tabs value={activo!.name} onChange={onCluster}
-              tabs={clusters.map((c) => ({ id: c.name, label: c.name, count: c.reporting ? Object.values(c.incidents ?? {}).reduce((a, b) => a + b, 0) : undefined }))} />
-          )}
+          <Flota clusters={clusters} activo={activo?.name} onCluster={onCluster} />
           {activo && (activo.reporting ? <Detalle nombre={activo.name} /> : <SinFoto cluster={activo} />)}
         </div>
       )}
     </>
+  );
+}
+
+function Soporte({ s }: { s?: K8sSupport }) {
+  if (!s || s.status === 'sin_dato' || !s.eol) {
+    return <span className="badge"><span className="dot" aria-hidden="true" style={{ background: 'var(--border-strong)' }} />Sin dato</span>;
+  }
+  const { dot, texto } = {
+    vigente: { dot: 'dot-good', texto: `Hasta el ${day(s.eol)}` },
+    por_vencer: { dot: 'dot-warning', texto: `Vence en ${plural(s.days_left ?? 0, 'día')}` },
+    sin_soporte: { dot: 'dot-critical', texto: `Sin soporte desde el ${day(s.eol)}` },
+  }[s.status];
+  return <span className="badge"><span className={`dot ${dot}`} aria-hidden="true" />{texto}</span>;
+}
+
+/** Todos los clústeres con su versión y fin de soporte; elegir uno abre su detalle. */
+function Flota({ clusters, activo, onCluster }: { clusters: K8sClusterSummary[]; activo?: string; onCluster: (name: string) => void }) {
+  return (
+    <Section title="Flota" description="Fin de soporte según el calendario oficial de Kubernetes; AKS y EKS suelen dar soporte por más tiempo.">
+      <Card flush>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Clúster</th><th>Versión</th><th>Soporte</th><th className="num">Nodos listos</th><th className="num">Salud</th><th>Última foto</th></tr></thead>
+            <tbody>
+              {clusters.map((c) => (
+                <tr key={c.name} aria-selected={c.name === activo} style={c.name === activo ? { background: 'var(--bg-selected)' } : undefined}>
+                  <td>
+                    <button className="btn btn-ghost btn-sm" onClick={() => onCluster(c.name)} aria-current={c.name === activo ? 'true' : undefined}>{c.name}</button>
+                    {c.reporting && <div className="secondary" style={{ fontSize: 12, paddingLeft: 8 }}>{DISTRIBUCION[c.distribution ?? ''] ?? c.distribution}</div>}
+                  </td>
+                  <td>
+                    <div className="mono" style={{ fontSize: 12 }}>{c.version ?? '—'}</div>
+                    {c.support?.latest_patch && <div className="secondary" style={{ fontSize: 12 }}>Parche {c.support.latest_patch} disponible</div>}
+                  </td>
+                  <td>{c.reporting ? <Soporte s={c.support} /> : '—'}</td>
+                  <td className="num">{c.reporting ? `${number(c.nodes_ready)} / ${number(c.nodes)}` : '—'}</td>
+                  <td className="num">{c.reporting ? <span className="badge"><span className={`dot dot-${tonoSalud(c.health ?? 0)}`} aria-hidden="true" />{number(c.health)}</span> : '—'}</td>
+                  <td className="secondary">{c.reporting ? <>{hace(c.age_seconds)}{c.stale && <> · <strong>sin reportar</strong></>}</> : 'Nunca reportó'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </Section>
   );
 }
 

@@ -2,7 +2,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from typing import Dict, Any, Optional
 from app.schemas.inventory import *
-from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core import config
 from urllib.parse import urlparse

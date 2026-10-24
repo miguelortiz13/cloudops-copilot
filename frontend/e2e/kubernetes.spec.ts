@@ -8,7 +8,9 @@ test('la página de Kubernetes muestra el clúster y avisa del que no reporta', 
   await expect(page.getByText('failed to initialize database', { exact: false })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('tab', { name: 'aks-lab' }).click();
+  await expect(page.getByText('Sin soporte desde el', { exact: false })).toBeVisible();
+  await expect(page.getByText('Parche 1.31.14 disponible')).toBeVisible();
+  await page.getByRole('button', { name: 'aks-lab' }).click();
   await expect(page).toHaveURL(/#\/kubernetes\/aks-lab/);
   await expect(page.getByText('El agente de aks-lab todavía no envió ninguna foto', { exact: false })).toBeVisible();
 });

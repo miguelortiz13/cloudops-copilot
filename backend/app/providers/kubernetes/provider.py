@@ -108,6 +108,13 @@ class KubernetesProvider:
             cuenta = account_uid(nombre)
             if cuenta not in cuentas:
                 continue
+            version = k8s_fleet.soporte(foto.get("kubernetes_version"), self._momento)
+            if version["status"] in ("sin_soporte", "por_vencer"):
+                hallazgos.append(Hallazgo(
+                    rule_id=_REGLA["k8s_version"], resource_uid=cuenta, account_uid=cuenta,
+                    severity="alta" if version["status"] == "sin_soporte" else "media",
+                    details={"version": foto.get("kubernetes_version"), "end_of_support": version["eol"],
+                             "latest_patch": version["latest_patch"]}))
             for w in foto.get("workloads", []):
                 if w["namespace"] in self._excluidos:
                     continue

@@ -23,7 +23,6 @@ from app.services.cost_service import CostService
 from app.services.finops_service import FinOpsService
 from app.services.history_service import HistoryService
 from app.services.inventory_service import InventoryService
-from app.services.k8s_service import K8sService
 from app.services.metrics_service import MetricsService
 from app.services.risk_service import RiskService
 from app.services.secops_service import SecOpsService
@@ -48,7 +47,6 @@ class Services:
     metrics: MetricsService
     finops: FinOpsService
     secops: SecOpsService
-    k8s: K8sService
     risk: RiskService
     tfstate: TfStateService
     cost_overview: CostOverviewService
@@ -85,7 +83,6 @@ def get_services() -> Services:
         finops = FinOpsService(azure, cost, metrics)
         secops = SecOpsService(azure)
         risk = RiskService(secops, cost)
-        k8s = K8sService(azure)
         cost_overview = CostOverviewService(azure, cost)
         # El chat responde con los mismos servicios que alimentan el panel:
         # asi comparte su cache —incluida la precarga de costos— y, sobre
@@ -93,7 +90,7 @@ def get_services() -> Services:
         agent.attach_services(secops=secops, finops=finops, cost=cost, risk=risk)
         _services = Services(
             azure=azure, agent=agent, inventory=inventory, history=history, cost=cost,
-            metrics=metrics, finops=finops, secops=secops, k8s=k8s, risk=risk,
+            metrics=metrics, finops=finops, secops=secops, risk=risk,
             tfstate=tfstate, cost_overview=cost_overview,
         )
         print("Servicios listos.")

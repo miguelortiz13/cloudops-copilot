@@ -6,7 +6,9 @@ La plataforma ve cada clúster a través de un **agente de solo lectura que corr
 
 ## Qué muestra
 
-- **Clústeres** con su distribución, versión, nodos listos, pods en ejecución, score de salud (0-100) y la antigüedad de la última foto. Si la foto tiene más de 15 minutos, el panel avisa que el agente dejó de reportar.
+- **Flota**: todos los clústeres con su distribución, versión, **fin de soporte** (vigente, vence en menos de 90 días o sin soporte), el último parche disponible de su versión, nodos listos, salud y la antigüedad de la última foto. Elegir uno abre su detalle.
+
+- **Detalle de cada clúster** con nodos listos, pods en ejecución y score de salud (0-100). Si la foto tiene más de 15 minutos, el panel avisa que el agente dejó de reportar.
 - **Incidencias**, con severidad y el siguiente paso sugerido:
 
 | Incidencia | Severidad |
@@ -23,9 +25,17 @@ La plataforma ve cada clúster a través de un **agente de solo lectura que corr
 
 El score resta 25 por incidencia crítica, 10 por alta y 4 por media.
 
+## Fin de soporte
+
+La versión del API server se compara con el calendario oficial de Kubernetes ([endoflife.date](https://endoflife.date/kubernetes), tabla `SOPORTE` en `services/k8s_fleet.py`): cada versión menor tiene unos 14 meses de parches. Un clúster sin soporte, o al que le quedan menos de 90 días, es además un hallazgo (`k8s.cluster.unsupported-version`, alta o media; ISO A.8.8). AKS y EKS tienen calendarios propios, en general más largos: para ellos el aviso puede llegar antes de tiempo. Una versión que no está en la tabla se muestra *sin dato*, nunca como vigente; la tabla se actualiza al salir cada versión menor.
+
+## AKS, EKS y clústeres privados
+
+El agente es el mismo en cualquier clúster: solo usa el API estándar de Kubernetes desde adentro. En AKS y EKS se instala igual que en un homelab; los clústeres privados funcionan porque la conexión sale del clúster hacia Azure Storage y no al revés. La plataforma ya no usa AKS Run Command: se retiró con la parte 5 del [plan](../plan/08-kubernetes.md).
+
 ## Hallazgos de seguridad
 
-El job diario guarda cada clúster como una cuenta (`kubernetes:cluster/<nombre>`) y el clúster, sus nodos y sus cargas en el inventario (pasos `inventory_kubernetes` y `findings_kubernetes`). Sobre las banderas de seguridad de cada carga evalúa 7 reglas mapeadas a CIS Kubernetes 1.9.0 e ISO 27001: contenedores privilegiados, namespaces del nodo compartidos, hostPath, escalada de privilegios, root, sin límites de recursos e imágenes `latest` ([detalle](compliance.md#reglas-de-kubernetes-cis-kubernetes-benchmark-190)).
+El job diario guarda cada clúster como una cuenta (`kubernetes:cluster/<nombre>`) y el clúster, sus nodos y sus cargas en el inventario (pasos `inventory_kubernetes` y `findings_kubernetes`). Sobre las banderas de seguridad de cada carga evalúa 8 reglas mapeadas a CIS Kubernetes 1.9.0 e ISO 27001: versión sin soporte y, en cada carga, contenedores privilegiados, namespaces del nodo compartidos, hostPath, escalada de privilegios, root, sin límites de recursos e imágenes `latest` ([detalle](compliance.md#reglas-de-kubernetes-cis-kubernetes-benchmark-190)).
 
 Los hallazgos aparecen en *Seguridad → Gestión de hallazgos* con el mismo ciclo de vida que los de Azure y AWS (asumir, aceptar con vencimiento, resolverse solos al corregir la carga), se filtran por el clúster en el selector de cuentas y cuentan para *Cumplimiento*, donde aparece el marco CIS Kubernetes. Los namespaces del sistema no se evalúan (`K8S_EXCLUDED_NAMESPACES`).
 
@@ -102,7 +112,3 @@ Para ver la foto sin subirla: `kubectl -n cloudops exec deploy/cloudops-agent --
 ## Costo
 
 288 escrituras al día por clúster y unos KB por foto (comprimida): centavos al mes. El API solo lee la foto cuando alguien abre la página; ni el API ni la base se despiertan por los envíos del agente.
-
-## Rutas heredadas (AKS Run Command)
-
-`GET /api/k8s/health`, `GET /api/k8s/pod-logs` y `POST /api/k8s/incidents`, `/api/k8s/overview` y `/api/k8s/reinit` todavía usan AKS Run Command con `K8S_CLUSTER_NAME`, `K8S_RESOURCE_GROUP` y `K8S_SUBSCRIPTION_ID`; sin ellas quedan en modo *offline*. El panel ya no las usa y se retiran en la parte 5 del [plan](../plan/08-kubernetes.md#partes). Mientras existan mantienen sus controles: comandos de lectura construidos por el servicio, nombres validados contra RFC 1123 y rechazo de metacaracteres de shell ([seguridad](../security.md#agente-sre-de-kubernetes)).

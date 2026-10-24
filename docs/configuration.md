@@ -116,11 +116,8 @@ Sin Service Principal, el agente usa `DefaultAzureCredential`: la **identidad ad
 | `NOTIFY_WEBHOOK_URL` (job `k8s-watch`) | Destino de los avisos de Kubernetes; el job corre según `kubernetes_watch_cron` (por defecto cada 10 minutos) |
 | `K8S_EXCLUDED_NAMESPACES` | Namespaces cuyas cargas no se evalúan con las reglas `k8s.*` (por defecto `kube-system,kube-public,kube-node-lease`) |
 | `INCLUDE_LOGS` (Deployment del agente) | `false` para que la foto no lleve líneas de log de los pods con problemas |
-| `K8S_CLUSTER_NAME` | *Agente SRE heredado.* Clúster AKS para el chat y los logs por Run Command |
-| `K8S_RESOURCE_GROUP` | *Agente SRE heredado.* Su grupo de recursos |
-| `K8S_SUBSCRIPTION_ID` | *Agente SRE heredado.* Su suscripción |
 
-Sin las tres variables del agente heredado, el chat de Kubernetes queda en modo *offline*. Guía del agente en [Kubernetes](modules/kubernetes-sre.md#conectar-un-clúster).
+Guía del agente en [Kubernetes](modules/kubernetes-sre.md#conectar-un-clúster).
 
 ## Frontend (tiempo de compilación)
 

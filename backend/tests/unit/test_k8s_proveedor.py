@@ -121,3 +121,31 @@ def test_ciclo_de_vida_en_la_base(base):
     correr(findings, proveedor(("homelab", foto([carga("web", seguridad(contenedor("web")))]))))
     with db.session_scope() as s:
         assert s.scalars(select(Finding.status)).one() == "resuelto"
+
+
+@pytest.mark.parametrize("version,estado,parche", [
+    ("v1.35.5+k3s1", "vigente", "1.35.9"),
+    ("v1.34.3-eks-ce1d5eb", "por_vencer", "1.34.12"),  # vence el 27-oct-2026
+    ("v1.33.13", "sin_soporte", None),                  # ya en el último parche
+    ("v1.99.0", "sin_dato", None),
+    (None, "sin_dato", None),
+])
+def test_fin_de_soporte(version, estado, parche):
+    from app.services import k8s_fleet
+
+    s = k8s_fleet.soporte(version, AHORA)
+    assert (s["status"], s["latest_patch"]) == (estado, parche)
+
+
+def test_version_sin_soporte_o_por_vencer_es_hallazgo():
+    def con_version(v):
+        f = foto([])
+        f["kubernetes_version"] = v
+        return f
+
+    r = proveedor(("homelab", con_version("v1.33.2"))).evaluar_reglas([CUENTA])
+    h = r.hallazgos[0]
+    assert (h.rule_id, h.resource_uid, h.severity) == ("k8s.cluster.unsupported-version", CUENTA, "alta")
+    assert h.details == {"version": "v1.33.2", "end_of_support": "2026-06-28", "latest_patch": "1.33.13"}
+    assert proveedor(("homelab", con_version("v1.34.12"))).evaluar_reglas([CUENTA]).hallazgos[0].severity == "media"
+    assert proveedor(("homelab", con_version("v1.35.5+k3s1"))).evaluar_reglas([CUENTA]).hallazgos == []

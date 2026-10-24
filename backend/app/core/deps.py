@@ -23,7 +23,6 @@ from app.services.cost_service import CostService
 from app.services.finops_service import FinOpsService
 from app.services.history_service import HistoryService
 from app.services.inventory_service import InventoryService
-from app.services.k8s_service import K8sService
 from app.services.metrics_service import MetricsService
 from app.services.risk_service import RiskService
 from app.services.secops_service import SecOpsService
@@ -70,10 +69,6 @@ def _secops(s: ServicesDep) -> SecOpsService:
     return s.secops
 
 
-def _k8s(s: ServicesDep) -> K8sService:
-    return s.k8s
-
-
 def _risk(s: ServicesDep) -> RiskService:
     return s.risk
 
@@ -94,7 +89,6 @@ CostDep = Annotated[CostService, Depends(_cost)]
 MetricsDep = Annotated[MetricsService, Depends(_metrics)]
 FinOpsDep = Annotated[FinOpsService, Depends(_finops)]
 SecOpsDep = Annotated[SecOpsService, Depends(_secops)]
-K8sDep = Annotated[K8sService, Depends(_k8s)]
 RiskDep = Annotated[RiskService, Depends(_risk)]
 TfStateDep = Annotated[TfStateService, Depends(_tfstate)]
 CostOverviewDep = Annotated[CostOverviewService, Depends(_cost_overview)]

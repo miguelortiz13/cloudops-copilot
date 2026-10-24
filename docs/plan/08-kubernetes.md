@@ -39,7 +39,7 @@ Principios que se mantienen:
 | 2. Historia e inventario · **En parte** (24-oct-2026) | Hecho: el job guarda los clústeres como cuentas y el clúster, sus nodos y sus cargas en el inventario (salió con la parte 3); el aviso de agente sin reportar salió con la 4. Falta la historia de incidencias con hora de inicio y fin | Una incidencia resuelta queda en la historia con su duración |
 | 3. Hallazgos de seguridad del clúster · **Hecha** (24-oct-2026) | Proveedor `kubernetes` sobre la foto (agente 1.2.0 con banderas de seguridad por carga) y 7 reglas `k8s.*` mapeadas a CIS Kubernetes 1.9.0 e ISO, evaluadas por el job diario | Los hallazgos del clúster aparecen en la bandeja con su ciclo de vida |
 | 4. Avisos, logs y chat · **Hecha** (24-oct-2026) | Job `k8s-watch` cada 10 min con avisos de incidencias críticas y altas (con confirmación en dos fotos), su resolución y el agente sin reportar; últimas líneas de log enmascaradas de los pods con problemas; el chat SRE responde sobre la foto | Un nodo apagado genera un aviso; el chat explica un CrashLoop con su log |
-| 5. Flota y retiro de Run Command | AKS y EKS con el mismo agente; versión y fin de soporte por clúster; se retira el camino de Run Command | El panel lista todos los clústeres con versión y fin de soporte |
+| 5. Flota y retiro de Run Command · **Hecha** (24-oct-2026) | Tabla de flota con versión, fin de soporte (calendario oficial) y último parche; regla `k8s.cluster.unsupported-version`; se retiró AKS Run Command (servicio, 5 rutas y la dependencia `azure-mgmt-containerservice`). AKS y EKS usan el mismo agente | El panel lista todos los clústeres con versión y fin de soporte |
 
 ## Parte 1 en detalle
 

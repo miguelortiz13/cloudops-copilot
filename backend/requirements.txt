@@ -15,5 +15,3 @@ boto3>=1.43.0,<2
 azure-mgmt-resourcegraph>=8.0.1,<9.0.0
 # Validacion de tokens de Microsoft Entra ID (services/auth.py)
 PyJWT[crypto]>=2.15.1
-# Agente Kubernetes SRE (services/k8s_service.py): opera AKS con run-command
-azure-mgmt-containerservice>=41.7.0

@@ -19,7 +19,7 @@ Qué debe hacer la plataforma y bajo qué condiciones. El estado de cada requeri
 | RF-11 | Avisos automáticos a Discord, Slack o Teams sin repetirse | Hecho |
 | RF-12 | Presupuesto mensual por nube con aviso al 80 %, al 100 % y por pronóstico | Hecho |
 | RF-13 | Reporte ejecutivo mensual en PDF, descargable desde el panel y enviado solo | Hecho |
-| RF-14 | Clústeres de Kubernetes (AKS, EKS o fuera de la nube) con un agente de solo lectura: salud, incidencias, logs, avisos, chat SRE, inventario y hallazgos mapeados a CIS Kubernetes | Hecho en parte: falta la historia de incidencias y la flota |
+| RF-14 | Clústeres de Kubernetes (AKS, EKS o fuera de la nube) con un agente de solo lectura: flota con fin de soporte, salud, incidencias, logs, avisos, chat SRE, inventario y hallazgos mapeados a CIS Kubernetes | Hecho en parte: falta la historia de incidencias |
 
 ## No funcionales
 

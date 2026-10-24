@@ -31,7 +31,6 @@ flowchart LR
       CM[(Cost Management)]
       ACT[(Activity Log)]
       TFS[(Estados de Terraform)]
-      AKS[(AKS Run Command)]
     end
     subgraph AWS[AWS observado · rol de lectura por OIDC]
       RE[(Resource Explorer)]
@@ -41,7 +40,7 @@ flowchart LR
 
     JOB --> ARG & CM & ACT & TFS
     JOB --> RE & ATH & CT
-    API --> ARG & CM & AKS
+    API --> ARG & CM
     API --> GEM[Google Gemini]
     JOB --> WH[Webhook de avisos<br/>Discord · Slack · Teams]
 ```
@@ -87,7 +86,6 @@ flowchart LR
     AZ --> MET[MetricsService]
     AZ --> SEC[SecOpsService]
     AZ --> TF[TfStateService]
-    AZ --> K8S[K8sService]
     AZ --> AG[AzureInventoryAgent<br/>chat]
     COST --> FIN[FinOpsService]
     MET --> FIN

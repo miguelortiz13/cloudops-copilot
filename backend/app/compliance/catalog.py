@@ -108,6 +108,7 @@ _CONTROLES: List[Control] = [
     Control(ISO, "A.8.2", "Derechos de acceso privilegiado"),
     Control(ISO, "A.8.3", "Restricción del acceso a la información"),
     Control(ISO, "A.8.6", "Gestión de la capacidad"),
+    Control(ISO, "A.8.8", "Gestión de vulnerabilidades técnicas"),
     Control(ISO, "A.8.9", "Gestión de la configuración"),
     Control(ISO, "A.8.12", "Prevención de fuga de datos"),
     Control(ISO, "A.8.20", "Seguridad de las redes"),
@@ -311,6 +312,17 @@ REGLAS: Dict[str, Regla] = {
         {ISO: (("A.8.9", "parcial"),)},
         ("https://kubernetes.io/docs/concepts/containers/images/#image-names",), "kubernetes",
     ),
+    "k8s_version": Regla(
+        "k8s.cluster.unsupported-version", "security", "Clúster con una versión de Kubernetes sin soporte", "alta",
+        "Actualizar a una versión menor con soporte (de a una versión por vez); en AKS o EKS, con su asistente de "
+        "actualización.",
+        "Una versión fuera de soporte no recibe parches de seguridad: las vulnerabilidades que se publiquen después "
+        "quedan abiertas para siempre.",
+        "Versión menor del API server con fin de soporte vencido según el calendario oficial de Kubernetes (alta) o "
+        "que vence en menos de 90 días (media). AKS y EKS suelen dar soporte por más tiempo.",
+        {ISO: (("A.8.8", "directa"),)},
+        ("https://kubernetes.io/releases/",), "kubernetes",
+    ),
 }
 
 # Nombre de la consulta de SecOpsService que alimenta cada tipo: si la
@@ -322,7 +334,7 @@ CONSULTA_DE_TIPO = {"nsg": "nsgs", "storage": "storage", "keyvault": "keyvaults"
                     "aws_ebs_libre": "ebs", "aws_eip_libre": "eips",
                     # Kubernetes: todas salen de la foto del agente (app/providers/kubernetes).
                     "k8s_privileged": "foto", "k8s_host_ns": "foto", "k8s_host_path": "foto", "k8s_escalation": "foto",
-                    "k8s_root": "foto", "k8s_limits": "foto", "k8s_latest": "foto"}
+                    "k8s_root": "foto", "k8s_limits": "foto", "k8s_latest": "foto", "k8s_version": "foto"}
 
 POR_ID: Dict[str, Regla] = {r.id: r for r in REGLAS.values()}
 
