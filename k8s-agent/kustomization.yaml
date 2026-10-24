@@ -1,0 +1,10 @@
+# kubectl apply -k k8s-agent/   (antes, crear el secret: ver README.md)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cloudops
+resources:
+  - manifests.yaml
+configMapGenerator:
+  - name: cloudops-agent
+    files:
+      - agent.py

@@ -157,29 +157,6 @@ class K8sService:
             "timestamp": _now_iso(),
         }
 
-    def list_aks_clusters(self, subscription_ids: Optional[List[str]] = None) -> Dict:
-        clusters = []
-        if self.azure and hasattr(self.azure, "query_azure_resource_graph"):
-            kql = (
-                "resources "
-                "| where type =~ 'microsoft.containerservice/managedclusters' "
-                "| project name, resourceGroup, subscriptionId, location, "
-                "  k8sVersion = tostring(properties.kubernetesVersion), "
-                "  provisioningState = tostring(properties.provisioningState), "
-                "  powerState = tostring(properties.powerState.code), "
-                "  fqdn = tostring(properties.fqdn), "
-                "  nodeCount = toint(properties.agentPoolProfiles[0].count)"
-            )
-            try:
-                raw = self.azure.query_azure_resource_graph(kql, subscriptions=subscription_ids or [])
-                for r in raw:
-                    clusters.append(r)
-            except Exception as e:
-                logger.error(f"Error listing clusters: {e}")
-        return {"clusters": clusters, "total": len(clusters), "scannedAt": _now_iso()}
-
-    # --- Herramientas reescritas para usar `get <resource> -o json` ---
-
     def _get_problem_pods(self, namespace: Optional[str] = None) -> List[Dict]:
         namespace = _validar_nombre(namespace, "namespace")
         ns_flag = f"-n {namespace}" if namespace else "-A"

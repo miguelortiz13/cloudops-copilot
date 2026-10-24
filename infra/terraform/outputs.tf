@@ -76,3 +76,9 @@ output "aws_reader_role_arn" {
   description = "Rol de AWS que asume la identidad administrada (vacío sin AWS)."
   value       = local.aws_enabled ? module.aws_onboarding[0].role_arn : null
 }
+
+output "kubernetes_agent_upload_urls" {
+  description = "URL de subida de cada clúster (contenedor + SAS de solo escritura) para el secret del agente."
+  value       = { for c in var.kubernetes_clusters : c => "${module.storage.primary_blob_endpoint}k8s-${c}${data.azurerm_storage_account_blob_container_sas.k8s_agent[c].sas}" }
+  sensitive   = true
+}

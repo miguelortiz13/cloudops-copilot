@@ -34,6 +34,11 @@ showback_tags  = ["Project", "Environment"]
 # pronóstico del mes lo supera.
 # monthly_budgets_usd = { azure = 5, aws = 5 }
 
+# Clústeres de Kubernetes que reportan con el agente (k8s-agent/): AKS, EKS o
+# fuera de la nube. La URL de cada uno sale de
+# `terraform output -json kubernetes_agent_upload_urls`.
+# kubernetes_clusters = ["homelab"]
+
 # Miembros de cada grupo de seguridad de la plataforma (Admin, Operator,
 # Reader). Vacío = quien aplica Terraform, en Admin.
 # Ver docs/security.md#autorización-por-rol.

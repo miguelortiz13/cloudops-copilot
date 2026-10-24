@@ -13,6 +13,7 @@ Está escrito para leerse por partes. Cada documento se sostiene solo y enlaza c
 | 5 | [Infraestructura de la plataforma](05-infraestructura.md) | Despliegue continuo, ambientes, base de datos, trabajos programados, observabilidad y costo |
 | 6 | [Seguridad, calidad y operación](06-seguridad-calidad-operacion.md) | Autorización por rol, auditoría, pruebas, SLO, respaldo |
 | 7 | [Hoja de ruta](07-hoja-de-ruta.md) | Fases, entregables, esfuerzo, costo, riesgos y métricas de éxito |
+| 8 | [Kubernetes](08-kubernetes.md) | Reconstrucción del módulo con un agente de solo lectura en el clúster, por partes |
 
 Decisiones propuestas, registradas como ADR: [0006 Abstracción de proveedores](../adr/0006-abstraccion-de-proveedores.md) · [0007 Almacén de datos y recolectores](../adr/0007-almacen-de-datos-y-recolectores.md) · [0008 FOCUS como modelo de costos](../adr/0008-focus-como-modelo-de-costos.md).
 

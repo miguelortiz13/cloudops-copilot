@@ -213,3 +213,23 @@ variable "aws_region" {
   type        = string
   default     = "us-east-1"
 }
+
+# ---------------------------------------------------------------------------
+# Kubernetes (agente en el clúster, docs/plan/08-kubernetes.md)
+# ---------------------------------------------------------------------------
+variable "kubernetes_clusters" {
+  description = "Clústeres que reportan con el agente (AKS, EKS o fuera de la nube). Cada uno tiene su contenedor k8s-<nombre> y su URL de subida (output kubernetes_agent_upload_urls)."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for c in var.kubernetes_clusters : can(regex("^[a-z0-9]([a-z0-9-]{0,57}[a-z0-9])?$", c)) && !strcontains(c, "--")])
+    error_message = "Nombres en minúsculas, dígitos y guiones (hasta 59 caracteres, sin guiones dobles)."
+  }
+}
+
+variable "kubernetes_agent_sas_expiry" {
+  description = "Vencimiento de las SAS de subida de los agentes (AAAA-MM-DD). Al cambiarlo, aplicar y actualizar el secret en cada clúster."
+  type        = string
+  default     = "2027-10-31"
+}

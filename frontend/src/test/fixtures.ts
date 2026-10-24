@@ -9,6 +9,7 @@
 import type {
   CloudAccounts,
   InventoryReport,
+  K8sClusterDetail, K8sClusterSummary,
   ClassifiedAsset, ClassifiedAssets, ComplianceStatus, ConnectedAccounts, CostHistory, CostOverview, FindingEvent, FinOpsReport,
   HistorySeries, InventoryPage, InventoryResource, InventorySummary, ManagedFinding, ManagedFindings, ManualCreations,
   Me, RiskExposure, Role, SecOpsReport, Snapshot, Subscription, SyncStatus, TagCompliance, TerraformCoverage,
@@ -474,5 +475,57 @@ export const cloudAccounts: CloudAccounts = {
     { uid: 'aws:account/111111111111', provider: 'aws', native_id: '111111111111', name: 'AWS laboratorio (demo)', visible: true },
     { uid: `azure:sub/${SUB_PROD}`, provider: 'azure', native_id: SUB_PROD, name: 'Producción (demo)', visible: true },
     { uid: `azure:sub/${SUB_LAB}`, provider: 'azure', native_id: SUB_LAB, name: 'Laboratorio (demo)', visible: true },
+  ],
+};
+
+// ---------------------------------------------------------------- Kubernetes
+
+const homelab: K8sClusterSummary = {
+  name: 'homelab', reporting: true, distribution: 'k3s', version: 'v1.31.4+k3s1', agent_version: '1.0.0',
+  collected_at: '2026-10-10T14:57:00Z', age_seconds: 180, stale: false, nodes: 3, nodes_ready: 3, pods: 42,
+  pods_running: 40, namespaces: 9, workloads: 21, health: 63, incidents: { critica: 1, alta: 1, media: 2 },
+};
+
+export const k8sClusters: { clusters: K8sClusterSummary[] } = {
+  clusters: [homelab, { name: 'aks-lab', reporting: false }],
+};
+
+export const k8sHomelab: K8sClusterDetail = {
+  ...homelab,
+  incident_list: [
+    { severity: 'critica', category: 'pod', title: 'CrashLoopBackOff: grafana-7d9c6b5f4-x2kqp', resource: 'pod/grafana-7d9c6b5f4-x2kqp',
+      namespace: 'monitoring', detail: 'Fase Running, 0/1 listos, 14 reinicios',
+      recommendation: 'kubectl describe pod grafana-7d9c6b5f4-x2kqp -n monitoring y kubectl logs grafana-7d9c6b5f4-x2kqp -n monitoring --previous' },
+    { severity: 'alta', category: 'nodo', title: 'DiskPressure en nodo-3', resource: 'node/nodo-3', namespace: null,
+      detail: 'El nodo reporta DiskPressure.', recommendation: 'Libera recursos o agrega capacidad; revisa los pods con más consumo del nodo' },
+    { severity: 'media', category: 'carga', title: 'Deployment degradado: grafana', resource: 'deployment/grafana', namespace: 'monitoring',
+      detail: '0 de 1 réplicas listas', recommendation: 'kubectl rollout status deployment/grafana -n monitoring' },
+    { severity: 'media', category: 'red', title: 'Servicio sin endpoints: grafana', resource: 'svc/grafana', namespace: 'monitoring',
+      detail: 'Ningún pod listo coincide con su selector.', recommendation: 'Compara el selector del servicio con las etiquetas de los pods' },
+  ],
+  node_list: [
+    { name: 'nodo-1', ready: true, pressure: [], unschedulable: false, roles: ['control-plane', 'master'], kubelet: 'v1.31.4+k3s1',
+      os: 'Ubuntu 24.04.1 LTS', runtime: 'containerd://1.7.23', arch: 'amd64', cpu_m: 4000, memory_mib: 15872, created: '2026-01-12T10:00:00Z' },
+    { name: 'nodo-2', ready: true, pressure: [], unschedulable: false, roles: ['worker'], kubelet: 'v1.31.4+k3s1',
+      os: 'Ubuntu 24.04.1 LTS', runtime: 'containerd://1.7.23', arch: 'arm64', cpu_m: 4000, memory_mib: 7680, created: '2026-01-12T10:00:00Z' },
+    { name: 'nodo-3', ready: true, pressure: ['DiskPressure'], unschedulable: false, roles: ['worker'], kubelet: 'v1.31.4+k3s1',
+      os: 'Ubuntu 24.04.1 LTS', runtime: 'containerd://1.7.23', arch: 'arm64', cpu_m: 4000, memory_mib: 7680, created: '2026-02-03T10:00:00Z' },
+  ],
+  workload_list: [
+    { kind: 'Deployment', namespace: 'monitoring', name: 'grafana', desired: 1, ready: 0 },
+    { kind: 'StatefulSet', namespace: 'monitoring', name: 'prometheus', desired: 1, ready: 1 },
+    { kind: 'DaemonSet', namespace: 'kube-system', name: 'svclb-traefik', desired: 3, ready: 3 },
+    { kind: 'Deployment', namespace: 'kube-system', name: 'coredns', desired: 1, ready: 1 },
+    { kind: 'Deployment', namespace: 'apps', name: 'home-assistant', desired: 1, ready: 1 },
+  ],
+  problem_pods: [
+    { namespace: 'monitoring', name: 'grafana-7d9c6b5f4-x2kqp', phase: 'Running', reason: 'CrashLoopBackOff', ready: 0, containers: 1,
+      restarts: 14, node: 'nodo-2', owner_kind: 'ReplicaSet', owner: 'grafana-7d9c6b5f4' },
+  ],
+  events: [
+    { namespace: 'monitoring', kind: 'Pod', name: 'grafana-7d9c6b5f4-x2kqp', reason: 'BackOff',
+      message: 'Back-off restarting failed container grafana in pod grafana-7d9c6b5f4-x2kqp', count: 58, last: '2026-10-10T14:56:00Z' },
+    { namespace: null, kind: 'Node', name: 'nodo-3', reason: 'EvictionThresholdMet',
+      message: 'Attempting to reclaim ephemeral-storage', count: 3, last: '2026-10-10T14:40:00Z' },
   ],
 };

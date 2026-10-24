@@ -67,6 +67,8 @@ function rutas(role: Role): Record<string, Handler> {
     'GET /api/finops/report': () => fx.finopsReport,
     'GET /api/history/costs': (req) => fx.costHistory((new URL(req.url()).searchParams.get('period') ?? '30d') as '30d'),
     'GET /api/secops/report': () => fx.secopsReport,
+    'GET /api/k8s/clusters': () => fx.k8sClusters,
+    'GET /api/k8s/clusters/homelab': () => fx.k8sHomelab,
     'GET /api/secops/exposure': () => fx.riskExposure,
     'POST /api/iac/terraform-coverage': () => fx.terraformCoverage,
     'GET /api/findings': () => hallazgos,

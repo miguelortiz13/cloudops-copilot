@@ -6,8 +6,9 @@ from app.schemas.k8s import *
 from app.schemas.requests import *
 from app.core.audit import auditado
 from app.core.authz import Usuario, requiere
-from app.core.deps import K8sDep
+from app.core.deps import AzureDep, K8sDep
 from app.llm.limits import exigir_cupo
+from app.services import k8s_fleet
 from app.services.k8s_service import K8sInputError
 
 
@@ -27,19 +28,31 @@ def k8s_health(k8s: K8sDep):
 
 
 
-@router.get("/api/k8s/clusters", response_model=K8sClusterListResponse, tags=["kubernetes"])
-def k8s_list_clusters(k8s: K8sDep, subscriptionIds: Optional[str] = None):
-    """
-    Lista todos los clústeres AKS en las suscripciones configuradas,
-    consultando Azure Resource Graph. Útil cuando la plataforma
-    gestiona múltiples clústeres.
-    """
-    try:
-        sub_ids = [s.strip() for s in subscriptionIds.split(",") if s.strip()] if subscriptionIds else []
-        return k8s.list_aks_clusters(sub_ids or None)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/api/k8s/clusters", tags=["kubernetes"])
+def k8s_clusters(azure: AzureDep):
+    """Clústeres que reportan con el agente (AKS, EKS o fuera de la nube), con su salud y la antigüedad de su foto."""
+    momento = k8s_fleet.ahora()
+    salida = []
+    for nombre in k8s_fleet.configurados():
+        try:
+            salida.append(k8s_fleet.resumen(nombre, k8s_fleet.leer(azure.azure_credentials, nombre), momento))
+        except k8s_fleet.FotoNoDisponible as exc:
+            salida.append({"name": nombre, "reporting": False, "error": str(exc)})
+    return {"clusters": salida}
 
+
+@router.get("/api/k8s/clusters/{nombre}", tags=["kubernetes"])
+def k8s_cluster(nombre: str, azure: AzureDep):
+    """Detalle de un clúster desde la última foto de su agente: nodos, cargas, pods con problemas, eventos e incidencias."""
+    if nombre not in k8s_fleet.configurados():
+        raise HTTPException(status_code=404, detail=f"El clúster {nombre!r} no está configurado (kubernetes_clusters).")
+    try:
+        foto = k8s_fleet.leer(azure.azure_credentials, nombre)
+    except k8s_fleet.FotoNoDisponible as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    if foto is None:
+        raise HTTPException(status_code=404, detail=f"El agente de {nombre!r} todavía no subió ninguna foto.")
+    return k8s_fleet.detalle(nombre, foto, k8s_fleet.ahora())
 
 
 @router.post("/api/k8s/incidents", tags=["kubernetes"])

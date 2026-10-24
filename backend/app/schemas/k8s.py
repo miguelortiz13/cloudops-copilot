@@ -160,29 +160,6 @@ class K8sHealthResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Response models — Clusters list
-# ---------------------------------------------------------------------------
-
-class K8sClusterListItem(BaseModel):
-    name: str
-    resourceGroup: str
-    subscriptionId: str
-    subscriptionName: Optional[str] = None
-    location: str
-    k8sVersion: Optional[str] = None
-    provisioningState: Optional[str] = None
-    powerState: Optional[str] = None
-    nodeCount: Optional[int] = None
-    fqdn: Optional[str] = None
-
-
-class K8sClusterListResponse(BaseModel):
-    clusters: List[K8sClusterListItem]
-    total: int
-    scannedAt: str
-
-
-# ---------------------------------------------------------------------------
 # Response models — Logs
 # ---------------------------------------------------------------------------
 

@@ -137,6 +137,8 @@ module "storage" {
   # Container Apps monta el File Share con la clave de la cuenta.
   shared_access_key_enabled = true
   file_shares               = { (local.data_share) = 1 }
+  # Un contenedor por clúster de Kubernetes (kubernetes.tf).
+  containers = [for c in var.kubernetes_clusters : "k8s-${c}"]
 }
 
 # ---------------------------------------------------------------------------
@@ -205,6 +207,9 @@ module "api" {
     # vigente hasta la siguiente recoleccion (26 h).
     COST_WARM_ENABLED      = "false"
     COST_CACHE_TTL_SECONDS = "93600"
+    # Fotos de los agentes de Kubernetes (kubernetes.tf).
+    K8S_CLUSTERS         = join(",", sort(var.kubernetes_clusters))
+    K8S_SNAPSHOT_ACCOUNT = module.storage.name
   }
 }
 

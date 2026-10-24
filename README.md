@@ -15,7 +15,7 @@
 - **¿Cuánto cuesta y dónde se desperdicia?** FinOps sobre la facturación real (Cost Management y el export FOCUS de AWS), con presupuestos y anomalías.
 - **¿Qué está expuesto?** Hallazgos de seguridad ordenados por severidad y por el dinero que hay detrás.
 - **¿Qué está codificado?** Cobertura real de Terraform leída de los estados, y generación de HCL para importar lo que falta.
-- **¿Qué le pasa al clúster?** Diagnóstico de AKS con un agente SRE.
+- **¿Qué le pasa al clúster?** Salud e incidencias de cualquier clúster de Kubernetes (AKS, EKS u on-premise) con un agente de solo lectura.
 - **¿Qué tengo que saber hoy?** Avisos en Discord, Slack o Teams y un reporte ejecutivo mensual en PDF.
 
 Todo con identidades de **solo lectura**: Reader en Azure y un rol de lectura en AWS asumido por federación, sin llaves guardadas: la plataforma observa y recomienda; los cambios los aprueba y aplica una persona. Se despliega en Azure por centavos al mes: Container Apps con escala a cero, un job diario, Azure SQL gratuita, Static Web App gratuita y Entra ID ([despliegue](docs/deployment.md)).
@@ -78,7 +78,7 @@ Sin credenciales de Azure la plataforma arranca igual y responde en modo degrada
 | Cumplimiento | Estado de los controles de CIS Azure 2.0.0 e ISO 27001:2022 con su evidencia, catálogo de reglas y clasificación ISO de activos con corrección manual auditada | [compliance.md](docs/modules/compliance.md) |
 | IaC | Cobertura real desde los estados de Terraform y generador de HCL con `import {}` | [iac.md](docs/modules/iac.md) |
 | Agentes de IA | Chat de inventario, FinOps y SecOps con contexto acotado y reglas compartidas | [ai-agents.md](docs/modules/ai-agents.md) |
-| Kubernetes SRE | Salud, incidentes y logs de AKS con comandos validados | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |
+| Kubernetes | Clústeres de AKS, EKS o fuera de la nube con un agente de solo lectura: salud, nodos, cargas e incidencias | [kubernetes-sre.md](docs/modules/kubernetes-sre.md) |
 | Avisos y reportes | Hallazgos críticos, recolectores caídos, anomalías de gasto y presupuestos en Discord, Slack o Teams; reporte ejecutivo mensual en PDF | [notifications-reports.md](docs/modules/notifications-reports.md) |
 | Teams | Bot conversacional y reportes proactivos | [teams.md](docs/integrations/teams.md) |
 
@@ -105,6 +105,7 @@ cloudops-copilot/
 ├── infra/
 │   ├── terraform/            infraestructura de la plataforma en Azure
 │   └── modules/aws-onboarding/  federación, rol de lectura, Resource Explorer y export de costos en AWS
+├── k8s-agent/                agente de solo lectura para clústeres de Kubernetes
 ├── integrations/teams-bot/   manifiesto de la app de Teams
 ├── scripts/                  dev, bootstrap del estado, deploy y destroy
 └── docs/                     documentación
