@@ -70,6 +70,12 @@ jobs:
       # con clústeres configurados (infra/terraform/kubernetes.tf).
       jobs: ${{ vars.CONTAINER_APP_JOB }} ${{ vars.CONTAINER_APP_JOB_K8S }}?
       health-path: /api/inventory/health
+    # Los identificadores de Azure son secretos del repo: un workflow
+    # reutilizable no los ve si no se le pasan.
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
   web:
     name: Publicar el panel en dev
@@ -87,6 +93,9 @@ jobs:
       build-env: |
         VITE_USER_DISPLAY_NAME=${{ vars.USER_DISPLAY_NAME }}
     secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       build-secrets: |
         VITE_API_URL=${{ secrets.VITE_API_URL }}
         VITE_AZURE_AD_CLIENT_ID=${{ secrets.VITE_AZURE_AD_CLIENT_ID }}
