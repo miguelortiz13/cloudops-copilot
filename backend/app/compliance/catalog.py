@@ -17,9 +17,12 @@ El catalogo es la fuente de verdad: el recolector lo sincroniza con la tabla
   controles de Security Hub (sin activar Security Hub: las reglas las evalua
   la plataforma con llamadas de lectura).
 
+* CIS Kubernetes Benchmark 1.9.0, sección 5.2 (políticas de pods): la evalúa
+  la plataforma sobre la foto que envía el agente de cada clúster.
+
 Cada regla pertenece a un proveedor: la evalua su recolector de hallazgos
-(`findings` en Azure, `findings_aws` en AWS) y solo cuenta para los controles
-de su marco y de ISO.
+(`findings` en Azure, `findings_aws` en AWS, `findings_kubernetes` en los
+clústeres) y solo cuenta para los controles de su marco y de ISO.
 * ISO/IEC 27001:2022, Anexo A.
 
 Solo se listan los controles que alguna regla o la clasificacion de activos
@@ -59,16 +62,19 @@ class Regla(NamedTuple):
 
 CIS = "cis-azure-2.0.0"
 CIS_AWS = "cis-aws-3.0.0"
+CIS_K8S = "cis-kubernetes-1.9.0"
 ISO = "iso-27001-2022"
 
 # Recolector que evalua las reglas de cada proveedor (app/collectors/run.py).
-RECOLECTOR_DE_HALLAZGOS = {"azure": "findings", "aws": "findings_aws"}
+RECOLECTOR_DE_HALLAZGOS = {"azure": "findings", "aws": "findings_aws", "kubernetes": "findings_kubernetes"}
 
 MARCOS: Dict[str, Marco] = {
     CIS: Marco(CIS, "CIS Microsoft Azure Foundations Benchmark", "2.0.0",
                "https://www.cisecurity.org/benchmark/azure"),
     CIS_AWS: Marco(CIS_AWS, "CIS Amazon Web Services Foundations Benchmark", "3.0.0",
                    "https://www.cisecurity.org/benchmark/amazon_web_services"),
+    CIS_K8S: Marco(CIS_K8S, "CIS Kubernetes Benchmark", "1.9.0",
+                   "https://www.cisecurity.org/benchmark/kubernetes"),
     ISO: Marco(ISO, "ISO/IEC 27001:2022 · Anexo A", "2022",
                "https://www.iso.org/standard/27001"),
 }
@@ -88,11 +94,20 @@ _CONTROLES: List[Control] = [
     Control(CIS_AWS, "2.3.3", "Ensure that public access is not given to RDS Instance"),
     Control(CIS_AWS, "5.2", "Ensure no security groups allow ingress from 0.0.0.0/0 to remote server administration ports"),
     Control(CIS_AWS, "5.3", "Ensure no security groups allow ingress from ::/0 to remote server administration ports"),
+    Control(CIS_K8S, "5.2.2", "Minimize the admission of privileged containers"),
+    Control(CIS_K8S, "5.2.3", "Minimize the admission of containers wishing to share the host process ID namespace"),
+    Control(CIS_K8S, "5.2.4", "Minimize the admission of containers wishing to share the host IPC namespace"),
+    Control(CIS_K8S, "5.2.5", "Minimize the admission of containers wishing to share the host network namespace"),
+    Control(CIS_K8S, "5.2.6", "Minimize the admission of containers with allowPrivilegeEscalation"),
+    Control(CIS_K8S, "5.2.7", "Minimize the admission of root containers"),
+    Control(CIS_K8S, "5.2.12", "Minimize the admission of HostPath volumes"),
     Control(ISO, "A.5.9", "Inventario de información y otros activos asociados"),
     Control(ISO, "A.5.12", "Clasificación de la información"),
     Control(ISO, "A.5.14", "Transferencia de información"),
     Control(ISO, "A.5.15", "Control de acceso"),
+    Control(ISO, "A.8.2", "Derechos de acceso privilegiado"),
     Control(ISO, "A.8.3", "Restricción del acceso a la información"),
+    Control(ISO, "A.8.6", "Gestión de la capacidad"),
     Control(ISO, "A.8.9", "Gestión de la configuración"),
     Control(ISO, "A.8.12", "Prevención de fuga de datos"),
     Control(ISO, "A.8.20", "Seguridad de las redes"),
@@ -232,6 +247,70 @@ REGLAS: Dict[str, Regla] = {
         "Direcciones elásticas sin AssociationId.",
         {}, ("https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html",), "aws",
     ),
+    # ---------------------------------------------------------------- Kubernetes (cargas de cada clúster)
+    "k8s_privileged": Regla(
+        "k8s.workload.privileged", "security", "Contenedor privilegiado", "alta",
+        "Quitar privileged: true; si necesita una capacidad concreta, agregar solo esa en capabilities.add.",
+        "Un contenedor privilegiado tiene acceso a todos los dispositivos del nodo y casi los mismos permisos que "
+        "un proceso root en él: quien lo comprometa controla el nodo.",
+        "securityContext.privileged = true en algún contenedor de la plantilla de pods.",
+        {CIS_K8S: (("5.2.2", "directa"),), ISO: (("A.8.2", "directa"), ("A.8.9", "parcial"))},
+        ("https://kubernetes.io/docs/concepts/security/pod-security-standards/",), "kubernetes",
+    ),
+    "k8s_host_ns": Regla(
+        "k8s.workload.host-namespaces", "security", "Carga que comparte la red, los procesos o el IPC del nodo", "alta",
+        "Quitar hostNetwork, hostPID y hostIPC salvo en agentes de nodo que lo necesiten (y aceptar el riesgo ahí).",
+        "Compartir los namespaces del nodo deja ver y alcanzar sus procesos, su memoria compartida o su red, "
+        "incluidos servicios que solo escuchan en localhost.",
+        "hostNetwork, hostPID o hostIPC = true en la plantilla de pods.",
+        {CIS_K8S: (("5.2.3", "directa"), ("5.2.4", "directa"), ("5.2.5", "directa")), ISO: (("A.8.22", "parcial"),)},
+        ("https://kubernetes.io/docs/concepts/security/pod-security-standards/",), "kubernetes",
+    ),
+    "k8s_host_path": Regla(
+        "k8s.workload.host-path", "security", "Carga que monta rutas del nodo (hostPath)", "media",
+        "Usar volúmenes persistentes o emptyDir; si la ruta es imprescindible, montarla de solo lectura.",
+        "Un volumen hostPath expone archivos del nodo al contenedor: según la ruta, credenciales del kubelet, el "
+        "socket del runtime o la configuración del sistema.",
+        "Algún volumen hostPath en la plantilla de pods.",
+        {CIS_K8S: (("5.2.12", "directa"),), ISO: (("A.8.3", "parcial"),)},
+        ("https://kubernetes.io/docs/concepts/storage/volumes/#hostpath",), "kubernetes",
+    ),
+    "k8s_escalation": Regla(
+        "k8s.workload.privilege-escalation", "security", "Contenedor que puede escalar privilegios", "media",
+        "Agregar securityContext.allowPrivilegeEscalation: false a cada contenedor.",
+        "Sin allowPrivilegeEscalation: false, un proceso del contenedor puede ganar más privilegios que su padre "
+        "(binarios setuid, por ejemplo). Kubernetes lo permite por defecto.",
+        "allowPrivilegeEscalation distinto de false en algún contenedor.",
+        {CIS_K8S: (("5.2.6", "directa"),), ISO: (("A.8.2", "parcial"),)},
+        ("https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",), "kubernetes",
+    ),
+    "k8s_root": Regla(
+        "k8s.workload.run-as-root", "security", "Contenedor que puede correr como root", "media",
+        "Definir runAsNonRoot: true (o un runAsUser distinto de 0) en el pod o el contenedor.",
+        "Sin runAsNonRoot ni un usuario distinto de 0, el contenedor corre como root si su imagen lo hace: una "
+        "fuga del contenedor empieza con más permisos.",
+        "Ni runAsNonRoot = true ni runAsUser distinto de 0, en el contenedor o en el pod.",
+        {CIS_K8S: (("5.2.7", "directa"),), ISO: (("A.8.2", "parcial"),)},
+        ("https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",), "kubernetes",
+    ),
+    "k8s_limits": Regla(
+        "k8s.workload.no-resource-limits", "security", "Contenedor sin límites de recursos", "media",
+        "Definir resources.limits (memoria al menos) en cada contenedor, o un LimitRange en el namespace.",
+        "Sin límites, un contenedor con una fuga de memoria o un pico de CPU puede dejar sin recursos al resto "
+        "de las cargas del nodo.",
+        "Algún contenedor sin resources.limits.",
+        {ISO: (("A.8.6", "directa"),)},
+        ("https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",), "kubernetes",
+    ),
+    "k8s_latest": Regla(
+        "k8s.workload.mutable-image-tag", "security", "Imagen con etiqueta latest o sin etiqueta", "media",
+        "Fijar una versión (o mejor, el digest @sha256) en la imagen.",
+        "Con latest o sin etiqueta, cada reinicio puede traer una imagen distinta: no se sabe qué versión corre y "
+        "un cambio no revisado entra solo.",
+        "Imagen sin etiqueta o con :latest, salvo que use un digest.",
+        {ISO: (("A.8.9", "parcial"),)},
+        ("https://kubernetes.io/docs/concepts/containers/images/#image-names",), "kubernetes",
+    ),
 }
 
 # Nombre de la consulta de SecOpsService que alimenta cada tipo: si la
@@ -240,7 +319,10 @@ CONSULTA_DE_TIPO = {"nsg": "nsgs", "storage": "storage", "keyvault": "keyvaults"
                     "https": "https", "disco": "discos", "failed": "failed",
                     # AWS: llamada que evalua cada regla (app/providers/aws/seguridad.py).
                     "aws_sg": "security_groups", "aws_s3": "s3", "aws_rds": "rds", "aws_ebs": "ebs", "aws_root": "iam",
-                    "aws_ebs_libre": "ebs", "aws_eip_libre": "eips"}
+                    "aws_ebs_libre": "ebs", "aws_eip_libre": "eips",
+                    # Kubernetes: todas salen de la foto del agente (app/providers/kubernetes).
+                    "k8s_privileged": "foto", "k8s_host_ns": "foto", "k8s_host_path": "foto", "k8s_escalation": "foto",
+                    "k8s_root": "foto", "k8s_limits": "foto", "k8s_latest": "foto"}
 
 POR_ID: Dict[str, Regla] = {r.id: r for r in REGLAS.values()}
 

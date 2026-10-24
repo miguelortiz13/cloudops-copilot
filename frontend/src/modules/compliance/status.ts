@@ -8,4 +8,13 @@ export const CONTROL_STATUS: Record<ControlStatus, { label: string; dot?: string
 };
 
 /** Nombre corto del marco para las etiquetas de control ("CIS 6.1"). */
-export const SHORT: Record<string, string> = { 'cis-azure-2.0.0': 'CIS', 'iso-27001-2022': 'ISO' };
+export const SHORT: Record<string, string> = {
+  'cis-azure-2.0.0': 'CIS', 'cis-aws-3.0.0': 'CIS AWS', 'cis-kubernetes-1.9.0': 'CIS K8s', 'iso-27001-2022': 'ISO',
+};
+
+/** Nombre del marco en el selector: "CIS Azure 2.0.0", "CIS Kubernetes 1.9.0", "ISO 27001:2022". */
+export function frameworkLabel(f: { id: string; version: string }): string {
+  if (f.id === 'iso-27001-2022') return 'ISO 27001:2022';
+  const nombre = { 'cis-azure-2.0.0': 'CIS Azure', 'cis-aws-3.0.0': 'CIS AWS', 'cis-kubernetes-1.9.0': 'CIS Kubernetes' }[f.id];
+  return `${nombre ?? SHORT[f.id] ?? f.id} ${f.version}`;
+}

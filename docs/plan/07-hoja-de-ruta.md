@@ -107,7 +107,7 @@ gantt
 | Presupuestos con alertas | Costos · **Hecho** (22-oct-2026): presupuesto mensual por nube (`monthly_budgets_usd`) con aviso al 80 %, 100 % y por pronóstico |
 | Vista de cumplimiento por control con excepciones | Cumplimiento |
 | Agentes con herramientas, citas y conjunto de evaluación | Agentes |
-| Página de Kubernetes y hallazgos de clúster | Kubernetes · **En curso** (24-oct-2026): agente de solo lectura dentro del clúster (AKS, EKS o fuera de la nube) y página con salud, nodos, cargas e incidencias; avisos casi en vivo, logs de los pods con problemas y chat sobre la foto ([plan del módulo](08-kubernetes.md)); faltan historia, hallazgos de clúster y flota |
+| Página de Kubernetes y hallazgos de clúster | Kubernetes · **En curso** (24-oct-2026): agente de solo lectura dentro del clúster (AKS, EKS o fuera de la nube) y página con salud, nodos, cargas e incidencias; avisos casi en vivo, logs de los pods con problemas y chat sobre la foto; clústeres en el inventario y hallazgos de seguridad de las cargas mapeados a CIS Kubernetes ([plan del módulo](08-kubernetes.md)); faltan la historia de incidencias y la flota |
 | Reporte ejecutivo mensual en PDF | Reportes · **Hecho** (23-oct-2026): PDF de costos contra presupuesto, hallazgos, inventario y salud del job, descargable en Reportes; el paso `report` del job lo envía solo el día 4 al webhook de avisos (adjunto en Discord, enlace en Slack y Teams) |
 | Bot de Teams con credencial federada | Integraciones |
 | Bloque "Qué cambió" y "Mis pendientes" en el resumen | Resumen |

@@ -74,7 +74,8 @@ const FAMILIAS = [
 
 const RECOLECTOR: Record<string, string> = {
   inventory: 'Inventario', inventory_aws: 'Inventario de AWS', classification: 'Clasificación ISO', costs: 'Costos', costs_aws: 'Costos de AWS', findings: 'Hallazgos', findings_aws: 'Hallazgos de AWS', kpis: 'KPIs',
-  costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel', notify: 'Avisos',
+  inventory_kubernetes: 'Inventario de Kubernetes', findings_kubernetes: 'Hallazgos de Kubernetes',
+  costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel', report: 'Reporte mensual', notify: 'Avisos',
 };
 
 function Outcome({ ok, label }: { ok: boolean; label?: string }) {
