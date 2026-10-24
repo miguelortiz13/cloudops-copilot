@@ -2,46 +2,60 @@
 
 ## Vista de componentes
 
+La plataforma vive en un grupo de recursos de Azure y observa Azure y AWS sin permisos de escritura. El job diario es el centro: lee las dos nubes, guarda en Azure SQL y deja las vistas calculadas en el File Share, de donde el API las sirve sin despertar la base. El API también consulta Azure en vivo para lo que no está en la base (inventario en tiempo real, Kubernetes).
+
 ```mermaid
-flowchart TB
-    subgraph Clientes
-      UI[Panel React<br/>frontend/]
-      TEAMS[Microsoft Teams]
+flowchart LR
+    U[Usuarios<br/>Entra ID] --> SWA
+    TEAMS[Microsoft Teams] --> BOT[Azure Bot Service<br/>opcional]
+    GH[GitHub Actions<br/>OIDC · imagen en GHCR] -.despliega.-> RG
+
+    subgraph RG[Grupo de recursos de la plataforma · infra/terraform]
+      SWA[Static Web App<br/>panel React]
+      subgraph CAE[Container Apps Environment]
+        API[API FastAPI<br/>0-1 réplicas]
+        JOB[Job diario<br/>12 pasos]
+      end
+      SQL[(Azure SQL<br/>oferta gratuita)]
+      FS[(File Share<br/>vistas y cachés)]
     end
 
-    subgraph Azure_plataforma[Recursos de la plataforma · infra/terraform]
-      SWA[Static Web App]
-      APP[Container App<br/>FastAPI · 0-1 réplicas]
-      BOT[Azure Bot Service<br/>opcional]
-      FS[(File Share<br/>DATA_DIR)]
-    end
+    SWA -->|REST + token| API
+    BOT -->|JWT Bot Framework| API
+    API --> FS
+    API -. bajo demanda .-> SQL
+    JOB --> SQL & FS
 
-    subgraph Azure_tenant[Tenant observado · solo lectura]
+    subgraph AZ[Azure observado · Reader]
       ARG[(Resource Graph)]
-      CM[(Cost Management<br/>Consumption)]
-      MON[(Azure Monitor)]
-      BLOB[(Estados de Terraform)]
-      AKS[(Clústeres AKS)]
+      CM[(Cost Management)]
+      ACT[(Activity Log)]
+      TFS[(Estados de Terraform)]
+      AKS[(AKS Run Command)]
+    end
+    subgraph AWS[AWS observado · rol de lectura por OIDC]
+      RE[(Resource Explorer)]
+      ATH[(Export FOCUS en S3 + Athena)]
+      CT[(CloudTrail)]
     end
 
-    GEM[Google Gemini]
-
-    UI --> SWA
-    UI -->|REST · bearer Entra ID opcional| APP
-    TEAMS --> BOT -->|JWT Bot Framework| APP
-    APP --> ARG & CM & MON & BLOB & AKS
-    APP --> GEM
-    APP <--> FS
+    JOB --> ARG & CM & ACT & TFS
+    JOB --> RE & ATH & CT
+    API --> ARG & CM & AKS
+    API --> GEM[Google Gemini]
+    JOB --> WH[Webhook de avisos<br/>Discord · Slack · Teams]
 ```
 
 | Componente | Tecnología | Responsabilidad |
 |---|---|---|
-| Panel | React 19, TypeScript, Vite, MSAL | Vistas de inventario, FinOps, SecOps, IaC, ISO, Kubernetes y chat |
-| API | FastAPI, Python 3.13 | Endpoints REST, autenticación, orquestación de servicios |
-| Servicios | Azure SDK + REST | Consultas KQL, costos, métricas, estados de Terraform, AKS |
+| Panel | React 19, TypeScript, Vite, MSAL | Vistas de inventario, costos, seguridad, IaC, cumplimiento, reportes, administración y chat |
+| API | FastAPI, Python 3.13 | Endpoints REST, autenticación y roles, vistas desde caché, consultas en vivo |
+| Job diario | Container Apps Job, misma imagen que el API | Recolectores, vistas precalculadas, reporte mensual y avisos ([flujo](flows.md#job-diario-de-recolección)) |
+| Base de datos | Azure SQL serverless, SQLAlchemy, Alembic | Modelo canónico multinube ([modelo de datos](data-model.md)) |
+| Proveedores | Azure SDK y REST; boto3 con credenciales federadas | Una implementación por nube detrás del mismo contrato ([ADR 0006](adr/0006-abstraccion-de-proveedores.md)) |
 | Agentes | Gemini + motor de reglas | Respuestas en lenguaje natural sobre el contexto del tenant |
 | Pipeline | Scripts Python + bash | Exportación semanal del inventario a un Excel maestro con snapshots |
-| Infraestructura | Terraform (azurerm 5.x, azuread 3.x) | Container Apps, Static Web App, identidad administrada, Entra ID, almacenamiento |
+| Infraestructura | Terraform (azurerm, azuread, aws) | Container Apps, Static Web App, Azure SQL, identidades, Entra ID, almacenamiento y el módulo `aws-onboarding` |
 
 ## Backend por capas
 
@@ -53,6 +67,11 @@ app/core/deps.py       ← servicios como dependencias tipadas de FastAPI (Depen
 app/routers/*          ← traducen HTTP ↔ servicios; sin lógica de dominio
 app/providers/base.py  ← contrato por capacidad y modelo canónico (ADR 0006)
 app/providers/azure/*  ← AzureClient (credenciales, Resource Graph) y AzureProvider (el contrato sobre Azure)
+app/providers/aws/*    ← AwsProvider: Resource Explorer, Athena (FOCUS) y CloudTrail con credenciales federadas
+app/collectors/*       ← pasos del job diario (inventario, costos, hallazgos, KPIs, reporte, avisos)
+app/db/*               ← modelo canónico (SQLAlchemy) y conexión a Azure SQL
+app/readmodel/*        ← vistas del panel desde la base, precalculadas por el job
+app/reports/*          ← reporte ejecutivo mensual en PDF
 app/services/*         ← lógica de dominio
 app/agents/*           ← agente conversacional y generador de IaC
 app/llm/*              ← interfaz de modelos de lenguaje (Gemini con google-genai) y límite por usuario
@@ -96,6 +115,8 @@ flowchart LR
 | `core/config.py` | Tags obligatorias, dimensiones de showback, nombre de la organización |
 
 ## Flujos principales
+
+Los flujos del job diario, los avisos, el reporte mensual, el inicio de sesión y el despliegue están en [flujos](flows.md). Aquí, los de las vistas en vivo.
 
 ### Resumen de inventario
 
@@ -151,15 +172,7 @@ Cost Management limita la tasa con dureza (`429`). La precarga va en segundo pla
 
 ## Persistencia
 
-La plataforma no usa base de datos. Lo que debe sobrevivir a un reinicio va a `DATA_DIR` (un File Share en Azure, `backend/data` en local):
-
-| Ruta | Contenido | Escribe |
-|---|---|---|
-| `cost_cache/` | Gasto por recurso, por scope | `CostService` |
-| `kpi_history/` | Un punto diario de KPIs (JSON Lines, ~300 B/día) | `HistoryService` |
-| `Azure_IaC_Inventario.xlsx` | Excel maestro del pipeline | pipeline de inventario |
-| `snapshots/` | Copias semanales y logs del pipeline | pipeline de inventario |
-| `teams_session.json` | Conversación para reportes proactivos | webhook de Teams |
+La historia vive en Azure SQL (inventario, costos, hallazgos con su ciclo de vida, clasificación, KPIs, ejecuciones del job y auditoría). El File Share (`DATA_DIR`) guarda las vistas precalculadas, la caché de costos en vivo, el Excel del pipeline y la sesión de Teams. Detalle en [modelo de datos](data-model.md).
 
 ## Decisiones de diseño
 
