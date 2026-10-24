@@ -10,7 +10,7 @@ import calendar
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, true
 
 from app.collectors.notify import limites_de_presupuesto
 from app.core import config
@@ -64,7 +64,7 @@ def datos(session, mes: date) -> Dict:
 
     activos = Resource.deleted_at.is_(None)
     recursos = dict(session.execute(select(Resource.provider, func.count()).where(activos).group_by(Resource.provider)).all())
-    en_iac = session.scalar(select(func.count()).select_from(Resource).where(activos, Resource.in_iac_state.is_(True)))
+    en_iac = session.scalar(select(func.count()).select_from(Resource).where(activos, Resource.in_iac_state == true()))
     nuevos = session.scalar(select(func.count()).select_from(Resource).where(
         Resource.first_seen >= desde, Resource.first_seen < hasta))
     borrados = session.scalar(select(func.count()).select_from(Resource).where(
