@@ -27,3 +27,42 @@ resource "azurerm_role_assignment" "k8s_snapshot_reader" {
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = module.api_identity.principal_id
 }
+
+# ---------------------------------------------------------------------------
+# Avisos casi en vivo (app/collectors/k8s_watch.py): revisa las fotos cada 10
+# minutos y avisa al webhook de lo nuevo y lo resuelto. No abre la base; su
+# estado vive en el File Share. Solo existe con clústeres y webhook.
+# Consumo: unos segundos de 0,25 vCPU por ejecución, dentro del cupo gratuito.
+# ---------------------------------------------------------------------------
+module "k8s_watch" {
+  count  = length(var.kubernetes_clusters) > 0 && local.notify_enabled ? 1 : 0
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app-job?ref=v0.3.0"
+
+  name                         = "caj-${local.base}-k8s-watch"
+  resource_group_name          = module.rg.name
+  location                     = module.rg.location
+  container_app_environment_id = module.cae.id
+  tags                         = local.tags
+
+  cron_expression            = var.kubernetes_watch_cron
+  cpu                        = 0.25
+  memory                     = "0.5Gi"
+  replica_timeout_in_seconds = 300
+  replica_retry_limit        = 0
+  identity_ids               = [module.api_identity.id]
+
+  image   = var.api_image
+  command = ["python", "-m", "app.collectors.k8s_watch"]
+  volumes = { (local.data_share) = local.data_mount_path }
+  env = {
+    AZURE_MANAGED_IDENTITY_CLIENT_ID = module.api_identity.client_id
+    K8S_CLUSTERS                     = join(",", sort(var.kubernetes_clusters))
+    K8S_SNAPSHOT_ACCOUNT             = module.storage.name
+    DATA_DIR                         = local.data_mount_path
+    APP_NAME                         = var.app_display_name
+    FRONTEND_URL                     = module.web.url
+  }
+
+  secrets    = { "notify-webhook-url" = var.notify_webhook_url }
+  secret_env = { NOTIFY_WEBHOOK_URL = "notify-webhook-url" }
+}

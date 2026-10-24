@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { get } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 import { dateTime, number, plural } from '../../lib/format';
-import type { K8sClusterDetail, K8sClusterSummary, K8sIncident } from '../../lib/types';
+import type { K8sClusterDetail, K8sClusterSummary, K8sIncident, K8sPod } from '../../lib/types';
 import {
-  Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile, Tabs,
+  Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile, Tabs,
 } from '../../components/ui';
 
 const DISTRIBUCION: Record<string, string> = {
@@ -80,6 +81,7 @@ function SinFoto({ cluster }: { cluster: K8sClusterSummary }) {
 }
 
 function Detalle({ nombre }: { nombre: string }) {
+  const [log, setLog] = useState<K8sPod | null>(null);
   const { data, error, loading, refreshing, reload } = useApi<K8sClusterDetail>(`k8s-cluster-${nombre}`, () => get(`/api/k8s/clusters/${encodeURIComponent(nombre)}`));
   if (loading) return <Loading />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
@@ -191,7 +193,7 @@ function Detalle({ nombre }: { nombre: string }) {
           <Card flush refreshing={refreshing}>
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Pod</th><th>Motivo</th><th className="num">Listos</th><th className="num">Reinicios</th><th>Nodo</th><th>Dueño</th></tr></thead>
+                <thead><tr><th>Pod</th><th>Motivo</th><th className="num">Listos</th><th className="num">Reinicios</th><th>Nodo</th><th>Dueño</th><th /></tr></thead>
                 <tbody>
                   {data.problem_pods.map((p) => (
                     <tr key={`${p.namespace}/${p.name}`}>
@@ -201,6 +203,7 @@ function Detalle({ nombre }: { nombre: string }) {
                       <td className="num">{number(p.restarts)}</td>
                       <td className="secondary">{p.node ?? '—'}</td>
                       <td className="secondary">{p.owner_kind ? `${p.owner_kind}/${p.owner}` : '—'}</td>
+                      <td>{p.log && <button className="btn btn-sm" onClick={() => setLog(p)}>Ver log</button>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -208,6 +211,19 @@ function Detalle({ nombre }: { nombre: string }) {
             </div>
           </Card>
         </Section>
+      )}
+
+      {log?.log && (
+        <Drawer title={`Log de ${log.name}`} onClose={() => setLog(null)}
+          subtitle={`${log.namespace} · contenedor ${log.log.container} · ${log.log.previous ? 'ejecución anterior (antes del último reinicio)' : 'ejecución actual'} · foto ${hace(data.age_seconds)}`}>
+          <pre className="mono" style={{ fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>
+            {log.log.lines.join('\n') || '(sin líneas)'}
+          </pre>
+          <p className="secondary" style={{ fontSize: 12, marginTop: 12 }}>
+            Las credenciales evidentes se enmascaran en el clúster antes de enviar. Log completo:{' '}
+            <code>kubectl logs {log.name} -n {log.namespace} -c {log.log.container}{log.log.previous ? ' --previous' : ''}</code>
+          </p>
+        </Drawer>
       )}
 
       <Section title="Eventos de advertencia" description="Los más recientes del clúster (tipo Warning).">

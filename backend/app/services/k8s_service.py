@@ -9,8 +9,6 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from app import llm
-from app.core import config
 
 logger = logging.getLogger(__name__)
 
@@ -333,32 +331,3 @@ class K8sService:
             "connectionMode": self.connection_mode,
             "degradedWorkloads": [], "recentWarningEvents": [], "pendingPVCs": [], "servicesWithoutEndpoints": [], "podCount":0, "podsRunning":0, "problemPods":0, "namespaceCount":0, "nodes": nodes
         }
-
-    def chat(self, question: str, cluster_request: Dict, usuario: Optional[str] = None) -> Dict:
-        incidents = self.get_incidents(cluster_request)
-        nodes, nt, nr = self._get_nodes_status()
-        
-        context = {
-            "cluster_name": self.cluster_name,
-            "nodes_total": nt, "nodes_ready": nr,
-            "problem_pods": self._get_problem_pods(cluster_request.get("namespace"))[:5],
-            "incidents_summary": incidents["summary"]
-        }
-
-        resumen = (f"## Clúster: {self.cluster_name}\n**Salud:** {incidents['clusterHealthScore']}/100 · "
-                   f"nodos listos {nr}/{nt}\n\n" + "\n".join(
-                       f"- {sev}: {n}" for sev, n in (incidents.get("summary") or {}).items() if n))
-        if not llm.disponible():
-            answer, mode = resumen + "\n\n*Sin modelo de lenguaje configurado: se muestra el estado del clúster.*", "rules"
-        else:
-            sistema = (f"Eres el Agente SRE Kubernetes de {config.ORG_NAME}. Tienes acceso al clúster vía Run Command. "
-                       "Usa el contexto JSON para responder con Markdown y sugerir comandos kubectl.")
-            try:
-                r = llm.generar("k8s.chat", sistema, f"Contexto:\n{json.dumps(context)}\n\nPregunta: {question}",
-                                usuario=usuario)
-                answer, mode = r.texto, f"llm_{llm.proveedor().nombre}"
-            except llm.LLMError as e:
-                logger.error(f"Modelo no disponible: {e}")
-                answer, mode = resumen + "\n\n*El modelo de lenguaje no respondió; se muestra el estado del clúster.*", "fallback"
-
-        return {"answer": answer, "mode": mode, "context_summary": {"healthScore": incidents["clusterHealthScore"], "incidentsSummary": incidents["summary"], "nodesReady": f"{nr}/{nt}"}}

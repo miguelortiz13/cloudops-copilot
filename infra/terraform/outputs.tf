@@ -82,3 +82,8 @@ output "kubernetes_agent_upload_urls" {
   value       = { for c in var.kubernetes_clusters : c => "${module.storage.primary_blob_endpoint}k8s-${c}${data.azurerm_storage_account_blob_container_sas.k8s_agent[c].sas}" }
   sensitive   = true
 }
+
+output "kubernetes_watch_job_name" {
+  description = "Job que avisa de las incidencias de Kubernetes (vacío sin clústeres o sin webhook)."
+  value       = try(module.k8s_watch[0].name, "")
+}

@@ -11,6 +11,8 @@ La plataforma avisa sola en un canal de Discord, Slack o Teams y envía un repor
 | `cost.anomaly` | En los últimos 3 días completos, una cuenta gastó más que la media de los 14 días previos + 3 desviaciones, o más del doble; mínimo 0,50 USD | No: clave `anomalia:{cuenta}:{día}` |
 | `budget.threshold` | El gasto del mes de una nube llega al 80 % o al 100 % de `MONTHLY_BUDGETS_USD`, o desde el día 8 el pronóstico lineal lo supera | No: clave `presupuesto:{nube}:{mes}:{nivel}` |
 
+Los avisos de Kubernetes (incidencias de clúster y agente sin reportar) salen del job `k8s-watch` cada 10 minutos, al mismo webhook: ver [Kubernetes](kubernetes-sre.md#avisos).
+
 Un día sin filas de costo cuenta como 0: pasar de nada a gastar también es anomalía. El presupuesto se configura en Terraform (`monthly_budgets_usd`, por ejemplo `{ azure = 5, aws = 5 }`).
 
 ## Destino según el webhook

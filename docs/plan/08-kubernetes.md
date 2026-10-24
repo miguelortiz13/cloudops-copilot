@@ -20,6 +20,8 @@ flowchart LR
     API[API de la plataforma] -->|identidad administrada<br/>Storage Blob Data Reader| BLOB
     PANEL[Página de Kubernetes] --> API
     JOB[Job diario] -. parte 2 .-> BLOB
+    WATCH[Job k8s-watch<br/>cada 10 min] -->|lee| BLOB
+    WATCH -->|avisos| WH[Discord · Slack · Teams]
 ```
 
 Principios que se mantienen:
@@ -33,10 +35,10 @@ Principios que se mantienen:
 
 | Parte | Entrega | Criterio de aceptación |
 |---|---|---|
-| **1. Agente y página** | Agente con manifiestos (`kubectl apply -k`), contenedor y SAS por clúster en Terraform, lectura en el API, página de Kubernetes con clústeres, nodos, cargas, pods con problemas, eventos de advertencia e incidencias con score de salud | El homelab aparece en el panel con datos de menos de 10 minutos y una incidencia sembrada (un pod en CrashLoop) se ve en la página |
+| **1. Agente y página** · **Hecha** (24-oct-2026) | Agente con manifiestos (`kubectl apply -k`), contenedor y SAS por clúster en Terraform, lectura en el API, página de Kubernetes con clústeres, nodos, cargas, pods con problemas, eventos de advertencia e incidencias con score de salud | El homelab aparece en el panel con datos de menos de 10 minutos y una incidencia sembrada (un pod en CrashLoop) se ve en la página |
 | 2. Historia e inventario | El job guarda los clústeres en el inventario (`kubernetes.cluster`), sus nodos y las incidencias con hora de inicio y fin; aviso de agente sin reportar | Una incidencia resuelta queda en la historia con su duración |
 | 3. Hallazgos de seguridad del clúster | Reglas en el catálogo: contenedores privilegiados, imágenes `latest` o sin etiqueta, sin límites de recursos, `hostNetwork`/`hostPath`, mapeadas a CIS Kubernetes | Los hallazgos del clúster aparecen en la bandeja con su ciclo de vida |
-| 4. Avisos, logs y chat | Avisos a Discord (nodo caído, CrashLoop); últimas líneas de log de los pods con problemas en la foto; el agente de IA responde sobre la foto | Un nodo apagado genera un aviso; el chat explica un CrashLoop con su log |
+| 4. Avisos, logs y chat · **Hecha** (24-oct-2026) | Job `k8s-watch` cada 10 min con avisos de incidencias críticas y altas (con confirmación en dos fotos), su resolución y el agente sin reportar; últimas líneas de log enmascaradas de los pods con problemas; el chat SRE responde sobre la foto | Un nodo apagado genera un aviso; el chat explica un CrashLoop con su log |
 | 5. Flota y retiro de Run Command | AKS y EKS con el mismo agente; versión y fin de soporte por clúster; se retira el camino de Run Command | El panel lista todos los clústeres con versión y fin de soporte |
 
 ## Parte 1 en detalle

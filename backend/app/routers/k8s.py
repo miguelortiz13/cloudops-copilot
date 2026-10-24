@@ -8,6 +8,7 @@ from app.core.audit import auditado
 from app.core.authz import Usuario, requiere
 from app.core.deps import AzureDep, K8sDep
 from app.llm.limits import exigir_cupo
+from app.services import k8s_chat as k8s_chat_svc
 from app.services import k8s_fleet
 from app.services.k8s_service import K8sInputError
 
@@ -123,21 +124,27 @@ def k8s_pod_logs(
 
 
 @router.post("/api/k8s/chat", tags=["kubernetes"])
-def k8s_chat(k8s: K8sDep, req: K8sChatRequest, usuario: Usuario = requiere("operador")):
+def k8s_chat(req: K8sChatRequest, azure: AzureDep, usuario: Usuario = requiere("operador")):
     """
-    Chat IA del Agente SRE Kubernetes con contexto real del clúster
-    inyectado en el modelo de lenguaje. El agente tiene acceso al estado actual
-    de nodos, pods, eventos y workloads para responder con datos reales.
+    Chat del agente SRE sobre la última foto del clúster (incidencias, pods con
+    problemas y sus logs, cargas, nodos y eventos). `clusterName` elige el
+    clúster; sin él, el que nombre la pregunta o el primero que reporta.
     """
     exigir_cupo(usuario.actor)
-    try:
-        with auditado(usuario, "k8s.chat", detalle={"pregunta": req.message[:300]}):
-            return k8s.chat(req.message, req.model_dump(), usuario=usuario.actor)
-    except K8sInputError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    momento = k8s_fleet.ahora()
+    fotos = {}
+    for nombre in k8s_fleet.configurados():
+        try:
+            fotos[nombre] = k8s_fleet.leer(azure.azure_credentials, nombre)
+        except k8s_fleet.FotoNoDisponible as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
+    elegido = k8s_chat_svc.elegir(req.message, req.clusterName,
+                                  [k8s_fleet.resumen(n, f, momento) for n, f in fotos.items()])
+    if not elegido:
+        return {"answer": "No hay clústeres que reporten con el agente. Conecta uno desde la página Kubernetes.",
+                "mode": "rules", "context_summary": None}
+    with auditado(usuario, "k8s.chat", objetivo=elegido, detalle={"pregunta": req.message[:300]}):
+        return k8s_chat_svc.responder(req.message, k8s_fleet.detalle(elegido, fotos[elegido], momento), usuario.actor)
 
 
 @router.post("/api/k8s/reinit", tags=["kubernetes"])

@@ -83,7 +83,9 @@ Solo los orígenes de `ALLOWED_ORIGINS` (o `FRONTEND_URL` y los puertos de desar
 
 ## Agente SRE de Kubernetes
 
-Es el único camino de la plataforma que ejecuta algo dentro de un recurso del cliente: `kubectl` a través de AKS Run Command.
+Los clústeres se leen con un **agente de solo lectura dentro del clúster** que envía una foto a la plataforma: la plataforma no entra al clúster. Sus permisos, qué datos viajan (incluidas las últimas líneas de log enmascaradas de los pods con problemas) y cómo revocar su credencial están en [Kubernetes](modules/kubernetes-sre.md#seguridad).
+
+Las rutas heredadas de AKS Run Command son el único camino que ejecuta algo dentro de un recurso del cliente: `kubectl` a través de Run Command. Se retiran en la parte 5 del [plan](plan/08-kubernetes.md); mientras existan:
 
 - Los nombres de pod, namespace y contenedor que llegan del cliente deben cumplir **RFC 1123**.
 - Ningún comando puede contener metacaracteres de shell (`; | & $` comillas, redirecciones, paréntesis, comodines, saltos de línea).

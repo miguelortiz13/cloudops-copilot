@@ -20,7 +20,8 @@ VIEJA_SEGUNDOS = 15 * 60
 GRACIA_SEGUNDOS = 10 * 60
 REINICIOS = 5
 
-MOTIVOS_GRAVES = {"CrashLoopBackOff", "OOMKilled", "ImagePullBackOff", "ErrImagePull",
+# "Error" es el mismo CrashLoop entre reinicios: sin él, la incidencia aparecería y desaparecería.
+MOTIVOS_GRAVES = {"CrashLoopBackOff", "OOMKilled", "Error", "ImagePullBackOff", "ErrImagePull",
                   "CreateContainerConfigError", "CreateContainerError", "InvalidImageName"}
 ORDEN = {"critica": 0, "alta": 1, "media": 2}
 
@@ -62,13 +63,14 @@ def _pod_con_problema(p: Dict, ahora: datetime) -> Optional[str]:
     """Severidad del problema del pod, o None si está sano."""
     if p["phase"] == "Succeeded":
         return None
-    if p["reason"] == "Evicted":
+    # Un Job fallido o un pod desalojado no son una carga caída.
+    if p["reason"] == "Evicted" or (p["phase"] == "Failed" and p.get("owner_kind") == "Job"):
         return "media"
     if p["reason"] in MOTIVOS_GRAVES:
         return "critica" if p["restarts"] > 10 else "alta"
     edad = _segundos(p.get("created"), ahora) or 0
     if p["phase"] in ("Pending", "Unknown", "Failed") and edad > GRACIA_SEGUNDOS:
-        return "alta" if p["phase"] != "Failed" or p.get("owner_kind") != "Job" else "media"
+        return "alta"
     if p["restarts"] > REINICIOS:
         return "media"
     if p["phase"] == "Running" and p["ready"] < p["containers"] and edad > GRACIA_SEGUNDOS:
