@@ -12,7 +12,7 @@ import io
 from datetime import date
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -154,3 +154,19 @@ def inventory_report_export(accounts: Optional[str] = None):
         escritor.writerow(["Sí" if x is True else "No" if x is False else "" if x is None else x for x in v])
     return StreamingResponse(iter([salida.getvalue()]), media_type="text/csv; charset=utf-8",
                              headers={"Content-Disposition": 'attachment; filename="inventario-multinube.csv"'})
+
+
+@router.get("/api/reports/monthly")
+def monthly_report(month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")):
+    """Reporte ejecutivo del mes `month` (AAAA-MM) en PDF; el job envía el del mes anterior solo."""
+    from app.reports import mensual
+
+    _guardia()
+    mes = date.fromisoformat(f"{month}-01")
+    try:
+        with db.session_scope() as s:
+            contenido = mensual.pdf(mensual.datos(s, mes), date.today())
+    except db.DatabaseUnavailable as exc:
+        raise _no_disponible(exc)
+    return Response(contenido, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="reporte-{month}.pdf"'})

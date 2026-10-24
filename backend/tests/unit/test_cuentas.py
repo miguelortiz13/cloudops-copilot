@@ -223,6 +223,10 @@ def test_reporte_de_inventario_multinube(monkeypatch, tmp_path):
     assert lineas[0].startswith("Nube,Cuenta,Recurso,Tipo") and len(lineas) == 1 + 12
     assert any(line.startswith("aws,Laboratorio,lab-datos,storage.bucket") for line in lineas)
 
+    pdf = TestClient(app).get("/api/reports/monthly", params={"month": "2026-10"})
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF") and "reporte-2026-10.pdf" in pdf.headers["content-disposition"]
+    assert TestClient(app).get("/api/reports/monthly", params={"month": "2026-13"}).status_code == 422
+
 
 def test_costos_de_aws_antes_de_la_primera_entrega(monkeypatch):
     """El export tarda hasta 24 h en entregar: el paso queda parcial y la cuenta sin dato, no en cero ni en error."""
