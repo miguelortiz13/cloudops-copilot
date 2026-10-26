@@ -1,13 +1,13 @@
-fastapi==0.143.3
+fastapi==0.161.1
 uvicorn==0.54.0
 openpyxl==3.1.5
 # Modelos de lenguaje (app/llm); reemplaza a google-generativeai, sin soporte
-google-genai==2.31.0
+google-genai==2.33.0
 python-dotenv==1.2.4
 pydantic==2.14.1
 # Base de datos (app/db): Azure SQL con Entra ID, migraciones con Alembic
-sqlalchemy==2.1.5
-alembic==1.20.0
+sqlalchemy==2.1.6
+alembic==1.20.1
 mssql-python==1.16.0
 azure-identity>=1.26.0
 # AWS (app/providers/aws): inventario con credenciales federadas, sin llaves
