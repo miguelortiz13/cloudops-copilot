@@ -207,6 +207,8 @@ module "api" {
     # vigente hasta la siguiente recoleccion (26 h).
     COST_WARM_ENABLED      = "false"
     COST_CACHE_TTL_SECONDS = "93600"
+    # Presupuesto por nube: el reporte mensual descargado desde el panel lo muestra.
+    MONTHLY_BUDGETS_USD = join(",", [for nube, monto in var.monthly_budgets_usd : "${nube}=${monto}"])
     # Fotos de los agentes de Kubernetes (kubernetes.tf).
     K8S_CLUSTERS         = join(",", sort(var.kubernetes_clusters))
     K8S_SNAPSHOT_ACCOUNT = module.storage.name
