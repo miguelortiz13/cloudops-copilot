@@ -100,7 +100,7 @@ gantt
 
 | Entregable | Módulo |
 |---|---|
-| Motor de eventos y notificaciones (Teams, Slack, correo) con deduplicación | Integraciones · **En curso** (20-oct-2026): paso `notify` del job con `finding.opened` (alta y crítica), `collector.failed`, `cost.anomaly` (media de 14 días + 3σ o el doble, desde 0,50 USD) y `budget.threshold` (80 %, 100 % y pronóstico) a un webhook de Discord, Slack o Teams, sin repetir avisos. Faltan correo, enrutamiento por severidad o cuenta y `resource.unmanaged_created` |
+| Motor de eventos y notificaciones (Teams, Slack, correo) con deduplicación | Integraciones · **En curso** (20-oct-2026): paso `notify` del job con `finding.opened` (alta y crítica), `collector.failed`, `cost.anomaly` (media de 14 días + 3σ o el doble, desde 0,50 USD) y `budget.threshold` (80 %, 100 % y pronóstico) a un webhook de Discord, Slack o Teams, sin repetir avisos; `resource.unmanaged_created` (28-oct-2026): recursos creados a mano fuera de Terraform, con quién los creó. Faltan correo y enrutamiento por severidad o cuenta |
 | PR de remediación con bloque `import` (GitHub App) | IaC / Hallazgos |
 | Anomalías estadísticas y pronóstico con estacionalidad | Costos · **En parte** (22-oct-2026): anomalía diaria por cuenta (14 días, 3σ o 2×) y pronóstico lineal del mes; falta la estacionalidad |
 | Seguimiento del ahorro realizado | Costos |

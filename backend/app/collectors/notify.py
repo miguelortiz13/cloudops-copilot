@@ -6,6 +6,9 @@ Envia a un webhook (Discord, Slack o Teams Workflows, segun el host de `NOTIFY_W
 - `finding.opened`: hallazgos de severidad alta o critica detectados, reabiertos
   o con la aceptacion vencida desde el ultimo aviso.
 - `collector.failed`: recolectores cuyas dos ultimas ejecuciones fallaron.
+- `resource.unmanaged_created`: recursos que aparecieron desde el ultimo aviso, que
+  ningun estado de Terraform contiene y que creo una persona (Activity Log o
+  CloudTrail), con quien los creo.
 - `cost.anomaly`: dia de una cuenta con gasto > media de 14 dias + 3 desviaciones, o > 2x.
 - `budget.threshold`: gasto del mes de una nube >= 80 % o 100 % de `MONTHLY_BUDGETS_USD`
   (`azure=5,aws=5`), o pronostico del mes >= 100 %.
@@ -26,7 +29,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
-from sqlalchemy import func, select
+from sqlalchemy import false, func, select
 
 from app.collectors.common import Contexto, Resultado
 from app.core import config
@@ -75,6 +78,23 @@ def hallazgos_nuevos(session, desde: datetime, hasta: datetime) -> List[Dict]:
             salida.append({"kind": tipo, "severity": f.severity, "title": titulo,
                            "resource": nombre or f.resource_uid.rsplit("/", 1)[-1], "account": f.account_uid})
     return salida
+
+
+def recursos_a_mano(session, desde: datetime, hasta: datetime) -> List[Dict]:
+    """
+    Recursos nuevos fuera de Terraform creados por una persona. `in_iac_state`
+    tiene que ser False (None es "no se sabe": sin estados no se acusa a nadie) y
+    `created_by` solo se guarda para creaciones de personas, no de automatizaciones.
+    Una cuenta recien conectada trae todo su inventario como nuevo: sus recursos no cuentan.
+    """
+    filas = session.execute(
+        select(Resource.name, Resource.native_type, Resource.created_by, Account.name)
+        .join(Account, Account.uid == Resource.account_uid)
+        .where(Resource.first_seen > desde, Resource.first_seen <= hasta, Resource.deleted_at.is_(None),
+               Resource.in_iac_state == false(), Resource.created_by.is_not(None),
+               Account.first_seen < Resource.first_seen)
+        .order_by(Resource.first_seen, Resource.name)).all()
+    return [{"name": n, "type": t.rsplit("/", 1)[-1], "created_by": c, "account": a} for n, t, c, a in filas]
 
 
 def recolectores_caidos(session, desde: datetime) -> List[str]:
@@ -152,9 +172,10 @@ def _utc(momento: datetime) -> datetime:
     return momento if momento.tzinfo else momento.replace(tzinfo=timezone.utc)
 
 
-def mensaje(hallazgos: List[Dict], caidos: List[str], costos: Optional[Dict[str, List[Dict]]] = None) -> Dict[str, object]:
+def mensaje(hallazgos: List[Dict], caidos: List[str], costos: Optional[Dict[str, List[Dict]]] = None,
+            a_mano: Optional[List[Dict]] = None) -> Dict[str, object]:
     lineas = []
-    costos = costos or {}
+    costos, a_mano = costos or {}, a_mano or []
     if hallazgos:
         lineas.append(f"**{len(hallazgos)} hallazgo(s) de severidad alta o crítica**")
         etiqueta = {"detectado": "nuevo", "reabierto": "reabierto", "vencido": "aceptación vencida"}
@@ -164,11 +185,16 @@ def mensaje(hallazgos: List[Dict], caidos: List[str], costos: Optional[Dict[str,
             lineas.append(f"- … y {len(hallazgos) - MAX_EN_MENSAJE} más")
     if caidos:
         lineas.append(f"**Recolectores con dos fallas seguidas:** {', '.join(caidos)}")
+    if a_mano:
+        lineas.append(f"**{len(a_mano)} recurso(s) creados a mano fuera de Terraform**")
+        lineas += [f"- {r['name']} ({r['type']}) en {r['account']}, por {r['created_by']}" for r in a_mano[:MAX_EN_MENSAJE]]
+        if len(a_mano) > MAX_EN_MENSAJE:
+            lineas.append(f"- … y {len(a_mano) - MAX_EN_MENSAJE} más")
     if costos.get("presupuestos"):
         lineas += ["**Presupuesto**"] + [a["line"] for a in costos["presupuestos"]]
     if costos.get("anomalias"):
         lineas += ["**Gasto diario anómalo**"] + [a["line"] for a in costos["anomalias"][:MAX_EN_MENSAJE]]
-    destino = "secops/gestion" if hallazgos else "admin" if caidos else "finops/historial"
+    destino = "secops/gestion" if hallazgos else "admin" if caidos else "inventario" if a_mano else "finops/historial"
     enlace = f"{config.FRONTEND_URL}/#/{destino}"
     return {"titulo": f"{config.APP_NAME}: requiere atención", "lineas": lineas, "enlace": enlace}
 
@@ -208,21 +234,22 @@ def recolectar(ctx: Contexto, session) -> Resultado:
     desde = _desde(previa, hasta)
     hallazgos = hallazgos_nuevos(session, desde, hasta)
     caidos = recolectores_caidos(session, desde)
+    a_mano = recursos_a_mano(session, desde, hasta)
     vigentes = {"presupuestos": presupuestos(session, hasta.date()), "anomalias": anomalias(session, hasta.date())}
     enviadas = set(previa.detail.get("sent", [])) if previa else set()
     costos = {tipo: [a for a in avisos if a["key"] not in enviadas] for tipo, avisos in vigentes.items()}
     detalle = {"since": desde.isoformat(), "until": hasta.isoformat(), "findings": len(hallazgos), "collectors_failed": caidos,
-               "cost_alerts": sum(map(len, costos.values())),
+               "cost_alerts": sum(map(len, costos.values())), "unmanaged_created": len(a_mano),
                # Solo las vigentes: una clave que deja de serlo ya no puede repetirse y sale sola.
                "sent": sorted(a["key"] for avisos in vigentes.values() for a in avisos)}
 
     url = os.getenv("NOTIFY_WEBHOOK_URL", "").strip()
-    if not (hallazgos or caidos or detalle["cost_alerts"]):
+    if not (hallazgos or caidos or a_mano or detalle["cost_alerts"]):
         return Resultado(detail=detalle)
     if not url:
         # Sin enviar nada, tampoco se marca nada como enviado.
         detalle["sent"] = sorted(enviadas)
         return Resultado(status="parcial", detail={**detalle, "reason": "NOTIFY_WEBHOOK_URL sin configurar"})
     # Sin `until` registrado (error), la siguiente ejecucion vuelve a avisar lo mismo.
-    enviar(url, json=payload(url, mensaje(hallazgos, caidos, costos)))
-    return Resultado(items=len(hallazgos) + len(caidos) + detalle["cost_alerts"], detail=detalle)
+    enviar(url, json=payload(url, mensaje(hallazgos, caidos, costos, a_mano)))
+    return Resultado(items=len(hallazgos) + len(caidos) + len(a_mano) + detalle["cost_alerts"], detail=detalle)
