@@ -337,3 +337,38 @@ def test_sin_log_anterior_usa_el_de_la_ejecucion_actual():
     api = SinAnterior()
     log = {p["name"]: p for p in agente.foto(api, "homelab")["pods"]}["web-1"]["log"]
     assert (log["previous"], log["lines"]) == (False, ["error actual"]) and len(api.logs) == 2
+
+
+def test_reinicios_acumulados_solo_cuentan_si_el_ultimo_es_reciente():
+    def pod(**extra):
+        return {"namespace": "app", "name": "api", "phase": "Running", "reason": None, "ready": 1, "containers": 1,
+                "restarts": 9, "created": (AHORA - timedelta(days=4)).isoformat(), **extra}
+
+    def titulos(p):
+        return [i["title"] for i in k8s_fleet.incidencias({"pods": [p]}, AHORA)]
+
+    # Clúster apagado y vuelto a encender: reinicios viejos, pod sano.
+    assert titulos(pod(last_restart=(AHORA - timedelta(days=2)).isoformat())) == []
+    assert titulos(pod(last_restart=None)) == []
+    assert titulos(pod(last_restart=(AHORA - timedelta(minutes=20)).isoformat())) == ["Reinicios frecuentes: api"]
+    # Foto de un agente anterior (sin el campo): se mantiene el conteo.
+    assert titulos(pod()) == ["Reinicios frecuentes: api"]
+    assert titulos(pod(restarts=0, ready=0)) == ["Sin estar listo: api"]
+
+
+def test_el_agente_informa_el_ultimo_reinicio():
+    class ConReinicio(ApiFalsa):
+        RESPUESTAS = {**ApiFalsa.RESPUESTAS, "/api/v1/pods": [
+            {"metadata": {"namespace": "app", "name": "api", "creationTimestamp": HACE_UNA_HORA},
+             "spec": {"containers": [{"name": "a"}, {"name": "b"}]},
+             "status": {"phase": "Running", "containerStatuses": [
+                 {"name": "a", "ready": True, "restartCount": 2,
+                  "lastState": {"terminated": {"reason": "Error", "finishedAt": "2026-10-24T10:00:00Z"}}},
+                 {"name": "b", "ready": True, "restartCount": 1,
+                  "lastState": {"terminated": {"reason": "Error", "finishedAt": "2026-10-24T11:30:00Z"}}}]}},
+            {"metadata": {"namespace": "app", "name": "nuevo", "creationTimestamp": HACE_UNA_HORA},
+             "spec": {"containers": [{"name": "a"}]},
+             "status": {"phase": "Running", "containerStatuses": [{"name": "a", "ready": True, "restartCount": 0}]}}]}
+
+    pods = {p["name"]: p for p in agente.foto(ConReinicio(), "lab")["pods"]}
+    assert pods["api"]["last_restart"] == "2026-10-24T11:30:00Z" and pods["nuevo"]["last_restart"] is None
