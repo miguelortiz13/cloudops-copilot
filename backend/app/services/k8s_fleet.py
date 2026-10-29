@@ -9,7 +9,7 @@ aquí las incidencias y el score de salud. No toca el clúster ni la base.
 import os
 import re
 from datetime import date, datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -20,6 +20,7 @@ VIEJA_SEGUNDOS = 15 * 60
 # Un pod recién creado puede estar arrancando: no es incidencia todavía.
 GRACIA_SEGUNDOS = 10 * 60
 REINICIOS = 5
+REINICIO_RECIENTE_SEGUNDOS = 3600
 
 # "Error" es el mismo CrashLoop entre reinicios: sin él, la incidencia aparecería y desaparecería.
 MOTIVOS_GRAVES = {"CrashLoopBackOff", "OOMKilled", "Error", "ImagePullBackOff", "ErrImagePull",
@@ -90,22 +91,32 @@ def _segundos(desde: Optional[str], ahora: datetime) -> Optional[float]:
     return (ahora - datetime.fromisoformat(desde.replace("Z", "+00:00"))).total_seconds()
 
 
-def _pod_con_problema(p: Dict, ahora: datetime) -> Optional[str]:
-    """Severidad del problema del pod, o None si está sano."""
+def _reinicia_ahora(p: Dict, ahora: datetime) -> bool:
+    """Más de 5 reinicios y el último hace menos de una hora (sin la hora, agente anterior a 1.2.1: basta el conteo)."""
+    if p["restarts"] <= REINICIOS:
+        return False
+    if "last_restart" not in p:
+        return True
+    edad = _segundos(p["last_restart"], ahora)
+    return edad is not None and edad < REINICIO_RECIENTE_SEGUNDOS
+
+
+def _pod_con_problema(p: Dict, ahora: datetime) -> Optional[Tuple[str, str]]:
+    """(severidad, motivo) del problema del pod, o None si está sano."""
     if p["phase"] == "Succeeded":
         return None
     # Un Job fallido o un pod desalojado no son una carga caída.
     if p["reason"] == "Evicted" or (p["phase"] == "Failed" and p.get("owner_kind") == "Job"):
-        return "media"
+        return "media", p["reason"] or p["phase"]
     if p["reason"] in MOTIVOS_GRAVES:
-        return "critica" if p["restarts"] > 10 else "alta"
+        return ("critica" if p["restarts"] > 10 else "alta"), p["reason"]
     edad = _segundos(p.get("created"), ahora) or 0
     if p["phase"] in ("Pending", "Unknown", "Failed") and edad > GRACIA_SEGUNDOS:
-        return "alta"
-    if p["restarts"] > REINICIOS:
-        return "media"
+        return "alta", p["reason"] or p["phase"]
+    if _reinicia_ahora(p, ahora):
+        return "media", "Reinicios frecuentes"
     if p["phase"] == "Running" and p["ready"] < p["containers"] and edad > GRACIA_SEGUNDOS:
-        return "media"
+        return "media", "Sin estar listo"
     return None
 
 
@@ -124,9 +135,9 @@ def incidencias(foto: Dict, ahora: datetime) -> List[Dict]:
             agregar("alta", "nodo", f"{presion} en {n['name']}", f"node/{n['name']}", None,
                     f"El nodo reporta {presion}.", "Libera recursos o agrega capacidad; revisa los pods con más consumo del nodo")
     for p in foto.get("pods", []):
-        severidad = _pod_con_problema(p, ahora)
-        if severidad:
-            motivo = p["reason"] or p["phase"]
+        problema = _pod_con_problema(p, ahora)
+        if problema:
+            severidad, motivo = problema
             agregar(severidad, "pod", f"{motivo}: {p['name']}", f"pod/{p['name']}", p["namespace"],
                     f"Fase {p['phase']}, {p['ready']}/{p['containers']} listos, {p['restarts']} reinicios",
                     f"kubectl describe pod {p['name']} -n {p['namespace']} y kubectl logs {p['name']} -n {p['namespace']} --previous")
