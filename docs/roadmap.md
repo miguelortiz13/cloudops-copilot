@@ -47,7 +47,6 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 
 | Tarea | Qué entrega | Estado |
 |---|---|---|
-| Aviso `resource.unmanaged_created` | Avisar cuando alguien crea a mano un recurso fuera de Terraform, con quién lo creó | Sin empezar |
 | Motor de eventos: correo y enrutamiento | Avisos por correo y por canal según severidad o cuenta (hoy un solo webhook) | En parte |
 | PR de remediación con bloque `import` | Un hallazgo genera un PR que pasa `terraform plan` sin cambios (criterio de salida) | Bloqueado (GitHub App) |
 | Pronóstico con estacionalidad | Hoy anomalías de 14 días y pronóstico lineal; falta estacionalidad semanal y mensual | En parte |

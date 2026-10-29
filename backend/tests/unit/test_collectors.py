@@ -543,3 +543,36 @@ def test_el_pdf_es_valido_aunque_el_texto_traiga_parentesis_y_tildes():
         if not fila.endswith(b" n "):
             break
         assert datos[int(fila[:10]):].startswith(b"%d 0 obj" % numero)
+
+
+def test_recurso_creado_a_mano_fuera_de_terraform_se_avisa_una_vez(monkeypatch):
+    monkeypatch.delenv("MONTHLY_BUDGETS_USD", raising=False)
+    antes = DIA - timedelta(days=10)
+    with db.session_scope() as s:
+        s.add(Account(uid="azure:sub/x", provider="azure", native_id="x", name="lab", first_seen=antes, last_seen=DIA))
+        # Cuenta conectada en esta misma corrida: todo su inventario es "nuevo" y no cuenta.
+        s.add(Account(uid="aws:account/1", provider="aws", native_id="1", name="nueva", first_seen=DIA, last_seen=DIA))
+        s.flush()
+
+        def recurso(nombre, cuenta="azure:sub/x", iac=False, creador="ana@contoso.test", visto=DIA):
+            s.add(Resource(uid=f"{cuenta}/{nombre}", provider=cuenta.split(":")[0], account_uid=cuenta, name=nombre,
+                           native_type="microsoft.storage/storageaccounts", in_iac_state=iac, created_by=creador,
+                           first_seen=visto, last_seen=DIA))
+
+        recurso("st-a-mano")
+        recurso("st-terraform", iac=True)
+        recurso("st-sin-estados", iac=None)
+        recurso("st-automatizacion", creador=None)
+        recurso("st-viejo", visto=DIA - timedelta(days=3))
+        recurso("bucket-de-cuenta-nueva", cuenta="aws:account/1")
+    webhook = Webhook()
+
+    assert avisar(monkeypatch, DIA, webhook) == "ok"
+    tarjeta = webhook.enviados[0][1]["attachments"][0]["content"]
+    texto = tarjeta["body"][1]["text"]
+    assert "**1 recurso(s) creados a mano fuera de Terraform**" in texto
+    assert "- st-a-mano (storageaccounts) en lab, por ana@contoso.test" in texto
+    assert tarjeta["actions"][0]["url"].endswith("/#/inventario")
+
+    assert avisar(monkeypatch, DIA + timedelta(hours=1), webhook) == "ok"
+    assert len(webhook.enviados) == 1

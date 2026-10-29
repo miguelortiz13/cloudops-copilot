@@ -36,10 +36,11 @@ Detalle de los eventos en [avisos y reportes](modules/notifications-reports.md).
 flowchart TD
     A[Marca de agua: until del último aviso correcto<br/>la primera vez, últimas 26 h] --> B[Hallazgos altos o críticos detectados,<br/>reabiertos o vencidos desde la marca]
     A --> C[Recolectores con dos fallas seguidas]
+    A --> U[Recursos nuevos fuera de Terraform<br/>creados por una persona]
     D[Costos: anomalías de los últimos 3 días<br/>y presupuestos del mes] --> E{¿Clave ya enviada?<br/>detail.sent}
     E -- sí --> X[Se descarta]
     E -- no --> F
-    B & C --> F{¿Hay algo que avisar?}
+    B & C & U --> F{¿Hay algo que avisar?}
     F -- no --> OK[ok, sin envío]
     F -- sí --> G[Mensaje según el host:<br/>embed en Discord, texto en Slack,<br/>tarjeta adaptable en Teams]
     G --> H{¿El webhook respondió 2xx?}

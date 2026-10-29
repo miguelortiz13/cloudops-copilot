@@ -8,10 +8,13 @@ La plataforma avisa sola en un canal de Discord, Slack o Teams y envía un repor
 |---|---|---|
 | `finding.opened` | Un hallazgo de severidad alta o crítica se detecta, se reabre o vence su aceptación, y sigue abierto | No: solo existe en la transición |
 | `collector.failed` | Las dos últimas ejecuciones de un recolector fallaron | Cada día mientras siga caído (es un recordatorio) |
+| `resource.unmanaged_created` | Apareció un recurso que ningún estado de Terraform contiene y que creó una persona según Activity Log o CloudTrail; el aviso dice quién | No: solo cuenta lo aparecido desde el último aviso |
 | `cost.anomaly` | En los últimos 3 días completos, una cuenta gastó más que la media de los 14 días previos + 3 desviaciones, o más del doble; mínimo 0,50 USD | No: clave `anomalia:{cuenta}:{día}` |
 | `budget.threshold` | El gasto del mes de una nube llega al 80 % o al 100 % de `MONTHLY_BUDGETS_USD`, o desde el día 8 el pronóstico lineal lo supera | No: clave `presupuesto:{nube}:{mes}:{nivel}` |
 
 Los avisos de Kubernetes (incidencias de clúster y agente sin reportar) salen del job `k8s-watch` cada 10 minutos, al mismo webhook: ver [Kubernetes](kubernetes-sre.md#avisos).
+
+Para `resource.unmanaged_created`, un recurso sin estados de Terraform conectados (cobertura desconocida) o creado por una automatización (Terraform, un pipeline, un servicio de la nube) no cuenta, ni el inventario de una cuenta recién conectada. Si el creador se conoce recién días después de que el recurso apareció, ese recurso no se avisa.
 
 Un día sin filas de costo cuenta como 0: pasar de nada a gastar también es anomalía. El presupuesto se configura en Terraform (`monthly_budgets_usd`, por ejemplo `{ azure = 5, aws = 5 }`).
 
@@ -55,4 +58,4 @@ Antes de un `terraform apply`, exporta `TF_VAR_notify_webhook_url`; sin ella, el
 
 ## Pendiente
 
-Correo como canal, enrutamiento por severidad o por cuenta y el evento `resource.unmanaged_created` (ver [pendientes](../roadmap.md#fase-3-lo-que-falta)).
+Correo como canal y enrutamiento por severidad o por cuenta (ver [pendientes](../roadmap.md#fase-3-lo-que-falta)).
