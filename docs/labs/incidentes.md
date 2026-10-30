@@ -48,7 +48,7 @@ metadata:
 spec:
   route:
     receiver: cloudops
-    groupBy: [alertname, namespace]
+    groupBy: [namespace, pod]   # dos reglas sobre el mismo pod = un solo incidente
     groupWait: 30s
     groupInterval: 5m
     repeatInterval: 4h
@@ -85,6 +85,8 @@ Las alertas que vas a ver son las reglas SRE de tu laboratorio (`online-boutique
 | `FrontendHighErrorRate` | critical | 1 min | El frontend responde con errores (síntoma) |
 
 La ruta hacia CloudOps solo deja pasar las alertas con `namespace=boutique`: las de nodo (sin namespace) no llegan, pero sí sus efectos en los pods.
+
+Agrupar por `namespace` y `pod` importa: en la primera prueba, la ruta agrupaba por `alertname` y la misma falla abrió dos incidentes (`PodNotReady` del lab a los 5 minutos y `KubePodNotReady` por defecto a los 15).
 
 Para ver qué está por dispararse sin esperar a Discord: `kubectl --context kind-boutique -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090` y abre http://localhost:9090/alerts.
 
