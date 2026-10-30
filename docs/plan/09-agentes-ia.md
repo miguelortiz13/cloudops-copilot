@@ -190,7 +190,7 @@ Ordenadas por valor frente a esfuerzo, y todas sobre el mismo motor:
 
 | Etapa | Entrega | Criterio de aceptación |
 |---|---|---|
-| **A. Motor con herramientas** | `app/ai` (bucle, perfiles, registro de herramientas), `generar_con_herramientas` en `app/llm`, herramientas sobre los datos propios, chat del panel unificado con citas, conjunto de evaluación inicial | El chat responde preguntas que hoy no puede (cruces entre inventario, hallazgos y cambios) y cada cifra enlaza al panel |
+| **A. Motor con herramientas** · **Hecha** (29-oct-2026; evaluación 8/8) | `app/ai` (bucle, perfiles, registro de herramientas), `generar_con_herramientas` en `app/llm`, herramientas sobre los datos propios, chat del panel unificado con citas, conjunto de evaluación inicial | El chat responde preguntas que hoy no puede (cruces entre inventario, hallazgos y cambios) y cada cifra enlaza al panel |
 | **B. Incidentes** | Ingesta firmada, correlación, cola, job de diagnóstico, tabla de incidentes, página *Incidentes*, reporte a Discord o Teams; fuentes: `k8s-watch`, chequeo HTTP propio, Azure Monitor y Alertmanager; herramientas de métricas, salud, despliegues y chequeo HTTP | Un incidente sembrado en el homelab llega al canal con la causa correcta en menos de 3 minutos |
 | **C. Proactivo y más fuentes** | Resumen semanal, explicación de hallazgos y de anomalías, CloudWatch, logs | El resumen semanal llega solo y el conjunto de evaluación supera el 90 % |
 

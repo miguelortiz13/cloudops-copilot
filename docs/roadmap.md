@@ -43,7 +43,7 @@ No avanzan hasta que exista un recurso o se tome una decisión fuera del código
 
 ## Fase 3: lo que falta
 
-Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el reporte mensual se envía solo). Faltan el PR de remediación y la evaluación del agente. Orden sugerido: de arriba abajo.
+Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el reporte mensual se envía solo). Falta el PR de remediación; la evaluación del agente ya supera el 90 %. Orden sugerido: de arriba abajo.
 
 | Tarea | Qué entrega | Estado |
 |---|---|---|
@@ -52,7 +52,7 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 | Pronóstico con estacionalidad | Hoy anomalías de 14 días y pronóstico lineal; falta estacionalidad semanal y mensual | En parte |
 | Seguimiento del ahorro realizado | Registrar recomendaciones aplicadas y el ahorro medido después | Sin empezar |
 | Cumplimiento por control con excepciones | Excepciones aprobadas por control, con vencimiento | Sin empezar |
-| Agentes con herramientas, citas y evaluación | Motor único con herramientas para el chat y el diagnóstico de incidentes, con conjunto de evaluación ([plan](plan/09-agentes-ia.md)); el agente supera el 90 % (criterio de salida) | Sin empezar |
+| Diagnóstico de incidentes con IA | Etapa B del [plan de agentes](plan/09-agentes-ia.md): alertas (k8s-watch, chequeo HTTP, Alertmanager, Azure Monitor) → agente con herramientas → reporte en Discord o Teams. La etapa A (motor con herramientas, citas y evaluación con 8 de 8) está hecha | Sin empezar |
 | Kubernetes: historia de incidencias | Lo que falta del [plan del módulo](plan/08-kubernetes.md) (parte 2): incidencias con hora de inicio y fin y su duración. Las partes 1, 3, 4 y 5 están hechas | En parte |
 | Bot de Teams con credencial federada | Volver a aprovisionar el bot sin secreto de cliente | Sin empezar |
 | "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario | Sin empezar |
