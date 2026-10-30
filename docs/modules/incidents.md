@@ -48,7 +48,9 @@ En el panel, un operador marca si el diagnóstico fue **correcto** o **incorrect
 4. Nodo caído.
 5. Servicio sin endpoints por un selector mal escrito.
 
-Primera medición (30-oct-2026, `gemini-3.5-flash`): **10 de 10** en dos corridas.
+Medición (30-oct-2026, `gemini-3.5-flash`): **10 de 10** en dos corridas, con ruido de un clúster real (45 pods sanos y 150 eventos de otros namespaces delante de los del problema).
+
+La primera prueba de punta a punta con el laboratorio encontró lo que la evaluación no veía: en un clúster real, el estado completo del clúster excedía el tope de la herramienta y el diagnóstico quedaba en "confianza baja". Por eso `estado_cluster` acepta `namespace` y `objeto` (el diagnóstico los toma de la alerta) y la evaluación lleva ruido.
 
 ```bash
 cd backend && GEMINI_API_KEY=... python -m eval.incidentes

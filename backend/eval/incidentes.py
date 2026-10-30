@@ -49,8 +49,10 @@ def pod(nombre, ns="boutique", fase="Running", motivo=None, listos=0, reinicios=
 
 def foto(pods, cargas, eventos, nodos=None, servicios=None):
     return {"cluster": "lab", "collected_at": HACE, "distribution": "kind", "kubernetes_version": "v1.37.0",
-            "nodes": nodos or [nodo("n1"), nodo("n2")], "namespaces": ["boutique"], "pods": pods, "workloads": cargas,
-            "services": servicios or [], "events": eventos}
+            "nodes": nodos or [nodo("n1"), nodo("n2")], "namespaces": ["boutique", "monitoring", "kube-system"],
+            "pods": pods + RUIDO_PODS, "workloads": cargas + RUIDO_CARGAS, "services": servicios or [],
+            # Los eventos del problema quedan detrás del ruido, como en un clúster ocupado.
+            "events": RUIDO_EVENTOS + eventos}
 
 
 def carga(nombre, deseadas, listas):
@@ -65,6 +67,15 @@ def alerta(nombre, objetivo, resumen, severidad="warning"):
     return [{"name": nombre, "status": "firing", "severity": incidentes.SEVERIDAD.get(severidad, "media"),
              "labels": {"alertname": nombre, "namespace": "boutique", "pod": objetivo, "severity": severidad},
              "summary": resumen, "description": "", "starts_at": HACE, "ends_at": ""}]
+
+
+# Ruido de un clúster real: muchas cargas sanas y eventos de otros namespaces. Sin él, el
+# diagnóstico parecía perfecto en la evaluación y en el laboratorio el contexto no entraba.
+RUIDO_PODS = [pod(f"svc{n}-5d8f-{n:02d}", ns=("monitoring" if n % 2 else "kube-system"), listos=1) for n in range(45)]
+RUIDO_CARGAS = [carga(f"svc{n}", 1, 1) | {"namespace": "monitoring"} for n in range(25)]
+RUIDO_EVENTOS = [{"namespace": "monitoring", "kind": "Pod", "name": f"svc{n}-5d8f-{n:02d}", "reason": "Unhealthy",
+                  "message": "Readiness probe failed: HTTP probe failed with statuscode: 503", "count": 3, "last": HACE}
+                 for n in range(150)]
 
 
 ESCENARIOS = [

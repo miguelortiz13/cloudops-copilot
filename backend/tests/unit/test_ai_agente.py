@@ -182,3 +182,20 @@ def test_ruta_del_chat_usa_el_motor_y_cae_al_agente_anterior_si_falla(monkeypatc
         assert TestClient(app).post("/api/chat", json={"message": "hola"}).json()["answer"] == "reglas"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_estado_cluster_enfoca_por_namespace_y_objeto():
+    ahora = datetime.now(timezone.utc).isoformat()
+    foto = {"collected_at": ahora, "nodes": [], "workloads": [], "services": [],
+            "pods": [{"namespace": "boutique", "name": "currencyservice-abc-1", "phase": "Pending", "reason": "ImagePullBackOff",
+                      "ready": 0, "containers": 1, "restarts": 0, "owner": "currencyservice-abc", "created": ahora}],
+            # El evento del problema queda detrás de 150 de ruido de otro namespace.
+            "events": [{"namespace": "monitoring", "name": f"x{n}", "reason": "Unhealthy", "message": "ruido", "last": ahora}
+                       for n in range(150)]
+                      + [{"namespace": "boutique", "name": "currencyservice-abc-1", "reason": "Failed",
+                          "message": "Failed to pull image ...:v9.9.9: not found", "last": ahora}]}
+    d = {"name": "lab", "incident_list": [], "problem_pods": foto["pods"], "workload_list": [], "node_list": [], "events": foto["events"][:50]}
+    r = herramientas.enfocar(foto, d, "boutique", "currencyservice")
+    assert [e["reason"] for e in r["eventos"]["muestra"]] == ["Failed"] and r["pods_con_problemas"]["total"] == 1
+    sin = herramientas.enfocar(foto, d, None, None)
+    assert sin["eventos"]["total"] == 151 and len(sin["eventos"]["muestra"]) == herramientas.MAX_EVENTOS

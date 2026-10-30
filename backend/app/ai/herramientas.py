@@ -100,6 +100,35 @@ def cumplimiento() -> Dict[str, Any]:
             "enlace": "#/cumplimiento/controles"}
 
 
+MAX_INCIDENCIAS, MAX_PODS, MAX_EVENTOS, MAX_LINEAS = 20, 6, 20, 15
+
+
+def enfocar(foto: Dict[str, Any], d: Dict[str, Any], namespace: Optional[str], objeto: Optional[str]) -> Dict[str, Any]:
+    """
+    El contexto del clúster acotado para un modelo. En un clúster real el detalle
+    completo (decenas de pods, eventos e incidencias) no entra; con `namespace` y
+    `objeto` (pod, deployment o servicio de la alerta) queda solo lo que importa,
+    y los eventos salen de los 200 de la foto, no de los más recientes.
+    """
+    def coincide(ns: Optional[str], *nombres: Optional[str]) -> bool:
+        return (not namespace or ns == namespace) and (not objeto or any(objeto in (n or "") for n in nombres))
+
+    ctx = k8s_chat.contexto(d)
+    incid = [i for i in ctx["incidencias"] if coincide(i["namespace"], i["resource"], i["title"])
+             or (i["category"] == "nodo" and not objeto)]
+    pods = [p for p in ctx["pods_con_problemas"] if coincide(p["namespace"], p["name"], p.get("owner"))]
+    for p in pods:
+        if p.get("log"):
+            p["log"] = {**p["log"], "lines": p["log"]["lines"][-MAX_LINEAS:]}
+    eventos = [e for e in foto.get("events", []) if coincide(e.get("namespace"), e.get("name"))]
+    cargas = [w for w in ctx["cargas_degradadas"] if coincide(w["namespace"], w["name"])]
+    return {**{k: ctx[k] for k in ("cluster", "distribucion", "version", "foto_tomada", "foto_vieja", "salud",
+                                   "nodos_listos", "pods_en_ejecucion", "nodos")},
+            "filtro": {"namespace": namespace, "objeto": objeto},
+            "incidencias": _acotar(incid, MAX_INCIDENCIAS), "pods_con_problemas": _acotar(pods, MAX_PODS),
+            "cargas_degradadas": _acotar(cargas, MAX_INCIDENCIAS), "eventos": _acotar(eventos, MAX_EVENTOS)}
+
+
 def para_asistente(credenciales) -> List[Herramienta]:
     """Herramientas del chat del panel. `credenciales`: las del API, para leer las fotos de Kubernetes."""
 
@@ -112,13 +141,14 @@ def para_asistente(credenciales) -> List[Herramienta]:
                                                   "nodes", "nodes_ready", "pods", "pods_running", "health", "incidents")})
         return {"clusters": salida, "enlace": "#/kubernetes"}
 
-    def estado_cluster(nombre: str) -> Dict[str, Any]:
+    def estado_cluster(nombre: str, namespace: Optional[str] = None, objeto: Optional[str] = None) -> Dict[str, Any]:
         if nombre not in k8s_fleet.configurados():
             return {"error": f"No hay un clúster llamado {nombre!r}.", "clusters": k8s_fleet.configurados()}
         foto = k8s_fleet.leer(credenciales, nombre)
         if foto is None:
             return {"error": f"El agente de {nombre} todavía no envió ninguna foto."}
-        return {**k8s_chat.contexto(k8s_fleet.detalle(nombre, foto, k8s_fleet.ahora())), "enlace": f"#/kubernetes/{nombre}"}
+        return {**enfocar(foto, k8s_fleet.detalle(nombre, foto, k8s_fleet.ahora()), namespace, objeto),
+                "enlace": f"#/kubernetes/{nombre}"}
 
     texto = {"type": "string"}
     return [
@@ -157,6 +187,10 @@ def para_asistente(credenciales) -> List[Herramienta]:
                     {"type": "object", "properties": {}}, clusters_kubernetes),
         Herramienta("estado_cluster",
                     "Detalle de un clúster de Kubernetes desde la última foto de su agente: incidencias, pods con problemas "
-                    "y sus últimas líneas de log, cargas degradadas, nodos y eventos.",
-                    {"type": "object", "properties": {"nombre": texto}, "required": ["nombre"]}, estado_cluster),
+                    "y sus últimas líneas de log, cargas degradadas, nodos y eventos. Para investigar algo puntual (una "
+                    "alerta, un servicio), pasa namespace y objeto (parte del nombre del pod, deployment o servicio): "
+                    "trae solo lo que coincide, incluidos sus eventos.",
+                    {"type": "object", "properties": {"nombre": texto, "namespace": texto,
+                                                      "objeto": {**texto, "description": "Parte del nombre del pod, deployment o servicio"}},
+                     "required": ["nombre"]}, estado_cluster),
     ]
