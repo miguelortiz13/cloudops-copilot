@@ -114,6 +114,7 @@ Sin Service Principal, el agente usa `DefaultAzureCredential`: la **identidad ad
 | `K8S_CLUSTERS` | Clústeres que reportan con el agente, separados por coma. En Terraform, `kubernetes_clusters` |
 | `K8S_SNAPSHOT_ACCOUNT` | Cuenta de almacenamiento donde los agentes dejan sus fotos (la de la plataforma) |
 | `NOTIFY_WEBHOOK_URL` (job `k8s-watch`) | Destino de los avisos de Kubernetes; el job corre según `kubernetes_watch_cron` (por defecto cada 10 minutos) |
+| `ALERTS_INGEST_TOKEN` | Token con que Alertmanager envía alertas a `/api/alerts/alertmanager`; sin él la ingesta responde 503. En Terraform lo genera `random_password.alerts_ingest` (output `alerts_ingest_token`) |
 | `K8S_EXCLUDED_NAMESPACES` | Namespaces cuyas cargas no se evalúan con las reglas `k8s.*` (por defecto `kube-system,kube-public,kube-node-lease`) |
 | `INCLUDE_LOGS` (Deployment del agente) | `false` para que la foto no lleve líneas de log de los pods con problemas |
 

@@ -23,6 +23,7 @@ Rutas siempre públicas:
 | `/` | Estado básico del servicio |
 | `/api/inventory/health` | Health check; no expone secretos |
 | `/api/teams/webhook` | Lo invoca Bot Framework, con su propia autenticación |
+| `/api/alerts/alertmanager` | Lo invoca Alertmanager: exige `Authorization: Bearer <ALERTS_INGEST_TOKEN>` (comparación en tiempo constante), limita el tamaño y trata el contenido de las alertas como dato para el agente |
 
 El panel obtiene el token con MSAL ([`frontend/src/auth.ts`](../frontend/src/auth.ts)) y lo adjunta a cada llamada mediante `apiFetch`. MSAL se carga de forma dinámica y solo cuando la autenticación está configurada.
 

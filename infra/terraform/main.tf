@@ -176,8 +176,18 @@ module "api" {
   volumes      = { (local.data_share) = local.data_mount_path }
 
   # Sin clave, el chat y el generador de IaC usan el motor de reglas.
-  secrets    = local.gemini_enabled ? { "gemini-api-key" = var.gemini_api_key } : {}
-  secret_env = local.gemini_enabled ? { GEMINI_API_KEY = "gemini-api-key" } : {}
+  # Credenciales como secretos: la clave del modelo, el webhook (reportes de incidentes) y el
+  # token con que Alertmanager se autentica en /api/alerts/alertmanager.
+  secrets = merge(
+    local.gemini_enabled ? { "gemini-api-key" = var.gemini_api_key } : {},
+    local.notify_enabled ? { "notify-webhook-url" = var.notify_webhook_url } : {},
+    { "alerts-ingest-token" = random_password.alerts_ingest.result },
+  )
+  secret_env = merge(
+    local.gemini_enabled ? { GEMINI_API_KEY = "gemini-api-key" } : {},
+    local.notify_enabled ? { NOTIFY_WEBHOOK_URL = "notify-webhook-url" } : {},
+    { ALERTS_INGEST_TOKEN = "alerts-ingest-token" },
+  )
 
   env = {
     AZURE_MANAGED_IDENTITY_CLIENT_ID = module.api_identity.client_id

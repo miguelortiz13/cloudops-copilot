@@ -682,3 +682,32 @@ export interface K8sClusterDetail extends K8sClusterSummary {
   problem_pods: K8sPod[];
   events: K8sEvent[];
 }
+
+// ---------------------------------------------------------------- Incidentes (diagnóstico con IA)
+
+export interface IncidentSummary {
+  id: number;
+  title: string;
+  severity: Severity;
+  status: 'abierto' | 'resuelto';
+  cluster: string | null;
+  source: string;
+  opened_at: string;
+  resolved_at: string | null;
+  diagnosis_status: 'diagnosticando' | 'listo' | 'sin_modelo' | 'error' | 'limite';
+  feedback: 'correcto' | 'incorrecto' | null;
+  alerts: number;
+}
+
+export interface IncidentAlert {
+  name: string; status: string; severity: Severity; labels: Record<string, string>;
+  summary: string; description: string; starts_at: string;
+}
+
+export interface IncidentDetail extends IncidentSummary {
+  alert_list: IncidentAlert[];
+  diagnosis: string | null;
+  tools: { nombre: string; argumentos: Record<string, unknown>; error?: string }[];
+  diagnosed_at: string | null;
+  last_alert_at: string;
+}

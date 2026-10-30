@@ -14,6 +14,7 @@ const SECCIONES: [ruta: string, titulo: string, migas: string][] = [
   ['cumplimiento/reglas', 'Cumplimiento', 'Catálogo de reglas'],
   ['cumplimiento/activos', 'Cumplimiento', 'Clasificación de activos'],
   ['kubernetes', 'Kubernetes', 'Kubernetes'],
+  ['incidentes', 'Incidentes', 'Incidentes'],
   ['reportes', 'Reportes y automatización', 'Reportes'],
   ['admin/actividad', 'Administración', 'Actividad de usuarios'],
   ['admin/cuentas', 'Administración', 'Cuentas conectadas'],

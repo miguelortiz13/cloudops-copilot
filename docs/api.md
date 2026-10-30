@@ -106,6 +106,10 @@ Responden desde las vistas que deja el job ([modelo de datos](data-model.md#lect
 | `GET` | `/api/inventory/report/export?accounts=` | El mismo inventario en CSV |
 | `GET` | `/api/reports/monthly?month=AAAA-MM` | Reporte ejecutivo del mes en PDF ([avisos y reportes](modules/notifications-reports.md)) |
 
+## Incidentes
+
+Ver [incidentes](modules/incidents.md#api): `POST /api/alerts/alertmanager` (pública con su propio token), `GET /api/incidents`, `GET /api/incidents/{id}` y `POST /api/incidents/{id}/feedback`.
+
 ## Pipeline de inventario
 
 | Método | Ruta | Descripción |

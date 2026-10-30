@@ -24,6 +24,8 @@ Rutas siempre publicas:
 * `/api/teams/webhook`    — lo invoca el Bot Framework, que trae su propio
                             esquema de autenticacion y no puede presentar un
                             token de usuario.
+* `/api/alerts/alertmanager` — la llama Alertmanager; se autentica con su
+                            propio token (`ALERTS_INGEST_TOKEN`).
 """
 
 import os
@@ -42,6 +44,8 @@ PUBLIC_PATHS = {
     "/",
     "/api/inventory/health",
     "/api/teams/webhook",
+    # La llama Alertmanager: se autentica con su propio token (routers/incidents.py).
+    "/api/alerts/alertmanager",
     "/docs",
     "/openapi.json",
     "/redoc",

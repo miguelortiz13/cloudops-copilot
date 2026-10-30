@@ -207,3 +207,33 @@ class AuditLog(Base):
     target: Mapped[Optional[str]] = mapped_column(Unicode(450))
     outcome: Mapped[str] = mapped_column(String(16))  # ok | error
     detail: Mapped[dict[str, Any]] = mapped_column(default=dict)
+
+
+class Incident(Base):
+    """
+    Un incidente: alertas de una fuente agrupadas (mismo grupo de Alertmanager)
+    y su diagnóstico por el agente (app/ai/incidentes.py, plan 09 etapa B).
+    """
+
+    __tablename__ = "incidents"
+    __table_args__ = (Index("ix_incidents_key_status", "key", "status"), Index("ix_incidents_opened", "opened_at"))
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    # Fuente y grupo: una tormenta de alertas del mismo grupo es un solo incidente.
+    key: Mapped[str] = mapped_column(Unicode(450))
+    source: Mapped[str] = mapped_column(String(32))
+    cluster: Mapped[Optional[str]] = mapped_column(String(100))
+    title: Mapped[str] = mapped_column(Unicode(300))
+    severity: Mapped[str] = mapped_column(String(16))  # critica | alta | media
+    status: Mapped[str] = mapped_column(String(16))  # abierto | resuelto
+    alerts: Mapped[list[Any]] = mapped_column(default=list)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_alert_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # diagnosticando | listo | sin_modelo | error | limite
+    diagnosis_status: Mapped[str] = mapped_column(String(16), default="diagnosticando")
+    diagnosis: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    diagnosis_tools: Mapped[list[Any]] = mapped_column(default=list)
+    diagnosed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Lo marca una persona en el panel: alimenta el conjunto de evaluación.
+    feedback: Mapped[Optional[str]] = mapped_column(String(16))  # correcto | incorrecto

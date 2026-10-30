@@ -66,3 +66,13 @@ module "k8s_watch" {
   secrets    = { "notify-webhook-url" = var.notify_webhook_url }
   secret_env = { NOTIFY_WEBHOOK_URL = "notify-webhook-url" }
 }
+
+# ---------------------------------------------------------------------------
+# Incidentes: token con que Alertmanager (u otra fuente) envía alertas a
+# /api/alerts/alertmanager (app/ai/incidentes.py). Rotarlo: terraform apply
+# -replace=random_password.alerts_ingest y actualizar la fuente.
+# ---------------------------------------------------------------------------
+resource "random_password" "alerts_ingest" {
+  length  = 40
+  special = false
+}

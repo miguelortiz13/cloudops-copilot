@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Role } from '../lib/types';
 import {
-  Boxes, CircleDollarSign, Container, FileCode2, FileSpreadsheet, LayoutGrid, Settings2, ShieldCheck, ShieldHalf,
+  Boxes, CircleDollarSign, Container, Siren, FileCode2, FileSpreadsheet, LayoutGrid, Settings2, ShieldCheck, ShieldHalf,
 } from 'lucide-react';
 
 /** Secciones de la plataforma, en el orden de la barra lateral. */
@@ -20,6 +20,7 @@ export const NAV: { group: string; items: { id: string; label: string; icon: Rea
       { id: 'iac', label: 'IaC y Terraform', icon: <FileCode2 size={16} /> },
       { id: 'cumplimiento', label: 'Cumplimiento', icon: <ShieldCheck size={16} /> },
       { id: 'kubernetes', label: 'Kubernetes', icon: <Container size={16} /> },
+      { id: 'incidentes', label: 'Incidentes', icon: <Siren size={16} /> },
     ],
   },
   {
