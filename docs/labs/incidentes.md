@@ -8,7 +8,7 @@ Rompes a propósito Online Boutique en tu clúster local, Prometheus lo detecta,
 flowchart LR
     TU[Tú rompes algo<br/>kubectl] --> K8S[Online Boutique<br/>kind local-k8s-lab]
     K8S --> PROM[Prometheus<br/>reglas kube-prometheus-stack]
-    PROM -->|alerta tras 15 min| AM[Alertmanager]
+    PROM -->|alerta tras 1 a 5 min| AM[Alertmanager]
     AM -->|webhook con token| CO[CloudOps Copilot]
     AGENTE[cloudops-agent<br/>foto cada 5 min] --> CO
     CO -->|diagnóstico| DIS[Discord]
@@ -27,6 +27,7 @@ El token es una credencial: no lo pegues en chats ni en el repositorio.
 
 ```bash
 cd ~/Proyectos/cloudops-copilot/infra/terraform
+terraform init -backend-config=backend.hcl -input=false >/dev/null   # si nunca se inicializó en esta copia
 TOKEN="$(terraform output -raw alerts_ingest_token)"
 API="$(terraform output -raw api_url)"
 kubectl --context kind-boutique -n cloudops create secret generic cloudops-alerts --from-literal=token="$TOKEN"
@@ -72,7 +73,18 @@ EOF
 
 ## Paso 2. Ejercicios
 
-Cada ejercicio: rompes, esperas la alerta, lees el diagnóstico (Discord y *Incidentes* en el panel), lo comparas con lo que hiciste, lo marcas como **Correcto** o **Incorrecto** y reparas. Las reglas por defecto esperan **15 minutos** antes de disparar: es a propósito, para no despertar a nadie por un parpadeo. Anota los tiempos.
+Cada ejercicio: rompes, esperas la alerta, lees el diagnóstico (Discord y *Incidentes* en el panel), lo comparas con lo que hiciste, lo marcas como **Correcto** o **Incorrecto** y reparas. Anota los tiempos.
+
+Las alertas que vas a ver son las reglas SRE de tu laboratorio (`online-boutique-sre-alerts`, del proyecto `observability-stack`), más rápidas que las de kube-prometheus-stack (que esperan 15 minutos):
+
+| Alerta | Severidad | Espera | Cuándo |
+|---|---|---|---|
+| `PodNotReady` | warning (alta) | 5 min | Un pod de la tienda en `Pending`, `Unknown` o `Failed` |
+| `PodCrashLooping` | critical | 2 min | Reinicios en los últimos 15 min |
+| `OnlineBoutiqueServiceUnavailable` | critical | 1 min | Un deployment sin réplicas disponibles |
+| `FrontendHighErrorRate` | critical | 1 min | El frontend responde con errores (síntoma) |
+
+La ruta hacia CloudOps solo deja pasar las alertas con `namespace=boutique`: las de nodo (sin namespace) no llegan, pero sí sus efectos en los pods.
 
 Para ver qué está por dispararse sin esperar a Discord: `kubectl --context kind-boutique -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090` y abre http://localhost:9090/alerts.
 
@@ -83,8 +95,9 @@ IMG="$(kubectl --context kind-boutique -n boutique get deploy currencyservice -o
 kubectl --context kind-boutique -n boutique set image deploy/currencyservice server="${IMG%:*}:v9.9.9"
 ```
 
-- **Qué esperar:** el pod nuevo queda en `ImagePullBackOff` (el viejo sigue atendiendo). A los 15 minutos dispara `KubePodNotReady`.
+- **Qué esperar:** el pod nuevo queda en `ImagePullBackOff` (el viejo sigue atendiendo). Dispara `PodNotReady` a los ~6 minutos y el diagnóstico llega al minuto siguiente.
 - **Diagnóstico correcto si dice:** imagen o etiqueta `v9.9.9` inexistente, citando el evento `Failed to pull image`.
+- **Probado de punta a punta** (30-oct-2026): roto a las 04:10, alerta a las 04:16, diagnóstico de confianza alta con el evento `NotFound` y la sugerencia de `rollout undo`.
 - **Reparar:** `kubectl --context kind-boutique -n boutique rollout undo deploy/currencyservice`. Unos minutos después llega *Resuelto*.
 
 ### Ejercicio 2. Sin memoria (OOMKilled)
@@ -93,7 +106,7 @@ kubectl --context kind-boutique -n boutique set image deploy/currencyservice ser
 kubectl --context kind-boutique -n boutique set resources deploy/recommendationservice --limits=memory=24Mi --requests=memory=16Mi
 ```
 
-- **Qué esperar:** el contenedor muere por memoria (`OOMKilled`) y entra en `CrashLoopBackOff`. Dispara `KubePodCrashLooping`.
+- **Qué esperar:** el contenedor muere por memoria (`OOMKilled`) y entra en `CrashLoopBackOff`. Dispara `PodCrashLooping` (crítica) en pocos minutos.
 - **Diagnóstico correcto si dice:** falta de memoria o límite de memoria demasiado bajo.
 - **Reparar:** `kubectl --context kind-boutique -n boutique rollout undo deploy/recommendationservice`.
 
@@ -103,28 +116,30 @@ kubectl --context kind-boutique -n boutique set resources deploy/recommendations
 docker stop boutique-worker2
 ```
 
-- **Qué esperar:** el nodo pasa a `NotReady`, sus pods quedan `Unknown` y se reprograman. Disparan `KubeNodeNotReady` y `KubeNodeUnreachable`. Además, `k8s-watch` avisa por su lado (incidencia crítica del nodo).
+- **Qué esperar:** el nodo pasa a `NotReady` y, a los 5 minutos de gracia de Kubernetes, sus pods de la tienda quedan `Unknown` y se reprograman: dispara `PodNotReady` para esos pods. Además, `k8s-watch` avisa por su lado la incidencia crítica del nodo.
 - **Diagnóstico correcto si dice:** el nodo `boutique-worker2` no responde.
 - **Reparar:** `docker start boutique-worker2`.
 
-### Ejercicio 4 (sin alerta). Un servicio que no apunta a nada
+### Ejercicio 4. Una alerta por síntoma: un servicio que no apunta a nada
 
 ```bash
 kubectl --context kind-boutique -n boutique patch svc currencyservice -p '{"spec":{"selector":{"app":"currency-service"}}}'
 ```
 
-Las reglas por defecto **no** tienen una alerta para esto: la tienda falla sin que Alertmanager diga nada. Pregúntale al chat del panel *"¿qué está fallando en local-k8s-lab?"*. Debería encontrar el servicio sin endpoints (incidencia de la página *Kubernetes*).
+Ningún pod falla: el servicio `currencyservice` deja de tener endpoints y el frontend empieza a responder con errores. La alerta que llega es de **síntoma** (`FrontendHighErrorRate`), no de la causa: es el caso más difícil para el diagnóstico, porque tiene que ir del frontend al servicio sin endpoints.
 
-- **Para pensar:** ¿qué alerta habría que agregar (por ejemplo, sobre `kube_endpoint_address_available`)?
+- **Diagnóstico correcto si dice:** el servicio `currencyservice` no tiene endpoints porque su selector (`app=currency-service`) no coincide con los pods.
+- **Para pensar:** si el diagnóstico no llega a la causa, pregúntale al chat del panel *"¿qué está fallando en local-k8s-lab?"*. ¿Qué alerta de causa agregarías (por ejemplo, sobre `kube_endpoint_address_available`)?
 - **Reparar:** `kubectl --context kind-boutique -n boutique patch svc currencyservice -p '{"spec":{"selector":{"app":"currencyservice"}}}'`.
 
 ## Paso 3. Medir
 
 | Ejercicio | Alerta | Minutos hasta el aviso | ¿Diagnóstico correcto? | Minutos hasta *Resuelto* |
 |---|---|---|---|---|
-| 1. Imagen inexistente | | | | |
-| 2. OOMKilled | | | | |
-| 3. Nodo caído | | | | |
+| 1. Imagen inexistente | PodNotReady | | | |
+| 2. OOMKilled | PodCrashLooping | | | |
+| 3. Nodo caído | PodNotReady | | | |
+| 4. Selector mal escrito | FrontendHighErrorRate | | | |
 
 El objetivo de la plataforma es acertar al menos 9 de cada 10 diagnósticos. Tus marcas en el panel alimentan esa medición.
 

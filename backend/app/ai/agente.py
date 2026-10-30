@@ -19,7 +19,7 @@ from app.llm.base import LLMError
 MAX_LLAMADAS = 8
 PRESUPUESTO_SEGUNDOS = 90
 # Un resultado enorme diluye la señal y cuesta tokens: las herramientas ya acotan, esto es la red.
-MAX_CARACTERES_RESULTADO = 12_000
+MAX_CARACTERES_RESULTADO = 30_000
 
 
 @dataclass
