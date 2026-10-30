@@ -22,6 +22,7 @@ const VISTAS: [ruta: string, titulo: string, archivo: string][] = [
   ['cumplimiento/reglas', 'Cumplimiento', 'cumplimiento-reglas'],
   ['cumplimiento/activos', 'Cumplimiento', 'cumplimiento-activos'],
   ['kubernetes', 'Kubernetes', 'kubernetes'],
+  ['incidentes', 'Incidentes', 'incidentes'],
   ['reportes', 'Reportes y automatización', 'reportes'],
   ['admin/plataforma', 'Administración', 'admin-plataforma'],
   ['admin/cuentas', 'Administración', 'admin-cuentas'],

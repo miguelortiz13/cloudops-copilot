@@ -52,7 +52,7 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 | Pronóstico con estacionalidad | Hoy anomalías de 14 días y pronóstico lineal; falta estacionalidad semanal y mensual | En parte |
 | Seguimiento del ahorro realizado | Registrar recomendaciones aplicadas y el ahorro medido después | Sin empezar |
 | Cumplimiento por control con excepciones | Excepciones aprobadas por control, con vencimiento | Sin empezar |
-| Diagnóstico de incidentes con IA | Etapa B del [plan de agentes](plan/09-agentes-ia.md): alertas (k8s-watch, chequeo HTTP, Alertmanager, Azure Monitor) → agente con herramientas → reporte en Discord o Teams. La etapa A (motor con herramientas, citas y evaluación con 8 de 8) está hecha | Sin empezar |
+| Diagnóstico de incidentes con IA | Hecho con Alertmanager ([incidentes](modules/incidents.md), evaluación 10/10). Falta, de la etapa B del [plan](plan/09-agentes-ia.md): fuentes `k8s-watch`, chequeo HTTP y Azure Monitor; herramientas de métricas, salud del recurso y despliegues; cola y job si el diagnóstico en el API se queda corto | En parte |
 | Kubernetes: historia de incidencias | Lo que falta del [plan del módulo](plan/08-kubernetes.md) (parte 2): incidencias con hora de inicio y fin y su duración. Las partes 1, 3, 4 y 5 están hechas | En parte |
 | Bot de Teams con credencial federada | Volver a aprovisionar el bot sin secreto de cliente | Sin empezar |
 | "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario | Sin empezar |

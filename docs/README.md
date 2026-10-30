@@ -44,6 +44,7 @@
 - [IaC y Terraform](modules/iac.md)
 - [Avisos y reportes](modules/notifications-reports.md)
 - [Agentes de IA](modules/ai-agents.md)
+- [Incidentes (diagnóstico con IA)](modules/incidents.md)
 - [Kubernetes](modules/kubernetes-sre.md)
 - [Pipeline de inventario](modules/inventory-pipeline.md)
 

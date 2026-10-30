@@ -87,3 +87,9 @@ output "kubernetes_watch_job_name" {
   description = "Job que avisa de las incidencias de Kubernetes (vacío sin clústeres o sin webhook)."
   value       = try(module.k8s_watch[0].name, "")
 }
+
+output "alerts_ingest_token" {
+  description = "Token (bearer) para enviar alertas de Alertmanager a /api/alerts/alertmanager?cluster=<nombre>."
+  value       = random_password.alerts_ingest.result
+  sensitive   = true
+}

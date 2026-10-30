@@ -18,6 +18,7 @@ const SecOpsPage = lazy(() => import('./modules/secops/SecOpsPage').then((m) => 
 const IacPage = lazy(() => import('./modules/iac/IacPage').then((m) => ({ default: m.IacPage })));
 const CompliancePage = lazy(() => import('./modules/compliance/CompliancePage').then((m) => ({ default: m.CompliancePage })));
 const KubernetesPage = lazy(() => import('./modules/kubernetes/KubernetesPage').then((m) => ({ default: m.KubernetesPage })));
+const IncidentsPage = lazy(() => import('./modules/incidents/IncidentsPage').then((m) => ({ default: m.IncidentsPage })));
 const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 
@@ -63,6 +64,7 @@ function Shell() {
             {page === 'iac' && <AzureGuard><IacPage /></AzureGuard>}
             {page === 'cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`cumplimiento/${v}`)} onGo={navigate} />}
             {page === 'kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`kubernetes/${c}`)} />}
+            {page === 'incidentes' && <IncidentsPage incidente={sub} onIncidente={(i) => navigate(`incidentes/${i}`)} />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}
             </Suspense>

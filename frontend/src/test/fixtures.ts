@@ -9,7 +9,7 @@
 import type {
   CloudAccounts,
   InventoryReport,
-  K8sClusterDetail, K8sClusterSummary,
+  IncidentDetail, IncidentSummary, K8sClusterDetail, K8sClusterSummary,
   ClassifiedAsset, ClassifiedAssets, ComplianceStatus, ConnectedAccounts, CostHistory, CostOverview, FindingEvent, FinOpsReport,
   HistorySeries, InventoryPage, InventoryResource, InventorySummary, ManagedFinding, ManagedFindings, ManualCreations,
   Me, RiskExposure, Role, SecOpsReport, Snapshot, Subscription, SyncStatus, TagCompliance, TerraformCoverage,
@@ -534,4 +534,44 @@ export const k8sHomelab: K8sClusterDetail = {
     { namespace: null, kind: 'Node', name: 'nodo-3', reason: 'EvictionThresholdMet',
       message: 'Attempting to reclaim ephemeral-storage', count: 3, last: '2026-10-10T14:40:00Z' },
   ],
+};
+
+// ---------------------------------------------------------------- Incidentes
+
+const incidente1: IncidentSummary = {
+  id: 2, title: 'KubePodCrashLooping · boutique · cartservice-7d9f-x1', severity: 'alta', status: 'abierto',
+  cluster: 'local-k8s-lab', source: 'alertmanager', opened_at: '2026-10-10T14:48:00Z', resolved_at: null,
+  diagnosis_status: 'listo', feedback: null, alerts: 2,
+};
+
+export const incidents: { configured: boolean; items: IncidentSummary[] } = {
+  configured: true,
+  items: [incidente1, {
+    id: 1, title: 'KubeNodeNotReady · local-k8s-lab-worker2', severity: 'critica', status: 'resuelto', cluster: 'local-k8s-lab',
+    source: 'alertmanager', opened_at: '2026-10-09T09:10:00Z', resolved_at: '2026-10-09T09:31:00Z',
+    diagnosis_status: 'listo', feedback: 'correcto', alerts: 1,
+  }],
+};
+
+export const incidentDetail: IncidentDetail = {
+  ...incidente1,
+  alert_list: [
+    { name: 'KubePodCrashLooping', status: 'firing', severity: 'alta', labels: { namespace: 'boutique', pod: 'cartservice-7d9f-x1' },
+      summary: 'Pod is crash looping.', description: '', starts_at: '2026-10-10T14:40:00Z' },
+    { name: 'KubeDeploymentReplicasMismatch', status: 'firing', severity: 'alta', labels: { namespace: 'boutique', deployment: 'cartservice' },
+      summary: 'Deployment has not matched the expected number of replicas.', description: '', starts_at: '2026-10-10T14:44:00Z' },
+  ],
+  diagnosis: [
+    '**Qué pasa:** `cartservice` no está disponible: 0 de 1 réplicas listas.',
+    '**Causa probable** (confianza alta): no alcanza su base `redis-cart:6379`; el deployment `redis-cart` está en 0 réplicas.',
+    '**Evidencia:**',
+    '- Log anterior del contenedor: `Error: Connection refused (redis-cart:6379)` [ver](#/kubernetes/local-k8s-lab)',
+    '- `redis-cart` 0 de 1 réplicas y su servicio sin endpoints [ver](#/kubernetes/local-k8s-lab)',
+    '**Siguientes pasos:**',
+    '1. `kubectl -n boutique scale deploy/redis-cart --replicas=1`',
+    '2. `kubectl -n boutique rollout status deploy/cartservice`',
+  ].join('\n'),
+  tools: [{ nombre: 'estado_cluster', argumentos: { nombre: 'local-k8s-lab' } }, { nombre: 'recursos_nuevos', argumentos: { dias: 1 } }],
+  diagnosed_at: '2026-10-10T14:49:10Z',
+  last_alert_at: '2026-10-10T14:52:00Z',
 };
