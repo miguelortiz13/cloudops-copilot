@@ -32,7 +32,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, Iterator, List, Optional
 
-AGENT_VERSION = "1.2.1"
+AGENT_VERSION = "1.2.2"
 SCHEMA = 1
 SA = "/var/run/secrets/kubernetes.io/serviceaccount"
 MAX_EVENTS = 200
@@ -158,6 +158,10 @@ def pod(p: Dict) -> Dict:
         # que se apagó y volvió a encender parece tener todos sus pods fallando.
         "last_restart": max((c.get("lastState", {}).get("terminated", {}).get("finishedAt") or ""
                              for c in contenedores), default="") or None,
+        # "Unknown" (código 255) es un contenedor muerto porque se reinició el nodo, no porque fallara la app.
+        "last_restart_reason": max(((c.get("lastState", {}).get("terminated", {}).get("finishedAt") or "",
+                                     c.get("lastState", {}).get("terminated", {}).get("reason"))
+                                    for c in contenedores), default=("", None))[1],
         "node": spec.get("nodeName"),
         "owner_kind": duenos[0].get("kind"),
         "owner": duenos[0].get("name"),

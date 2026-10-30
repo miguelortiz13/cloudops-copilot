@@ -351,6 +351,8 @@ def test_reinicios_acumulados_solo_cuentan_si_el_ultimo_es_reciente():
     assert titulos(pod(last_restart=(AHORA - timedelta(days=2)).isoformat())) == []
     assert titulos(pod(last_restart=None)) == []
     assert titulos(pod(last_restart=(AHORA - timedelta(minutes=20)).isoformat())) == ["Reinicios frecuentes: api"]
+    # El último reinicio fue porque se reinició el nodo: no es la app fallando.
+    assert titulos(pod(last_restart=(AHORA - timedelta(minutes=5)).isoformat(), last_restart_reason="Unknown")) == []
     # Foto de un agente anterior (sin el campo): se mantiene el conteo.
     assert titulos(pod()) == ["Reinicios frecuentes: api"]
     assert titulos(pod(restarts=0, ready=0)) == ["Sin estar listo: api"]
@@ -372,3 +374,4 @@ def test_el_agente_informa_el_ultimo_reinicio():
 
     pods = {p["name"]: p for p in agente.foto(ConReinicio(), "lab")["pods"]}
     assert pods["api"]["last_restart"] == "2026-10-24T11:30:00Z" and pods["nuevo"]["last_restart"] is None
+    assert pods["api"]["last_restart_reason"] == "Error" and pods["nuevo"]["last_restart_reason"] is None

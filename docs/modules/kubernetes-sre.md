@@ -17,7 +17,7 @@ La plataforma ve cada clúster a través de un **agente de solo lectura que corr
 | Nodo con `MemoryPressure`, `DiskPressure`, `PIDPressure` o `NetworkUnavailable` | Alta |
 | Pod en `CrashLoopBackOff`, `OOMKilled`, `ImagePullBackOff`, `ErrImagePull` o error de configuración del contenedor | Alta; crítica con más de 10 reinicios |
 | Pod `Pending`, `Failed` o `Unknown` por más de 10 minutos | Alta (media si es de un Job) |
-| Pod con más de 5 reinicios y el último hace menos de una hora (el contador es acumulado: un clúster apagado y vuelto a encender no cuenta), o en ejecución pero no listo por más de 10 minutos; pod desalojado | Media |
+| Pod con más de 5 reinicios y el último hace menos de una hora, salvo que ese último lo causara un reinicio del nodo (motivo `Unknown`: el contador es acumulado y un clúster apagado o un nodo actualizado no es la app fallando), o en ejecución pero no listo por más de 10 minutos; pod desalojado | Media |
 | Deployment, StatefulSet o DaemonSet con menos réplicas listas que las deseadas | Alta si no tiene ninguna; media si tiene algunas |
 | Servicio con selector y sin ningún endpoint listo | Media |
 

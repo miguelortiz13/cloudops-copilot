@@ -97,6 +97,8 @@ def _reinicia_ahora(p: Dict, ahora: datetime) -> bool:
         return False
     if "last_restart" not in p:
         return True
+    if p.get("last_restart_reason") == "Unknown":  # lo mató un reinicio del nodo (actualización, apagado), no la app
+        return False
     edad = _segundos(p["last_restart"], ahora)
     return edad is not None and edad < REINICIO_RECIENTE_SEGUNDOS
 
