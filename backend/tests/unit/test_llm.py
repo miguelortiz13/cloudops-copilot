@@ -187,7 +187,7 @@ def cliente_chat():
     from app.main import app
 
     agente_falso = SimpleNamespace(ask=lambda *a, **k: {"answer": "ok", "mode": "rules", "data": []})
-    app.dependency_overrides[deps.services] = lambda: SimpleNamespace(agent=agente_falso)
+    app.dependency_overrides[deps.services] = lambda: SimpleNamespace(agent=agente_falso, azure=SimpleNamespace(azure_credentials=None))
     yield TestClient(app)
     app.dependency_overrides.clear()
 

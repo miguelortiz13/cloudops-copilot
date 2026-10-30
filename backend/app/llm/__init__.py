@@ -18,7 +18,7 @@ from typing import Optional
 from app.core import config
 from app.llm.base import LLM, LLMError, Respuesta
 
-__all__ = ["LLMError", "Respuesta", "disponible", "generar", "proveedor", "reiniciar"]
+__all__ = ["LLMError", "Respuesta", "con_herramientas", "disponible", "generar", "proveedor", "reiniciar"]
 
 _proveedor: Optional[LLM] = None
 _iniciado = False
@@ -51,6 +51,11 @@ def reiniciar(nuevo: Optional[LLM] = None) -> None:
 
 def disponible() -> bool:
     return proveedor() is not None
+
+
+def con_herramientas() -> bool:
+    """El proveedor sabe llamar funciones (app/ai); si no, los agentes usan el contexto precargado."""
+    return hasattr(proveedor(), "paso")
 
 
 def generar(uso: str, sistema: str, mensaje: str, temperatura: float = 0.2, json_: bool = False,

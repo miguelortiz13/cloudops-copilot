@@ -2,21 +2,25 @@ import type { ReactNode } from 'react';
 
 /**
  * Markdown mínimo para las respuestas de los agentes: encabezados, listas,
- * tablas, **negrita** y `código`. El texto se inserta como nodos de texto de
- * React, nunca como HTML, así que una respuesta del modelo no puede inyectar
- * marcado.
+ * tablas, **negrita**, `código` y enlaces. El texto se inserta como nodos de
+ * texto de React, nunca como HTML, así que una respuesta del modelo no puede
+ * inyectar marcado. Solo son enlaces los del propio panel (`#/...`, las citas
+ * de las herramientas): cualquier otra URL queda como texto.
  */
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
   // Cursiva solo con delimitadores en límite de palabra: rg_dev_x no es énfasis.
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?![\w*])|(?<!\w)_[^_\s][^_]*_(?!\w))/g;
+  const regex = /(\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?![\w*])|(?<!\w)_[^_\s][^_]*_(?!\w))/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let i = 0;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) out.push(text.slice(last, match.index));
     const token = match[0];
-    if (token.startsWith('**')) out.push(<strong key={`${keyBase}-${i++}`}>{token.slice(2, -2)}</strong>);
+    if (token.startsWith('[')) {
+      const [, etiqueta, url] = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(token)!;
+      out.push(url.startsWith('#/') ? <a key={`${keyBase}-${i++}`} href={url}>{etiqueta}</a> : etiqueta);
+    } else if (token.startsWith('**')) out.push(<strong key={`${keyBase}-${i++}`}>{token.slice(2, -2)}</strong>);
     else if (token.startsWith('`')) out.push(<code key={`${keyBase}-${i++}`}>{token.slice(1, -1)}</code>);
     else out.push(<em key={`${keyBase}-${i++}`}>{token.slice(1, -1)}</em>);
     last = match.index + token.length;

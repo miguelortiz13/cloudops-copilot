@@ -1,15 +1,44 @@
 # Agentes de IA
 
-Código: [`agents/azure_agent.py`](../../backend/app/agents/azure_agent.py), [`routers/chat.py`](../../backend/app/routers/chat.py).
+Código: [`ai/`](../../backend/app/ai) (motor con herramientas), [`agents/azure_agent.py`](../../backend/app/agents/azure_agent.py) (respaldo), [`routers/chat.py`](../../backend/app/routers/chat.py).
 
-## Agentes
+## Motor con herramientas (chat del panel)
+
+Con un modelo que admite herramientas (Gemini), el chat del panel responde con el motor de agentes ([`app/ai`](../../backend/app/ai), [plan 09](../plan/09-agentes-ia.md)): el modelo pide los datos que necesita, recibe el resultado y sigue hasta responder. Ya no depende de un contexto precargado.
+
+| Herramienta | Qué devuelve | Cita |
+|---|---|---|
+| `buscar_recursos` | Recursos de Azure, AWS y Kubernetes por nombre, nube, tipo, cuenta, Terraform o creador, ordenados por gasto | Inventario |
+| `recursos_nuevos` | Lo aparecido en los últimos N días, con quién lo creó; opcionalmente solo fuera de Terraform | Inventario |
+| `hallazgos` | Hallazgos por severidad, estado, nube o texto, con remediación | Gestión de hallazgos |
+| `costos` | Gasto de un periodo, comparación y los que más gastan por cuenta, servicio y recurso | Historial de costos |
+| `cumplimiento` | Controles de CIS e ISO y cuáles no cumplen | Cumplimiento |
+| `clusters_kubernetes` / `estado_cluster` | Flota con salud y soporte; incidencias, pods con su log, cargas, nodos y eventos | Kubernetes |
+
+- **Solo lectura**: las herramientas leen las mismas vistas que el panel (con su caché) y las fotos de Kubernetes; no consultan la nube ni ejecutan nada.
+- **Citas**: cada resultado trae el enlace a la vista que lo respalda y el modelo lo cita como `[ver en el panel](#/...)`. El panel solo vuelve clicables los enlaces propios (`#/...`).
+- **Topes**: hasta 8 llamadas a herramientas y 90 s por pregunta; al llegar, el modelo responde con lo que tiene. Un resultado de más de 12.000 caracteres se rechaza pidiendo filtros.
+- **Respaldo**: si el modelo no admite herramientas o falla, responde el agente anterior (contexto precargado o motor de reglas). La respuesta indica el modo (`llm_gemini_herramientas`).
+- **Kubernetes**: la pestaña *Kubernetes* de la consola sigue usando su chat sobre la foto (`/api/k8s/chat`).
+
+### Evaluación
+
+[`backend/eval/agentes.py`](../../backend/eval/agentes.py) siembra una base con datos conocidos y una foto de Kubernetes, y hace 8 preguntas con respuesta verificable (conteos, quién gasta más, recursos creados a mano, causa de un CrashLoop, fin de soporte…). Usa el modelo real:
+
+```bash
+cd backend && GEMINI_API_KEY=... python -m eval.agentes
+```
+
+Primera medición (29-oct-2026, `gemini-3.5-flash`): **8 de 8 (100 %)**, objetivo 90 %. En la CI corren las pruebas del bucle con un modelo simulado (`tests/unit/test_ai_agente.py`).
+
+## Agentes anteriores (respaldo)
 
 | Agente | `agent_type` | Contexto que recibe |
 |---|---|---|
 | Inventario y gobernanza | `inventory` | Recursos, grupos, tipos, regiones, cumplimiento de tags, cobertura IaC, recursos sin custodio |
 | FinOps | `finops` | Reporte de FinOps (huérfanos con costo real, showback, anomalías), tarifas de referencia |
 | SecOps | `secops` | Reporte de SecOps y exposición priorizada |
-| SRE Kubernetes | — (`/api/k8s/chat`) | Overview e incidencias del clúster; ver [kubernetes-sre.md](kubernetes-sre.md) |
+| SRE Kubernetes | — (`/api/k8s/chat`) | Foto del clúster; ver [kubernetes-sre.md](kubernetes-sre.md) |
 
 Responden en español, con tablas comparativas y comandos `az` o `kubectl` exactos. Se presentan como agentes de `ORG_NAME`.
 
