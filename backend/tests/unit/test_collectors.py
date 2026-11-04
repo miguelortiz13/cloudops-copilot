@@ -490,6 +490,11 @@ def reportar(monkeypatch, momento, webhook, url=DISCORD):
     from app.collectors import notify, report
     monkeypatch.setenv("NOTIFY_WEBHOOK_URL", url)
     monkeypatch.setattr(notify.requests, "post", webhook)
+    # El job registra sus ejecuciones con la hora real: sin esta, la "primera ejecución" sería
+    # la de hoy y el resultado dependería del día en que corren las pruebas.
+    with db.session_scope() as s:
+        if not s.scalar(select(func.count()).select_from(CollectorRun)):
+            s.add(CollectorRun(collector="inventory", started_at=DIA, finished_at=DIA, status="ok", items=0, detail={}))
     return run.ejecutar("report", report.recolectar, contexto(momento))
 
 
