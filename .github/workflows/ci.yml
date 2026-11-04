@@ -13,7 +13,7 @@ permissions:
 jobs:
   backend:
     name: Backend (ruff + pytest)
-    uses: miguelortiz13/github-workflows/.github/workflows/build-python.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/build-python.yml@v0.4.0
     with:
       python-version: "3.13"
       working-directory: backend
@@ -24,7 +24,7 @@ jobs:
 
   frontend:
     name: Frontend (eslint + Vitest + build)
-    uses: miguelortiz13/github-workflows/.github/workflows/build-node.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/build-node.yml@v0.4.0
     with:
       node-version: "22"
       working-directory: frontend
@@ -73,7 +73,7 @@ jobs:
 
   secrets:
     name: Seguridad (gitleaks + dependency review)
-    uses: miguelortiz13/github-workflows/.github/workflows/security-baseline.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/security-baseline.yml@v0.4.0
     permissions:
       contents: read
       pull-requests: write
@@ -103,7 +103,7 @@ jobs:
   # Aquí solo se comprueba que la del panel compile; no se publica.
   web-image:
     name: Imagen del panel (build + Trivy)
-    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.4.0
     permissions:
       contents: read
       packages: write
