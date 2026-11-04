@@ -9,7 +9,7 @@ pydantic==2.14.1
 sqlalchemy==2.1.6
 alembic==1.20.1
 mssql-python==1.16.0
-azure-identity>=1.26.0
+azure-identity>=1.27.0
 # AWS (app/providers/aws): inventario con credenciales federadas, sin llaves
 boto3>=1.43.118,<2
 azure-mgmt-resourcegraph>=8.0.1,<9.0.0
