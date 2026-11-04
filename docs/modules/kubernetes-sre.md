@@ -102,8 +102,8 @@ Para ver la foto sin subirla: `kubectl -n cloudops exec deploy/cloudops-agent --
 
 | Control | Detalle |
 |---|---|
-| Solo lectura | El ClusterRole tiene `get` y `list` sobre nodos, namespaces, pods, servicios, eventos, cargas de `apps` y EndpointSlices, y `get` sobre `pods/log`. Nunca lee `secrets` ni `configmaps` |
-| Poco y nada sensible en la foto | Por pod solo viaja el estado y el dueño; por carga, la imagen de cada contenedor y banderas de seguridad (privilegiado, límites, usuario no root, escalada, namespaces del nodo, si monta hostPath). Ni variables de entorno, ni comandos, ni rutas montadas. Los logs de los pods con problemas van enmascarados y se pueden desactivar (`INCLUDE_LOGS=false`) |
+| Solo lectura | El ClusterRole tiene `get` y `list` sobre nodos, namespaces, pods, servicios, eventos, cargas de `apps` (incluidos los ReplicaSets, para el historial de despliegues) y EndpointSlices, y `get` sobre `pods/log`. Nunca lee `secrets` ni `configmaps` |
+| Poco y nada sensible en la foto | Por pod solo viaja el estado y el dueño; por carga, la imagen de cada contenedor y banderas de seguridad (privilegiado, límites, usuario no root, escalada, namespaces del nodo, si monta hostPath). Desde el agente 1.3.0, de los Deployments cambiados en las últimas 48 h viajan sus dos últimas revisiones (número, hora, imágenes y réplicas listas): el diagnóstico de incidentes las usa para saber qué cambió. Ni variables de entorno, ni comandos, ni rutas montadas. Los logs de los pods con problemas van enmascarados y se pueden desactivar (`INCLUDE_LOGS=false`) |
 | Contenedor endurecido | Sin root (UID 65534), sistema de archivos de solo lectura, sin capacidades, sin escalada de privilegios, `seccomp` por defecto |
 | Credencial mínima | Cada clúster tiene su propio contenedor y una SAS que solo puede crear y escribir en él: no puede leer ni listar nada. Vence en `kubernetes_agent_sas_expiry` |
 | Revocar | Rotar la clave de la cuenta de almacenamiento invalida todas las SAS; después, `terraform apply` y actualizar el secret en cada clúster |

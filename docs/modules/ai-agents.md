@@ -13,11 +13,12 @@ Con un modelo que admite herramientas (Gemini), el chat del panel responde con e
 | `hallazgos` | Hallazgos por severidad, estado, nube o texto, con remediación | Gestión de hallazgos |
 | `costos` | Gasto de un periodo, comparación y los que más gastan por cuenta, servicio y recurso | Historial de costos |
 | `cumplimiento` | Controles de CIS e ISO y cuáles no cumplen | Cumplimiento |
-| `clusters_kubernetes` / `estado_cluster` | Flota con salud y soporte; incidencias, pods con su log, cargas, nodos y eventos | Kubernetes |
+| `cambios_recientes` | Despliegues de Kubernetes de las últimas horas (revisión, hora, imagen anterior y nueva, réplicas listas) y recursos nuevos de la nube | Kubernetes, inventario |
+| `clusters_kubernetes` / `estado_cluster` | Flota con salud y soporte; incidencias, pods con su log, cargas, nodos y eventos (acotables por namespace y objeto) | Kubernetes |
 
 - **Solo lectura**: las herramientas leen las mismas vistas que el panel (con su caché) y las fotos de Kubernetes; no consultan la nube ni ejecutan nada.
 - **Citas**: cada resultado trae el enlace a la vista que lo respalda y el modelo lo cita como `[ver en el panel](#/...)`. El panel solo vuelve clicables los enlaces propios (`#/...`).
-- **Topes**: hasta 8 llamadas a herramientas y 90 s por pregunta; al llegar, el modelo responde con lo que tiene. Un resultado de más de 12.000 caracteres se rechaza pidiendo filtros.
+- **Topes**: hasta 8 llamadas a herramientas y 90 s por pregunta; al llegar, el modelo responde con lo que tiene. Un resultado de más de 30.000 caracteres se rechaza pidiendo filtros.
 - **Respaldo**: si el modelo no admite herramientas o falla, responde el agente anterior (contexto precargado o motor de reglas). La respuesta indica el modo (`llm_gemini_herramientas`).
 - **Kubernetes**: la pestaña *Kubernetes* de la consola sigue usando su chat sobre la foto (`/api/k8s/chat`).
 

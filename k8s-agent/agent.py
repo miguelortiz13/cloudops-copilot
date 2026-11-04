@@ -29,10 +29,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterator, List, Optional
 
-AGENT_VERSION = "1.2.2"
+AGENT_VERSION = "1.3.0"
 SCHEMA = 1
 SA = "/var/run/secrets/kubernetes.io/serviceaccount"
 MAX_EVENTS = 200
@@ -277,6 +277,35 @@ def log(k: Kubernetes, p: Dict, contenedor: str) -> Optional[Dict]:
     return None
 
 
+VENTANA_DESPLIEGUES = timedelta(hours=48)
+
+
+def despliegues(replicasets: List[Dict], ahora: datetime) -> List[Dict]:
+    """
+    Qué se desplegó: por cada Deployment con una revisión nueva en las últimas 48 h,
+    esa revisión y la anterior (con su hora e imágenes), para ver qué cambió y cuándo.
+    Los ReplicaSets son el historial de despliegues que Kubernetes ya guarda.
+    """
+    por_carga: Dict[tuple, List[Dict]] = {}
+    for rs in replicasets:
+        meta = rs["metadata"]
+        dueno = next((o for o in meta.get("ownerReferences") or [] if o.get("kind") == "Deployment"), None)
+        revision = (meta.get("annotations") or {}).get("deployment.kubernetes.io/revision")
+        if dueno and revision and revision.isdigit():
+            por_carga.setdefault((meta["namespace"], dueno["name"]), []).append({
+                "revision": int(revision), "created": meta.get("creationTimestamp"),
+                "images": [c.get("image") for c in rs.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])],
+                "replicas": rs.get("status", {}).get("replicas", 0), "ready": rs.get("status", {}).get("readyReplicas", 0)})
+    salida = []
+    for (ns, nombre), revisiones in por_carga.items():
+        revisiones.sort(key=lambda r: r["revision"], reverse=True)
+        nueva = revisiones[0]
+        creada = datetime.fromisoformat((nueva["created"] or "1970-01-01T00:00:00Z").replace("Z", "+00:00"))
+        if ahora - creada <= VENTANA_DESPLIEGUES:
+            salida.append({"namespace": ns, "deployment": nombre, "revisiones": revisiones[:2]})
+    return sorted(salida, key=lambda d: d["revisiones"][0]["created"] or "", reverse=True)
+
+
 def foto(k: Kubernetes, cluster: str, con_logs: bool = True) -> Dict:
     version = k.get("/version").get("gitVersion", "")
     nodos = list(k.listar("/api/v1/nodes"))
@@ -295,6 +324,10 @@ def foto(k: Kubernetes, cluster: str, con_logs: bool = True) -> Dict:
             registro = log(k, pods_crudos[i], contenedor)
             if registro:
                 pods[i]["log"] = registro
+    try:
+        recientes = despliegues(list(k.listar("/apis/apps/v1/replicasets")), datetime.now(timezone.utc))
+    except (urllib.error.URLError, OSError):  # sin permiso sobre replicasets (manifiestos anteriores a 1.3.0)
+        recientes = None
     eventos = sorted((evento(e) for e in k.listar("/api/v1/events", fieldSelector="type=Warning")),
                      key=lambda e: e["last"] or "", reverse=True)[:MAX_EVENTS]
     return {
@@ -312,6 +345,7 @@ def foto(k: Kubernetes, cluster: str, con_logs: bool = True) -> Dict:
         "pods": pods,
         "services": [servicio(s, listos) for s in k.listar("/api/v1/services")],
         "events": eventos,
+        "deployments_recent": recientes,
     }
 
 

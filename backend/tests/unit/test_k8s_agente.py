@@ -25,6 +25,8 @@ from app.services import k8s_fleet  # noqa: E402
 
 AHORA = datetime(2026, 10, 24, 12, 0, tzinfo=timezone.utc)
 HACE_UNA_HORA = (AHORA - timedelta(hours=1)).isoformat()
+# El agente compara con la hora real (ventana de 48 h de despliegues).
+RECIENTE = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(timespec="seconds")
 
 _ruta = Path(__file__).resolve().parents[3] / "k8s-agent" / "agent.py"
 _spec = importlib.util.spec_from_file_location("k8s_agent", _ruta)
@@ -54,6 +56,21 @@ class ApiFalsa:
                                            "volumes": [{"name": "h", "hostPath": {"path": "/var/run"}}]}}},
                                        "status": {"readyReplicas": 1}}],
         "/apis/apps/v1/statefulsets": [],
+        "/apis/apps/v1/replicasets": [
+            {"metadata": {"namespace": "default", "name": "web-abc", "creationTimestamp": RECIENTE,
+                          "annotations": {"deployment.kubernetes.io/revision": "3"},
+                          "ownerReferences": [{"kind": "Deployment", "name": "web"}]},
+             "spec": {"template": {"spec": {"containers": [{"name": "web", "image": "nginx:latest"}]}}},
+             "status": {"replicas": 2, "readyReplicas": 1}},
+            {"metadata": {"namespace": "default", "name": "web-old", "creationTimestamp": "2026-09-01T00:00:00Z",
+                          "annotations": {"deployment.kubernetes.io/revision": "2"},
+                          "ownerReferences": [{"kind": "Deployment", "name": "web"}]},
+             "spec": {"template": {"spec": {"containers": [{"name": "web", "image": "nginx:1.26"}]}}},
+             "status": {"replicas": 0}},
+            {"metadata": {"namespace": "kube-system", "name": "coredns-x", "creationTimestamp": "2026-01-01T00:00:00Z",
+                          "annotations": {"deployment.kubernetes.io/revision": "1"},
+                          "ownerReferences": [{"kind": "Deployment", "name": "coredns"}]},
+             "spec": {"template": {"spec": {"containers": [{"name": "c", "image": "coredns:1.11"}]}}}, "status": {}}],
         "/apis/apps/v1/daemonsets": [{"metadata": {"namespace": "kube-system", "name": "svclb"},
                                       "status": {"desiredNumberScheduled": 1, "numberReady": 1}}],
         "/api/v1/pods": [
@@ -375,3 +392,45 @@ def test_el_agente_informa_el_ultimo_reinicio():
     pods = {p["name"]: p for p in agente.foto(ConReinicio(), "lab")["pods"]}
     assert pods["api"]["last_restart"] == "2026-10-24T11:30:00Z" and pods["nuevo"]["last_restart"] is None
     assert pods["api"]["last_restart_reason"] == "Error" and pods["nuevo"]["last_restart_reason"] is None
+
+
+
+def test_la_foto_trae_los_despliegues_recientes_con_la_revision_anterior():
+    foto = agente.foto(ApiFalsa(), "homelab")
+    assert foto["deployments_recent"] == [{"namespace": "default", "deployment": "web", "revisiones": [
+        {"revision": 3, "created": RECIENTE, "images": ["nginx:latest"], "replicas": 2, "ready": 1},
+        {"revision": 2, "created": "2026-09-01T00:00:00Z", "images": ["nginx:1.26"], "replicas": 0, "ready": 0}]}]
+
+    class SinPermiso(ApiFalsa):
+        def listar(self, ruta, **params):
+            if ruta.endswith("replicasets"):
+                raise agente.urllib.error.HTTPError(ruta, 403, "Forbidden", {}, None)
+            return super().listar(ruta, **params)
+
+    assert agente.foto(SinPermiso(), "homelab")["deployments_recent"] is None
+
+
+def test_cambios_recientes_dice_que_imagen_cambio_y_cuando(monkeypatch):
+    from app.ai import herramientas
+    from app.readmodel import service
+
+    ahora = datetime.now(timezone.utc)
+    hace = (ahora - timedelta(minutes=8)).isoformat()
+    foto = {"deployments_recent": [
+        {"namespace": "boutique", "deployment": "currencyservice", "revisiones": [
+            {"revision": 7, "created": hace, "images": ["reg/currencyservice:v9.9.9"], "replicas": 1, "ready": 0},
+            {"revision": 6, "created": "2026-10-01T00:00:00Z", "images": ["reg/currencyservice:v0.10.6"], "replicas": 1, "ready": 1}]},
+        {"namespace": "boutique", "deployment": "cartservice", "revisiones": [
+            {"revision": 2, "created": (ahora - timedelta(hours=20)).isoformat(), "images": ["reg/cart:v2"], "replicas": 1, "ready": 1}]}]}
+    monkeypatch.setattr(k8s_fleet, "configurados", lambda: ["lab", "sin-agente"])
+    monkeypatch.setattr(k8s_fleet, "leer", lambda cred, n: foto if n == "lab" else None)
+    monkeypatch.setattr(service, "inventario_multinube", lambda: (_ for _ in ()).throw(RuntimeError("sin base")))
+    h = {x.nombre: x for x in herramientas.para_asistente(None)}["cambios_recientes"]
+
+    r = h.funcion(horas=6, cluster="lab", namespace="boutique")
+    assert [d["deployment"] for d in r["despliegues_kubernetes"]["muestra"]] == ["currencyservice"]  # el de hace 20 h queda fuera
+    d = r["despliegues_kubernetes"]["muestra"][0]
+    assert (d["revision"], d["revision_anterior"], d["listas"]) == (7, 6, "0/1")
+    assert d["cambio_de_imagen"] == ["reg/currencyservice:v0.10.6 -> reg/currencyservice:v9.9.9"]
+    assert r["recursos_nuevos"]["muestra"][0]["error"].startswith("Inventario no disponible")
+    assert h.funcion(horas=24)["sin_historial_de_despliegues"] == ["sin-agente"]

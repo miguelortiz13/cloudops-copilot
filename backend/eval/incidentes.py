@@ -47,12 +47,21 @@ def pod(nombre, ns="boutique", fase="Running", motivo=None, listos=0, reinicios=
     return p
 
 
-def foto(pods, cargas, eventos, nodos=None, servicios=None):
+def despliegue(nombre, antes, despues, minutos, ns="boutique", revision=7):
+    """Revisión nueva de un Deployment hace `minutos` (como la arma el agente 1.3.0)."""
+    return {"namespace": ns, "deployment": nombre, "revisiones": [
+        {"revision": revision, "created": (AHORA - timedelta(minutes=minutos)).isoformat(), "images": [despues], "replicas": 1, "ready": 0},
+        {"revision": revision - 1, "created": (AHORA - timedelta(days=20)).isoformat(), "images": [antes], "replicas": 1, "ready": 1}]}
+
+
+def foto(pods, cargas, eventos, nodos=None, servicios=None, despliegues=()):
     return {"cluster": "lab", "collected_at": HACE, "distribution": "kind", "kubernetes_version": "v1.37.0",
             "nodes": nodos or [nodo("n1"), nodo("n2")], "namespaces": ["boutique", "monitoring", "kube-system"],
             "pods": pods + RUIDO_PODS, "workloads": cargas + RUIDO_CARGAS, "services": servicios or [],
             # Los eventos del problema quedan detrás del ruido, como en un clúster ocupado.
-            "events": RUIDO_EVENTOS + eventos}
+            "events": RUIDO_EVENTOS + eventos,
+            # Cambios viejos de otros namespaces como ruido.
+            "deployments_recent": list(despliegues) + [despliegue("grafana", "grafana:11.2", "grafana:11.3", 60 * 20, ns="monitoring", revision=4)]}
 
 
 def carga(nombre, deseadas, listas):
@@ -79,6 +88,15 @@ RUIDO_EVENTOS = [{"namespace": "monitoring", "kind": "Pod", "name": f"svc{n}-5d8
 
 
 ESCENARIOS = [
+    ("CrashLoop justo después de un despliegue (solo el cambio explica la causa)",
+     foto([pod("cartservice-6c5d-k4", motivo="CrashLoopBackOff", reinicios=6,
+               log=["Starting cart service", "Unhandled exception. System.InvalidOperationException: configuration error",
+                    "   at Program.Main()"], creado=(AHORA - timedelta(minutes=9)).isoformat())],
+          [carga("cartservice", 1, 0)],
+          [evento("cartservice-6c5d-k4", "BackOff", "Back-off restarting failed container server")],
+          despliegues=[despliegue("cartservice", "reg/cartservice:v0.10.6", "reg/cartservice:v0.10.7", 9)]),
+     alerta("PodCrashLooping", "cartservice-6c5d-k4", "Pod is crash looping.", "critical"),
+     [r"despliegue|revisi|rollout|v0\.10\.7"]),
     ("CrashLoop porque no alcanza la base",
      foto([pod("cartservice-7d9f-x1", motivo="CrashLoopBackOff", reinicios=14,
                log=["Starting cart service", "Error: Connection refused (redis-cart:6379)", "Unhandled exception, exiting"])],
@@ -92,7 +110,8 @@ ESCENARIOS = [
      foto([pod("paymentservice-5c4b-q2", fase="Pending", motivo="ImagePullBackOff", creado=(AHORA - timedelta(minutes=30)).isoformat())],
           [carga("paymentservice", 1, 0)],
           [evento("paymentservice-5c4b-q2", "Failed",
-                  "Failed to pull image \"us-central1-docker.pkg.dev/boutique/paymentservice:v9.9.9\": not found")]),
+                  "Failed to pull image \"us-central1-docker.pkg.dev/boutique/paymentservice:v9.9.9\": not found")],
+          despliegues=[despliegue("paymentservice", "reg/paymentservice:v0.10.6", "us-central1-docker.pkg.dev/boutique/paymentservice:v9.9.9", 30)]),
      alerta("KubePodNotReady", "paymentservice-5c4b-q2", "Pod has been in a non-ready state for more than 15 minutes."),
      [r"imagen|image", r"v9\.9\.9|no existe|not found"]),
     ("Sin memoria (OOMKilled)",

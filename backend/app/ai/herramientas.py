@@ -150,6 +150,42 @@ def para_asistente(credenciales) -> List[Herramienta]:
         return {**enfocar(foto, k8s_fleet.detalle(nombre, foto, k8s_fleet.ahora()), namespace, objeto),
                 "enlace": f"#/kubernetes/{nombre}"}
 
+    def cambios_recientes(horas: int = 24, cluster: Optional[str] = None, namespace: Optional[str] = None,
+                          objeto: Optional[str] = None) -> Dict[str, Any]:
+        horas = max(1, min(int(horas), 48))
+        desde = datetime.now(timezone.utc) - timedelta(hours=horas)
+        despliegues, sin_dato = [], []
+        for nombre in ([cluster] if cluster else k8s_fleet.configurados()):
+            foto = k8s_fleet.leer(credenciales, nombre) if nombre in k8s_fleet.configurados() else None
+            if foto is None or foto.get("deployments_recent") is None:
+                sin_dato.append(nombre)
+                continue
+            for d in foto["deployments_recent"]:
+                nueva, *antes = d["revisiones"]
+                if (not nueva["created"] or datetime.fromisoformat(nueva["created"].replace("Z", "+00:00")) < desde
+                        or (namespace and d["namespace"] != namespace) or (objeto and objeto not in d["deployment"])):
+                    continue
+                previas = antes[0]["images"] if antes else []
+                despliegues.append({
+                    "cluster": nombre, "namespace": d["namespace"], "deployment": d["deployment"],
+                    "revision": nueva["revision"], "hora": nueva["created"], "listas": f"{nueva['ready']}/{nueva['replicas']}",
+                    "revision_anterior": antes[0]["revision"] if antes else None,
+                    "cambio_de_imagen": [f"{a} -> {b}" for a, b in zip(previas, nueva["images"]) if a != b],
+                    "imagenes": nueva["images"]})
+        try:
+            nuevos = [{k: r.get(k) for k in ("name", "provider", "account", "type", "created_by", "first_seen", "in_iac")}
+                      for r in service.inventario_multinube()["resources"]
+                      if r.get("first_seen") and datetime.fromisoformat(r["first_seen"]) >= desde
+                      and (not namespace or r.get("group") == namespace)]
+        except Exception as exc:  # sin base el inventario no está; los despliegues sí
+            nuevos = [{"error": f"Inventario no disponible: {type(exc).__name__}"}]
+        return {"desde": desde.isoformat(timespec="minutes"),
+                "despliegues_kubernetes": _acotar(sorted(despliegues, key=lambda x: x["hora"], reverse=True), MUESTRA),
+                "recursos_nuevos": _acotar(nuevos, MUESTRA),
+                "sin_historial_de_despliegues": sin_dato, "enlace": f"#/kubernetes/{cluster}" if cluster else "#/kubernetes",
+                "nota": "Un despliegue es una revisión nueva de un Deployment (su ReplicaSet). Compara su hora con el "
+                        "inicio de la alerta: un cambio minutos antes es el primer sospechoso."}
+
     texto = {"type": "string"}
     return [
         Herramienta("buscar_recursos",
@@ -185,6 +221,13 @@ def para_asistente(credenciales) -> List[Herramienta]:
                     {"type": "object", "properties": {}}, cumplimiento),
         Herramienta("clusters_kubernetes", "Clústeres de Kubernetes conectados con su salud, versión y fin de soporte.",
                     {"type": "object", "properties": {}}, clusters_kubernetes),
+        Herramienta("cambios_recientes",
+                    "Qué cambió en las últimas N horas (hasta 48): despliegues de Kubernetes (revisión nueva de cada "
+                    "Deployment, su hora y qué imagen cambió) y recursos nuevos del inventario. Filtra por clúster, "
+                    "namespace y objeto (parte del nombre del deployment).",
+                    {"type": "object", "properties": {"horas": {"type": "integer"}, "cluster": texto, "namespace": texto,
+                                                      "objeto": texto}},
+                    cambios_recientes),
         Herramienta("estado_cluster",
                     "Detalle de un clúster de Kubernetes desde la última foto de su agente: incidencias, pods con problemas "
                     "y sus últimas líneas de log, cargas degradadas, nodos y eventos. Para investigar algo puntual (una "

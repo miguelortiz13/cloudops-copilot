@@ -77,7 +77,7 @@ Reemplaza a los cuatro agentes actuales con una sola pieza:
 | Herramienta | Fuente | Perfil | Etapa |
 |---|---|---|---|
 | `buscar_recursos(filtros)` | Inventario canónico | asistente, diagnóstico | A |
-| `cambios_recientes(recurso o cuenta, horas)` | Recursos nuevos o borrados, Activity Log, CloudTrail | diagnóstico, asistente | A |
+| `cambios_recientes(horas, cluster, namespace, objeto)` | Hecho: despliegues de Kubernetes (ReplicaSets, agente 1.3.0) y recursos nuevos del inventario. Pendiente: Activity Log y CloudTrail | diagnóstico, asistente | A |
 | `hallazgos(filtros)` | Hallazgos con su estado | asistente, diagnóstico | A |
 | `costo_por(dimensión, periodo)` | Historial de costos | asistente | A |
 | `estado_cluster(nombre)` / `log_pod(cluster, pod)` | Foto del agente de Kubernetes | diagnóstico, asistente | A |

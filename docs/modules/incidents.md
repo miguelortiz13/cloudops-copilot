@@ -40,15 +40,16 @@ En el panel, un operador marca si el diagnóstico fue **correcto** o **incorrect
 
 ### Evaluación
 
-[`backend/eval/incidentes.py`](../../backend/eval/incidentes.py) siembra cinco incidentes con su causa conocida y verifica que la sección *Causa probable* la nombre:
+[`backend/eval/incidentes.py`](../../backend/eval/incidentes.py) siembra seis incidentes con su causa conocida y verifica que la sección *Causa probable* la nombre:
 
 1. CrashLoop porque el pod no alcanza su base.
 2. Imagen inexistente después de un despliegue.
 3. Contenedor sin memoria (OOMKilled).
 4. Nodo caído.
 5. Servicio sin endpoints por un selector mal escrito.
+6. CrashLoop justo después de un despliegue, donde solo el cambio (revisión e imagen nueva) explica la causa.
 
-Medición (30-oct-2026, `gemini-3.5-flash`): **10 de 10** en dos corridas, con ruido de un clúster real (45 pods sanos y 150 eventos de otros namespaces delante de los del problema).
+Medición (30-oct-2026, `gemini-3.5-flash`): **10 de 10** en dos corridas, con ruido de un clúster real (45 pods sanos y 150 eventos de otros namespaces delante de los del problema). Con `cambios_recientes` (3-nov-2026): **12 de 12** en dos corridas de seis escenarios.
 
 La primera prueba de punta a punta con el laboratorio encontró lo que la evaluación no veía: en un clúster real, el estado completo del clúster excedía el tope de la herramienta y el diagnóstico quedaba en "confianza baja". Por eso `estado_cluster` acepta `namespace` y `objeto` (el diagnóstico los toma de la alerta) y la evaluación lleva ruido.
 
@@ -75,5 +76,5 @@ La guía paso a paso, con el laboratorio de Online Boutique, está en [labs/inci
 ## Límites conocidos
 
 - El diagnóstico corre en el proceso del API después de responder. Si la réplica escalara a cero a mitad (enfría a los 5 minutos y el diagnóstico tarda menos de 2), se perdería; el incidente quedaría en *Diagnosticando*. Si pasa, el siguiente paso es una cola y un job (plan 09).
-- Las herramientas ven lo que la plataforma ya guarda: la foto de Kubernetes (cada 5 min), el inventario, los hallazgos y los costos. Métricas en vivo, salud del recurso y despliegues recientes llegan en la etapa C.
+- Las herramientas ven lo que la plataforma ya guarda: la foto de Kubernetes (cada 5 min), el inventario, los hallazgos y los costos. Los despliegues de Kubernetes de las últimas 48 h llegan con la foto (agente 1.3.0; con manifiestos anteriores, `cambios_recientes` dice que no hay historial). Métricas en vivo, salud del recurso y despliegues de la nube llegan en la etapa C.
 - Fuentes: hoy Alertmanager. `k8s-watch`, Azure Monitor y CloudWatch quedan para después.
