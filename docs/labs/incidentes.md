@@ -98,7 +98,7 @@ kubectl --context kind-boutique -n boutique set image deploy/currencyservice ser
 ```
 
 - **Qué esperar:** el pod nuevo queda en `ImagePullBackOff` (el viejo sigue atendiendo). Dispara `PodNotReady` a los ~6 minutos y el diagnóstico llega al minuto siguiente.
-- **Diagnóstico correcto si dice:** imagen o etiqueta `v9.9.9` inexistente, citando el evento `Failed to pull image`.
+- **Diagnóstico correcto si dice:** imagen o etiqueta `v9.9.9` inexistente, citando el evento `Failed to pull image` y, con el agente 1.3.0, el despliegue que la introdujo (revisión, hora e imagen anterior).
 - **Probado de punta a punta** (30-oct-2026): roto a las 04:10, alerta a las 04:16, diagnóstico de confianza alta con el evento `NotFound` y la sugerencia de `rollout undo`.
 - **Reparar:** `kubectl --context kind-boutique -n boutique rollout undo deploy/currencyservice`. Unos minutos después llega *Resuelto*.
 

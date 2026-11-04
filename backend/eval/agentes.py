@@ -43,6 +43,7 @@ PREGUNTAS = [
     ("¿Qué está fallando en el clúster lab-k8s y cuál es la causa probable?", [r"pagos", r"db:5432"]),
     ("¿Qué versión de Kubernetes tiene lab-k8s y hasta cuándo tiene soporte?", [r"1\.35", r"2027"]),
     ("¿Hay buckets de S3 que no estén gestionados por Terraform? ¿Cuáles?", [r"bucket-sin-tf"]),
+    ("¿Qué se desplegó en las últimas 2 horas en lab-k8s y qué cambió?", [r"pagos", r"v2\.1"]),
 ]
 
 
@@ -107,7 +108,10 @@ def foto_lab():
             "services": [{"namespace": "tienda", "name": "db", "type": "ClusterIP", "selector": True, "headless": False,
                           "endpoints": 0}],
             "events": [{"namespace": "tienda", "kind": "Pod", "name": "pagos-7d9f-x1", "reason": "BackOff",
-                        "message": "Back-off restarting failed container", "count": 40, "last": hace}]}
+                        "message": "Back-off restarting failed container", "count": 40, "last": hace}],
+            "deployments_recent": [{"namespace": "tienda", "deployment": "pagos", "revisiones": [
+                {"revision": 5, "created": (AHORA - timedelta(minutes=50)).isoformat(), "images": ["reg/pagos:v2.1"], "replicas": 2, "ready": 0},
+                {"revision": 4, "created": (AHORA - timedelta(days=9)).isoformat(), "images": ["reg/pagos:v2.0"], "replicas": 0, "ready": 0}]}]}
 
 
 def main() -> int:
