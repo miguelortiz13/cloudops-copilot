@@ -29,7 +29,7 @@ concurrency:
 jobs:
   image:
     name: Imagen del API
-    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.4.0
     permissions:
       contents: read
       packages: write
@@ -45,7 +45,7 @@ jobs:
     name: Firma y SBOM
     needs: image
     if: needs.image.outputs.ref != ''
-    uses: miguelortiz13/github-workflows/.github/workflows/container-sign.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/container-sign.yml@v0.4.0
     permissions:
       contents: read
       packages: write
@@ -56,7 +56,7 @@ jobs:
   api:
     name: Desplegar el API en dev
     needs: [image, sign]
-    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-container-app.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-container-app.yml@v0.4.0
     permissions:
       contents: read
       id-token: write
@@ -80,7 +80,7 @@ jobs:
   web:
     name: Publicar el panel en dev
     needs: api
-    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-static-web-app.yml@v0.3.0
+    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-static-web-app.yml@v0.4.0
     permissions:
       contents: read
       id-token: write
