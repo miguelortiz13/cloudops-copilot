@@ -410,6 +410,25 @@ def test_la_foto_trae_los_despliegues_recientes_con_la_revision_anterior():
     assert agente.foto(SinPermiso(), "homelab")["deployments_recent"] is None
 
 
+def test_volver_a_una_plantilla_vieja_cuenta_como_despliegue_reciente():
+    # rollout undo o repetir una imagen: Kubernetes reutiliza el ReplicaSet viejo y solo sube su revisión.
+    ahora = datetime.now(timezone.utc)
+    rs = [{"metadata": {"namespace": "b", "name": "cur-viejo", "creationTimestamp": "2026-10-30T04:10:00Z",
+                        "annotations": {"deployment.kubernetes.io/revision": "9"}, "ownerReferences": [{"kind": "Deployment", "name": "cur"}]},
+           "spec": {"template": {"spec": {"containers": [{"image": "cur:v9.9.9"}]}}}, "status": {}},
+          {"metadata": {"namespace": "b", "name": "cur-bueno", "creationTimestamp": "2026-10-20T00:00:00Z",
+                        "annotations": {"deployment.kubernetes.io/revision": "8"}, "ownerReferences": [{"kind": "Deployment", "name": "cur"}]},
+           "spec": {"template": {"spec": {"containers": [{"image": "cur:v0.10.6"}]}}}, "status": {"replicas": 1, "readyReplicas": 1}}]
+    hace = (ahora - timedelta(minutes=7)).isoformat(timespec="seconds")
+    dep = [{"metadata": {"namespace": "b", "name": "cur"},
+            "status": {"conditions": [{"type": "Available", "lastUpdateTime": "2026-10-20T00:00:00Z"},
+                                      {"type": "Progressing", "lastUpdateTime": hace}]}}]
+    assert agente.despliegues(rs, ahora) == []  # solo con el ReplicaSet, parece viejo
+    r = agente.despliegues(rs, ahora, dep)
+    assert [(v["revision"], v["created"], v["images"]) for v in r[0]["revisiones"]] == [
+        (9, hace, ["cur:v9.9.9"]), (8, "2026-10-20T00:00:00Z", ["cur:v0.10.6"])]
+
+
 def test_cambios_recientes_dice_que_imagen_cambio_y_cuando(monkeypatch):
     from app.ai import herramientas
     from app.readmodel import service

@@ -10,7 +10,8 @@ WORKDIR /srv
 
 # Librerias del sistema que necesita mssql-python (driver de Azure SQL); el
 # driver ODBC viene dentro del paquete.
-RUN apt-get update \
+# upgrade: parches de seguridad de Debian antes de que salga una imagen base nueva (Trivy falla con HIGH).
+RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends libltdl7 libkrb5-3 libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 
