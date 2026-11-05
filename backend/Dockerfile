@@ -9,8 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv
 
 # Librerias del sistema que necesita mssql-python (driver de Azure SQL); el
-# driver ODBC viene dentro del paquete.
+# driver ODBC viene dentro del paquete. El upgrade aplica los parches de
+# seguridad de Debian que la imagen base aun no trae (Trivy bloquea HIGH/CRITICAL).
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends libltdl7 libkrb5-3 libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 
