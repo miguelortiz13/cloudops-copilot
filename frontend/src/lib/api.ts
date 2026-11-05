@@ -43,6 +43,18 @@ export function post<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
+export function put<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function del<T>(path: string): Promise<T> {
+  return request<T>(path, { method: 'DELETE' });
+}
+
 /** Descarga con el token de la sesión: un enlace directo no lo llevaría. Sin `body`, la petición es GET. */
 export async function download(path: string, body: unknown, filename: string): Promise<void> {
   const res = await apiFetch(`${API_URL}${path}`, body === undefined ? undefined : {

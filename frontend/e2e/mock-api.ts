@@ -69,6 +69,7 @@ function rutas(role: Role): Record<string, Handler> {
     'GET /api/secops/report': () => fx.secopsReport,
     'GET /api/k8s/clusters': () => fx.k8sClusters,
     'GET /api/incidents': () => fx.incidents,
+    'GET /api/incidents/stats': () => fx.incidentStats,
     'GET /api/incidents/2': () => fx.incidentDetail,
     'POST /api/incidents/2/feedback': () => ({ id: 2, feedback: 'correcto' }),
     'GET /api/k8s/clusters/homelab': () => fx.k8sHomelab,

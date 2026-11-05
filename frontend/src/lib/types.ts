@@ -685,18 +685,24 @@ export interface K8sClusterDetail extends K8sClusterSummary {
 
 // ---------------------------------------------------------------- Incidentes (diagnóstico con IA)
 
+export type IncidentStatus = 'abierto' | 'reconocido' | 'en_curso' | 'resuelto' | 'cerrado';
+export type CloseReason = 'solucionado' | 'falso_positivo' | 'ruido' | 'duplicado';
+
 export interface IncidentSummary {
   id: number;
   title: string;
   severity: Severity;
-  status: 'abierto' | 'resuelto';
+  status: IncidentStatus;
   cluster: string | null;
   source: string;
   opened_at: string;
   resolved_at: string | null;
-  diagnosis_status: 'diagnosticando' | 'listo' | 'sin_modelo' | 'error' | 'limite';
+  diagnosis_status: 'diagnosticando' | 'listo' | 'sin_modelo' | 'error' | 'limite' | 'omitido' | 'agrupado';
   feedback: 'correcto' | 'incorrecto' | null;
   alerts: number;
+  assignee: string | null;
+  closed_reason: CloseReason | null;
+  parent_id: number | null;
 }
 
 export interface IncidentAlert {
@@ -704,10 +710,30 @@ export interface IncidentAlert {
   summary: string; description: string; starts_at: string;
 }
 
+export interface IncidentEvent { at: string; actor: string; kind: string; text: string }
+
 export interface IncidentDetail extends IncidentSummary {
   alert_list: IncidentAlert[];
   diagnosis: string | null;
   tools: { nombre: string; argumentos: Record<string, unknown>; error?: string }[];
   diagnosed_at: string | null;
   last_alert_at: string;
+  postmortem: string | null;
+  children: IncidentSummary[];
+  events: IncidentEvent[];
+}
+
+export interface IncidentStats {
+  configured: boolean; days: number; total: number; open: number; diagnosed: number; marked: number; correct: number;
+  accuracy: number | null; target: number; noise: number; median_minutes_to_resolve: number | null;
+}
+
+export interface Silence {
+  id: string; cluster: string | null; namespace: string | null; alerta: string | null; objeto: string | null;
+  motivo: string; creado_por: string; creado: string; hasta: string;
+}
+
+export interface IncidentSettings {
+  ventana_tormenta_seg: number; umbral_tormenta: number; foto_vieja_min: number; diagnosticar: Severity[];
+  avisar: Severity[]; postmortem: boolean; max_diagnosticos_hora: number;
 }

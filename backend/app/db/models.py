@@ -237,3 +237,22 @@ class Incident(Base):
     diagnosed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     # Lo marca una persona en el panel: alimenta el conjunto de evaluación.
     feedback: Mapped[Optional[str]] = mapped_column(String(16))  # correcto | incorrecto
+    # Gestión por una persona (status: abierto | reconocido | en_curso | resuelto | cerrado).
+    assignee: Mapped[Optional[str]] = mapped_column(Unicode(200))
+    closed_reason: Mapped[Optional[str]] = mapped_column(String(32))  # solucionado | falso_positivo | ruido | duplicado
+    postmortem: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    # Tormenta: incidentes casi simultáneos del mismo clúster cuelgan del primero, que se diagnostica por todos.
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("incidents.id"), index=True)
+
+
+class IncidentEvent(Base):
+    """Línea de tiempo de un incidente: lo que hizo la fuente, el agente y cada persona."""
+
+    __tablename__ = "incident_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id"), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actor: Mapped[str] = mapped_column(Unicode(200))  # una persona, "alertmanager" o "agente"
+    kind: Mapped[str] = mapped_column(String(32))  # abierto | alerta | diagnostico | estado | asignado | nota | resuelto | tormenta | postmortem
+    text: Mapped[str] = mapped_column(UnicodeText)

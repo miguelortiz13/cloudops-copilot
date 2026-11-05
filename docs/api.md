@@ -108,7 +108,7 @@ Responden desde las vistas que deja el job ([modelo de datos](data-model.md#lect
 
 ## Incidentes
 
-Ver [incidentes](modules/incidents.md#api): `POST /api/alerts/alertmanager` (pública con su propio token), `GET /api/incidents`, `GET /api/incidents/{id}` y `POST /api/incidents/{id}/feedback`.
+Ver [incidentes](modules/incidents.md#api): `POST /api/alerts/alertmanager` (pública con su propio token), `GET /api/incidents`, `GET /api/incidents/{id}`, `GET /api/incidents/stats`, las acciones de gestión (`status`, `assign`, `notes`, `rediagnose`, `postmortem`, `feedback`), los silencios (`/api/silences`) y los ajustes (`/api/settings/incidents`).
 
 ## Pipeline de inventario
 

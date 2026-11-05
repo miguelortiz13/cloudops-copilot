@@ -61,7 +61,7 @@ def evaluar(nombre: str, foto: Optional[Dict], previo: Dict, ahora: datetime) ->
     estado = {"collected_at": foto.get("collected_at"), "abiertas": dict(previo.get("abiertas", {})),
               "pendientes": dict(previo.get("pendientes", {})), "sin_reportar": previo.get("sin_reportar", False)}
     edad = k8s_fleet._segundos(foto.get("collected_at"), ahora)
-    if edad is None or edad > k8s_fleet.VIEJA_SEGUNDOS:
+    if edad is None or edad > k8s_fleet.vieja_segundos():
         if not estado["sin_reportar"]:
             lineas.append(f"- El agente dejó de reportar: última foto hace {int((edad or 0) // 60)} min")
             estado["sin_reportar"] = True

@@ -13,10 +13,14 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 
+from app.core import ajustes
+
 STORAGE_SCOPE = "https://storage.azure.com/.default"
 TIMEOUT = 20
-# El agente sube cada 5 minutos: tres fotos perdidas ya es un agente caído.
-VIEJA_SEGUNDOS = 15 * 60
+# El agente sube cada 5 minutos: tres fotos perdidas (15 min, ajustable en el panel) ya es un agente caído.
+def vieja_segundos() -> int:
+    return ajustes.incidentes()["foto_vieja_min"] * 60
+
 # Un pod recién creado puede estar arrancando: no es incidencia todavía.
 GRACIA_SEGUNDOS = 10 * 60
 REINICIOS = 5
@@ -175,7 +179,7 @@ def resumen(nombre: str, foto: Optional[Dict], ahora: datetime) -> Dict:
         "agent_version": foto.get("agent_version"),
         "collected_at": foto.get("collected_at"),
         "age_seconds": int(edad) if edad is not None else None,
-        "stale": edad is None or edad > VIEJA_SEGUNDOS,
+        "stale": edad is None or edad > vieja_segundos(),
         "nodes": len(foto.get("nodes", [])),
         "nodes_ready": sum(1 for n in foto.get("nodes", []) if n["ready"]),
         "pods": len(pods),

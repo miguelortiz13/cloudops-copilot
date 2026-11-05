@@ -35,10 +35,11 @@ def _limites() -> Tuple[int, int]:
     return config.LLM_MAX_REQUESTS_PER_HOUR, config.LLM_MAX_REQUESTS_PER_DAY
 
 
-def consumir(usuario: str, ahora: Optional[float] = None) -> Dict[str, int]:
-    """Registra una peticion o lanza LimiteExcedido. Devuelve lo que queda."""
+def consumir(usuario: str, ahora: Optional[float] = None, por_hora: Optional[int] = None) -> Dict[str, int]:
+    """Registra una peticion o lanza LimiteExcedido. Devuelve lo que queda. `por_hora`: un tope propio menor."""
     ahora = time.time() if ahora is None else ahora
-    por_hora, por_dia = _limites()
+    general, por_dia = _limites()
+    por_hora = min(por_hora, general or por_hora) if por_hora else general
     with _lock:
         marcas = _uso[usuario]
         while marcas and marcas[0] <= ahora - DIA:
