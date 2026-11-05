@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { get } from '../../lib/api';
+import { get, post } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 import { dateTime, day, number, plural } from '../../lib/format';
 import type { K8sClusterDetail, K8sClusterSummary, K8sIncident, K8sPod, K8sSupport } from '../../lib/types';
+import { useApp } from '../../state/hooks';
+import { SilenceForm } from '../incidents/SilencesView';
+import { ClusterSettings } from './ClusterSettings';
 import {
   Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile,
 } from '../../components/ui';
@@ -33,7 +36,7 @@ function memoria(mib: number | null): string {
  * Clústeres que reportan con el agente de solo lectura (k8s-agent/): AKS, EKS
  * o fuera de la nube. Los datos son la última foto del agente (cada 5 minutos).
  */
-export function KubernetesPage({ cluster, onCluster }: { cluster?: string; onCluster: (name: string) => void }) {
+export function KubernetesPage({ cluster, onCluster, onIncidente }: { cluster?: string; onCluster: (name: string) => void; onIncidente?: (id: number) => void }) {
   const lista = useApi<{ clusters: K8sClusterSummary[] }>('k8s-clusters', () => get('/api/k8s/clusters'));
 
   if (lista.loading) return <Loading />;
@@ -50,7 +53,7 @@ export function KubernetesPage({ cluster, onCluster }: { cluster?: string; onClu
       {clusters.length === 0 ? <SinClusteres /> : (
         <div className="stack" style={{ gap: 24 }}>
           <Flota clusters={clusters} activo={activo?.name} onCluster={onCluster} />
-          {activo && (activo.reporting ? <Detalle nombre={activo.name} /> : <SinFoto cluster={activo} />)}
+          {activo && (activo.reporting ? <Detalle nombre={activo.name} onIncidente={onIncidente} /> : <SinFoto cluster={activo} />)}
         </div>
       )}
     </>
@@ -122,8 +125,11 @@ function SinFoto({ cluster }: { cluster: K8sClusterSummary }) {
   );
 }
 
-function Detalle({ nombre }: { nombre: string }) {
+function Detalle({ nombre, onIncidente }: { nombre: string; onIncidente?: (id: number) => void }) {
+  const { can, toast } = useApp();
   const [log, setLog] = useState<K8sPod | null>(null);
+  const [silenciar, setSilenciar] = useState<K8sIncident | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
   const { data, error, loading, refreshing, reload } = useApi<K8sClusterDetail>(`k8s-cluster-${nombre}`, () => get(`/api/k8s/clusters/${encodeURIComponent(nombre)}`));
   if (loading) return <Loading />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
@@ -131,6 +137,22 @@ function Detalle({ nombre }: { nombre: string }) {
 
   const salud = data.health ?? 0;
   const incid = data.incident_list;
+  const activas = incid.filter((i) => !i.silenced_until);
+  const operador = can('operador');
+
+  const abrir = async (i: K8sIncident) => {
+    setAbriendo(true);
+    try {
+      const r = await post<{ incident: number; action: 'nuevo' | 'existente' }>(
+        `/api/k8s/clusters/${encodeURIComponent(nombre)}/incidents`, { resource: i.resource, namespace: i.namespace });
+      toast(r.action === 'nuevo' ? `Incidente #${r.incident} abierto: el agente lo está diagnosticando` : `Ya había un incidente abierto: #${r.incident}`);
+      onIncidente?.(r.incident);
+    } catch (e) {
+      toast(`No se pudo abrir: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setAbriendo(false);
+    }
+  };
   const degradadas = data.workload_list.filter((w) => w.ready < w.desired);
 
   return (
@@ -149,26 +171,40 @@ function Detalle({ nombre }: { nombre: string }) {
           meta={`${DISTRIBUCION[data.distribution ?? ''] ?? data.distribution} ${data.version ?? ''}`} />
         <StatTile refreshing={refreshing} label="Pods en ejecución" value={number(data.pods_running)} unit={`de ${number(data.pods)}`}
           meta={`${plural(data.namespaces ?? 0, 'namespace')} · ${plural(data.workloads ?? 0, 'carga')}`} />
-        <StatTile refreshing={refreshing} icon={incid.length ? <span className="dot dot-critical" /> : undefined}
-          label="Incidencias" value={number(incid.length)}
-          meta={`Foto ${hace(data.age_seconds)} · agente ${data.agent_version ?? '—'}`} />
+        <StatTile refreshing={refreshing} icon={activas.length ? <span className="dot dot-critical" /> : undefined}
+          label="Incidencias" value={number(activas.length)}
+          meta={`${incid.length > activas.length ? `${incid.length - activas.length} silenciada(s) · ` : ''}Foto ${hace(data.age_seconds)} · agente ${data.agent_version ?? '—'}`} />
       </div>
 
-      <Section title="Incidencias" description="Calculadas de la última foto: nodos sin responder o con presión, pods que no arrancan, cargas degradadas y servicios sin endpoints.">
+      <Section title="Incidencias" description="Calculadas de la última foto con los ajustes del clúster: nodos sin responder o con presión, pods que no arrancan, cargas degradadas y servicios sin endpoints. Las silenciadas no restan salud ni se avisan.">
+        {silenciar && (
+          <Card title={`Silenciar: ${silenciar.title}`}>
+            <SilenceForm inicial={{ cluster: nombre, namespace: silenciar.namespace, target: silenciar.resource.split('/').slice(1).join('/') }}
+              onCreado={() => { setSilenciar(null); reload(); }} onCancelar={() => setSilenciar(null)} />
+          </Card>
+        )}
         <Card flush refreshing={refreshing}>
           {incid.length ? (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Severidad</th><th>Tipo</th><th>Incidencia</th><th>Namespace</th><th>Detalle</th><th>Siguiente paso</th></tr></thead>
+                <thead><tr><th>Severidad</th><th>Tipo</th><th>Incidencia</th><th>Namespace</th><th>Detalle</th><th>Siguiente paso</th>{operador && <th />}</tr></thead>
                 <tbody>
                   {incid.map((i) => (
-                    <tr key={`${i.namespace}/${i.resource}/${i.title}`}>
+                    <tr key={`${i.namespace}/${i.resource}/${i.title}`} style={i.silenced_until ? { opacity: 0.6 } : undefined}>
                       <td><SeverityBadge severity={i.severity} /></td>
                       <td className="secondary">{CATEGORIA[i.category]}</td>
-                      <td>{i.title}</td>
+                      <td>{i.title}{i.silenced_until && <div className="secondary" style={{ fontSize: 12 }}>Silenciada hasta el {dateTime(i.silenced_until)}</div>}</td>
                       <td className="mono secondary" style={{ fontSize: 12 }}>{i.namespace ?? '—'}</td>
                       <td className="secondary">{i.detail}</td>
                       <td className="mono" style={{ fontSize: 12 }}>{i.recommendation}</td>
+                      {operador && (
+                        <td>
+                          <div className="row-actions" style={{ flexWrap: 'nowrap' }}>
+                            <button className="btn btn-sm" disabled={abriendo} onClick={() => abrir(i)}>Abrir incidente</button>
+                            {!i.silenced_until && <button className="btn btn-ghost btn-sm" onClick={() => setSilenciar(i)}>Silenciar…</button>}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -290,6 +326,8 @@ function Detalle({ nombre }: { nombre: string }) {
           ) : <Empty>Sin eventos de advertencia.</Empty>}
         </Card>
       </Section>
+
+      <ClusterSettings nombre={nombre} onGuardado={reload} />
     </div>
   );
 }

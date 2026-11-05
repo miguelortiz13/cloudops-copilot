@@ -71,7 +71,7 @@ export function IncidentSettingsView() {
           {(['diagnosticar', 'avisar'] as const).map((k) => (
             <fieldset key={k} className="field" style={{ border: 0, padding: 0, margin: 0 }}>
               <legend>{k === 'diagnosticar' ? 'Severidades que diagnostica el agente' : 'Severidades que se avisan al canal'}</legend>
-              <div className="row-actions">
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 {SEVERIDADES.map((s) => (
                   <label className="check" key={s.id}>
                     <input type="checkbox" disabled={!editar} checked={v[k].includes(s.id)} onChange={() => alternar(k, s.id)} /> {s.label}

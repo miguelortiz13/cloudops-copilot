@@ -10,7 +10,10 @@ altas y avisa al webhook de `NOTIFY_WEBHOOK_URL`:
 - una incidencia nueva, cuando aparece en dos fotos seguidas (así no avisa de un
   pod que solo estaba arrancando ni de un despliegue en curso);
 - su resolución, cuando deja de aparecer;
-- un agente que dejó de reportar (foto de más de 15 minutos), y su regreso.
+- un agente que dejó de reportar (foto más vieja que `foto_vieja_min`), y su regreso.
+
+Respeta los ajustes del clúster (si avisa y de qué severidades) y los silencios
+(app/core/ajustes.py): una incidencia silenciada no se avisa.
 
 El estado (qué está abierto y qué ya se avisó) vive en DATA_DIR/k8s_watch.json.
 Si el envío falla, el estado no se guarda y la siguiente ejecución lo repite.
@@ -24,10 +27,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from app.collectors import notify
-from app.core import config
+from app.core import ajustes, config
 from app.services import k8s_fleet
-
-SEVERIDADES = ("critica", "alta")
 
 
 def _ruta() -> Path:
@@ -73,7 +74,10 @@ def evaluar(nombre: str, foto: Optional[Dict], previo: Dict, ahora: datetime) ->
     if previo.get("collected_at") == foto.get("collected_at"):
         return estado, lineas  # misma foto que la vez anterior: no cuenta como "dos seguidas"
 
-    vigentes = {_clave(i): i for i in k8s_fleet.incidencias(foto, ahora) if i["severity"] in SEVERIDADES}
+    a = ajustes.cluster(nombre)
+    todas = {_clave(i): i for i in k8s_fleet.incidencias(foto, ahora, nombre)}
+    vigentes = {c: i for c, i in todas.items()
+                if a["avisar"] and i["severity"] in a["avisar_severidades"] and not i["silenced_until"]}
     for clave, i in vigentes.items():
         if clave in estado["abiertas"]:
             continue
@@ -82,7 +86,8 @@ def evaluar(nombre: str, foto: Optional[Dict], previo: Dict, ahora: datetime) ->
             estado["abiertas"][clave] = i["title"]
     for clave, titulo in list(estado["abiertas"].items()):
         if clave not in vigentes:
-            lineas.append(f"- Resuelta: {titulo}")
+            if clave not in todas:  # si sigue ahí pero se silenció o dejó de avisarse, sale sin "Resuelta"
+                lineas.append(f"- Resuelta: {titulo}")
             del estado["abiertas"][clave]
     estado["pendientes"] = {c: i["title"] for c, i in vigentes.items() if c not in estado["abiertas"]}
     return estado, lineas

@@ -278,6 +278,26 @@ def test_el_aviso_necesita_dos_fotos_y_avisa_la_resolucion():
     assert lineas == ["- Resuelta: CrashLoopBackOff: web-1"] and estado["abiertas"] == {}
 
 
+def test_silencio_y_ajustes_del_cluster_en_incidencias_y_avisos():
+    from app.collectors import k8s_watch
+    from app.core import ajustes
+
+    estado, _ = k8s_watch.evaluar("homelab", _foto(8), {}, AHORA)
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(3), estado, AHORA)
+    assert lineas == ["- [critica] CrashLoopBackOff: web-1 (default)"]
+    # Silenciar una incidencia ya avisada no la da por resuelta: sale sin aviso.
+    ajustes.silenciar("ana@x", 1, "lo sé", cluster="homelab", objeto="web-1")
+    estado, lineas = k8s_watch.evaluar("homelab", _foto(1), estado, AHORA)
+    assert lineas == [] and estado["abiertas"] == {}
+    incid = k8s_fleet.incidencias(_foto(1), AHORA, "homelab")
+    web = next(i for i in incid if i["resource"] == "pod/web-1")
+    assert web["silenced_until"] and k8s_fleet.salud(incid) > k8s_fleet.salud([{**web, "silenced_until": None}])
+    # Namespace ignorado: la incidencia no existe para el clúster (sí para otro).
+    ajustes.guardar_cluster("homelab", {"namespaces_ignorados": ["default"]})
+    assert not any(i["namespace"] == "default" for i in k8s_fleet.incidencias(_foto(1), AHORA, "homelab"))
+    assert any(i["namespace"] == "default" for i in k8s_fleet.incidencias(_foto(1), AHORA, "otro"))
+
+
 def test_agente_sin_reportar_avisa_una_vez_y_su_regreso():
     from app.collectors import k8s_watch
 

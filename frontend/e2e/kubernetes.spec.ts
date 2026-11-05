@@ -15,6 +15,21 @@ test('la página de Kubernetes muestra el clúster y avisa del que no reporta', 
   await expect(page.getByText('El agente de aks-lab todavía no envió ninguna foto', { exact: false })).toBeVisible();
 });
 
+test('un operador abre un incidente desde una incidencia y ajusta el clúster', async ({ page, api }) => {
+  await abrir(page, 'kubernetes', 'Kubernetes');
+  await expect(page.getByText('Silenciada hasta el', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir incidente' }).first().click();
+  await expect.poll(() => api.lastBody('POST /api/k8s/clusters/homelab/incidents'))
+    .toEqual({ resource: 'pod/grafana-7d9c6b5f4-x2kqp', namespace: 'monitoring' });
+  await expect(page).toHaveURL(/#\/incidentes\/3/);
+
+  await abrir(page, 'kubernetes', 'Kubernetes');
+  await page.getByLabel('Namespaces ignorados').fill('pruebas, demo');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(() => api.lastBody('PUT /api/settings/k8s/homelab'))
+    .toEqual({ namespaces_ignorados: ['pruebas', 'demo'], reinicios: 5, gracia_min: 10, avisar: true, avisar_severidades: ['critica', 'alta'] });
+});
+
 test.describe('sin clústeres', () => {
   test.use({ overrides: { 'GET /api/k8s/clusters': () => ({ clusters: [] }) } });
   test('muestra la guía para conectar el primero', async ({ page }) => {

@@ -36,5 +36,12 @@ try:
         from app.providers.azure.client import AzureClient
 
         monkeypatch.setattr(AzureClient, "connect_azure", lambda self: None)
+
+    @pytest.fixture(autouse=True)
+    def _ajustes_aislados(monkeypatch, tmp_path):
+        """Ajustes y silencios de cada prueba en su carpeta: un ajustes.json local no las afecta."""
+        from app.core import ajustes
+
+        monkeypatch.setattr(ajustes, "_ruta", lambda: tmp_path / "ajustes.json")
 except ImportError:  # las pruebas de integracion se ejecutan sin pytest
     pass
