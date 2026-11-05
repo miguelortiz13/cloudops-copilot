@@ -541,7 +541,7 @@ export const k8sHomelab: K8sClusterDetail = {
 const incidente1: IncidentSummary = {
   id: 2, title: 'KubePodCrashLooping · boutique · cartservice-7d9f-x1', severity: 'alta', status: 'abierto',
   cluster: 'local-k8s-lab', source: 'alertmanager', opened_at: '2026-10-10T14:48:00Z', resolved_at: null,
-  diagnosis_status: 'listo', feedback: null, alerts: 2,
+  diagnosis_status: 'listo', feedback: null, alerts: 2, assignee: null, closed_reason: null, parent_id: null,
 };
 
 export const incidents: { configured: boolean; items: IncidentSummary[] } = {
@@ -549,7 +549,7 @@ export const incidents: { configured: boolean; items: IncidentSummary[] } = {
   items: [incidente1, {
     id: 1, title: 'KubeNodeNotReady · local-k8s-lab-worker2', severity: 'critica', status: 'resuelto', cluster: 'local-k8s-lab',
     source: 'alertmanager', opened_at: '2026-10-09T09:10:00Z', resolved_at: '2026-10-09T09:31:00Z',
-    diagnosis_status: 'listo', feedback: 'correcto', alerts: 1,
+    diagnosis_status: 'listo', feedback: 'correcto', alerts: 1, assignee: 'ana@contoso.example', closed_reason: null, parent_id: null,
   }],
 };
 
@@ -573,5 +573,16 @@ export const incidentDetail: IncidentDetail = {
   ].join('\n'),
   tools: [{ nombre: 'estado_cluster', argumentos: { nombre: 'local-k8s-lab' } }, { nombre: 'recursos_nuevos', argumentos: { dias: 1 } }],
   diagnosed_at: '2026-10-10T14:49:10Z',
+  postmortem: null,
+  children: [],
+  events: [
+    { at: '2026-10-10T14:48:00Z', actor: 'alertmanager', kind: 'abierto', text: '2 alerta(s): KubePodCrashLooping · boutique · cartservice-7d9f-x1' },
+    { at: '2026-10-10T14:49:10Z', actor: 'agente', kind: 'diagnostico', text: 'Diagnóstico con 2 consulta(s).' },
+  ],
   last_alert_at: '2026-10-10T14:52:00Z',
+};
+
+export const incidentStats = {
+  configured: true, days: 30, total: 2, open: 1, diagnosed: 2, marked: 1, correct: 1, accuracy: 1, target: 0.9,
+  noise: 0, median_minutes_to_resolve: 21,
 };
