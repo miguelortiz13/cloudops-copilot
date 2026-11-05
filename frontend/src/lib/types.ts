@@ -653,6 +653,12 @@ export interface K8sIncident {
   namespace: string | null;
   detail: string;
   recommendation: string;
+  /** Hasta cuándo la cubre un silencio: se muestra, pero no resta salud ni se avisa. */
+  silenced_until?: string | null;
+}
+
+export interface K8sClusterSettings {
+  namespaces_ignorados: string[]; reinicios: number; gracia_min: number; avisar: boolean; avisar_severidades: Severity[];
 }
 
 export interface K8sNode {

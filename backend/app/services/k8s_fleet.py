@@ -21,9 +21,8 @@ TIMEOUT = 20
 def vieja_segundos() -> int:
     return ajustes.incidentes()["foto_vieja_min"] * 60
 
-# Un pod recién creado puede estar arrancando: no es incidencia todavía.
-GRACIA_SEGUNDOS = 10 * 60
-REINICIOS = 5
+# Un pod recién creado puede estar arrancando: no es incidencia hasta pasada la gracia
+# (gracia_min) ni reinicia "mucho" hasta pasar de `reinicios`: ajustes por clúster en app/core/ajustes.py.
 REINICIO_RECIENTE_SEGUNDOS = 3600
 
 # "Error" es el mismo CrashLoop entre reinicios: sin él, la incidencia aparecería y desaparecería.
@@ -95,9 +94,9 @@ def _segundos(desde: Optional[str], ahora: datetime) -> Optional[float]:
     return (ahora - datetime.fromisoformat(desde.replace("Z", "+00:00"))).total_seconds()
 
 
-def _reinicia_ahora(p: Dict, ahora: datetime) -> bool:
-    """Más de 5 reinicios y el último hace menos de una hora (sin la hora, agente anterior a 1.2.1: basta el conteo)."""
-    if p["restarts"] <= REINICIOS:
+def _reinicia_ahora(p: Dict, ahora: datetime, reinicios: int) -> bool:
+    """Más de `reinicios` y el último hace menos de una hora (sin la hora, agente anterior a 1.2.1: basta el conteo)."""
+    if p["restarts"] <= reinicios:
         return False
     if "last_restart" not in p:
         return True
@@ -107,7 +106,7 @@ def _reinicia_ahora(p: Dict, ahora: datetime) -> bool:
     return edad is not None and edad < REINICIO_RECIENTE_SEGUNDOS
 
 
-def _pod_con_problema(p: Dict, ahora: datetime) -> Optional[Tuple[str, str]]:
+def _pod_con_problema(p: Dict, ahora: datetime, a: Dict) -> Optional[Tuple[str, str]]:
     """(severidad, motivo) del problema del pod, o None si está sano."""
     if p["phase"] == "Succeeded":
         return None
@@ -117,21 +116,33 @@ def _pod_con_problema(p: Dict, ahora: datetime) -> Optional[Tuple[str, str]]:
     if p["reason"] in MOTIVOS_GRAVES:
         return ("critica" if p["restarts"] > 10 else "alta"), p["reason"]
     edad = _segundos(p.get("created"), ahora) or 0
-    if p["phase"] in ("Pending", "Unknown", "Failed") and edad > GRACIA_SEGUNDOS:
+    gracia = a["gracia_min"] * 60
+    if p["phase"] in ("Pending", "Unknown", "Failed") and edad > gracia:
         return "alta", p["reason"] or p["phase"]
-    if _reinicia_ahora(p, ahora):
+    if _reinicia_ahora(p, ahora, a["reinicios"]):
         return "media", "Reinicios frecuentes"
-    if p["phase"] == "Running" and p["ready"] < p["containers"] and edad > GRACIA_SEGUNDOS:
+    if p["phase"] == "Running" and p["ready"] < p["containers"] and edad > gracia:
         return "media", "Sin estar listo"
     return None
 
 
-def incidencias(foto: Dict, ahora: datetime) -> List[Dict]:
+def incidencias(foto: Dict, ahora: datetime, cluster: Optional[str] = None) -> List[Dict]:
+    """
+    Incidencias de la foto con los ajustes del clúster (namespaces ignorados, umbrales). Las que cubre un silencio
+    salen con `silenced_until`: se muestran, pero no restan salud ni se avisan.
+    """
+    a = ajustes.cluster(cluster) if cluster else ajustes.CLUSTER
+    ignorados = set(a["namespaces_ignorados"])
+    silencios = ajustes.silencios(ahora) if cluster else []
     salida: List[Dict] = []
 
     def agregar(severidad, categoria, titulo, recurso, namespace, detalle, recomendacion):
+        if namespace in ignorados:
+            return
+        s = ajustes.silenciado(silencios, cluster, namespace, None, [recurso.split("/", 1)[-1]])
         salida.append({"severity": severidad, "category": categoria, "title": titulo, "resource": recurso,
-                       "namespace": namespace, "detail": detalle, "recommendation": recomendacion})
+                       "namespace": namespace, "detail": detalle, "recommendation": recomendacion,
+                       "silenced_until": s["hasta"] if s else None})
 
     for n in foto.get("nodes", []):
         if not n["ready"]:
@@ -141,7 +152,7 @@ def incidencias(foto: Dict, ahora: datetime) -> List[Dict]:
             agregar("alta", "nodo", f"{presion} en {n['name']}", f"node/{n['name']}", None,
                     f"El nodo reporta {presion}.", "Libera recursos o agrega capacidad; revisa los pods con más consumo del nodo")
     for p in foto.get("pods", []):
-        problema = _pod_con_problema(p, ahora)
+        problema = _pod_con_problema(p, ahora, a)
         if problema:
             severidad, motivo = problema
             agregar(severidad, "pod", f"{motivo}: {p['name']}", f"pod/{p['name']}", p["namespace"],
@@ -161,13 +172,13 @@ def incidencias(foto: Dict, ahora: datetime) -> List[Dict]:
 
 
 def salud(incid: List[Dict]) -> int:
-    return max(0, 100 - sum({"critica": 25, "alta": 10, "media": 4}[i["severity"]] for i in incid))
+    return max(0, 100 - sum({"critica": 25, "alta": 10, "media": 4}[i["severity"]] for i in incid if not i.get("silenced_until")))
 
 
 def resumen(nombre: str, foto: Optional[Dict], ahora: datetime) -> Dict:
     if foto is None:
         return {"name": nombre, "reporting": False}
-    incid = incidencias(foto, ahora)
+    incid = incidencias(foto, ahora, nombre)
     edad = _segundos(foto.get("collected_at"), ahora)
     pods = foto.get("pods", [])
     return {
@@ -187,12 +198,12 @@ def resumen(nombre: str, foto: Optional[Dict], ahora: datetime) -> Dict:
         "namespaces": len(foto.get("namespaces", [])),
         "workloads": len(foto.get("workloads", [])),
         "health": salud(incid),
-        "incidents": {s: sum(1 for i in incid if i["severity"] == s) for s in ORDEN},
+        "incidents": {s: sum(1 for i in incid if i["severity"] == s and not i.get("silenced_until")) for s in ORDEN},
     }
 
 
 def detalle(nombre: str, foto: Dict, ahora: datetime) -> Dict:
-    incid = incidencias(foto, ahora)
+    incid = incidencias(foto, ahora, nombre)
     problemas = {(i["namespace"], i["resource"]) for i in incid if i["category"] == "pod"}
     return {
         **resumen(nombre, foto, ahora),

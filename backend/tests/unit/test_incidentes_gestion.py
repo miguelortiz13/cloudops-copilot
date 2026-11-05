@@ -217,3 +217,27 @@ def test_silencios_y_ajustes_por_la_api(cliente):
     assert cliente.put("/api/settings/incidents", json={"foto_vieja_min": 2}).status_code == 400
     assert cliente.put("/api/settings/incidents", json={"foto_vieja_min": 30}).json()["values"]["foto_vieja_min"] == 30
     assert cliente.get("/api/settings/incidents").json()["values"]["foto_vieja_min"] == 30
+
+
+def test_abrir_incidente_desde_una_incidencia_de_kubernetes_y_ajustes_del_cluster(cliente, monkeypatch):
+    from app.services import k8s_fleet
+    foto = {"collected_at": AHORA.isoformat(), "nodes": [], "workloads": [], "services": [],
+            "pods": [{"namespace": "boutique", "name": "cart-1", "phase": "Pending", "reason": "ImagePullBackOff", "ready": 0,
+                      "containers": 1, "restarts": 0, "created": AHORA.isoformat()}]}
+    monkeypatch.setenv("K8S_CLUSTERS", "lab")
+    monkeypatch.setattr(k8s_fleet, "leer", lambda cred, nombre: foto)
+    diagnosticos = []
+    monkeypatch.setattr(incidentes, "diagnosticar", lambda *a: diagnosticos.append(a[0]))
+
+    r = cliente.post("/api/k8s/clusters/lab/incidents", json={"resource": "pod/cart-1", "namespace": "boutique"})
+    assert r.status_code == 201 and r.json()["action"] == "nuevo" and diagnosticos == [r.json()["incident"]]
+    d = cliente.get(f"/api/incidents/{r.json()['incident']}").json()
+    assert (d["source"], d["severity"], d["alert_list"][0]["labels"]) == ("kubernetes", "alta", {"namespace": "boutique", "pod": "cart-1"})
+    # La misma incidencia otra vez: el incidente vivo, sin otro diagnóstico.
+    assert cliente.post("/api/k8s/clusters/lab/incidents", json={"resource": "pod/cart-1", "namespace": "boutique"}).json()["action"] == "existente"
+    assert cliente.post("/api/k8s/clusters/lab/incidents", json={"resource": "pod/otro", "namespace": "boutique"}).status_code == 404
+    assert cliente.post("/api/k8s/clusters/nada/incidents", json={"resource": "pod/cart-1"}).status_code == 404
+
+    assert cliente.put("/api/settings/k8s/lab", json={"reinicios": 0}).status_code == 400
+    assert cliente.put("/api/settings/k8s/lab", json={"namespaces_ignorados": ["boutique"]}).status_code == 200
+    assert cliente.get("/api/k8s/clusters/lab").json()["incident_list"] == []

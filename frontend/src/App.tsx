@@ -63,7 +63,7 @@ function Shell() {
             {page === 'secops' && <SecOpsPage view={sub} onView={(v) => navigate(`secops/${v}`)} />}
             {page === 'iac' && <AzureGuard><IacPage /></AzureGuard>}
             {page === 'cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`cumplimiento/${v}`)} onGo={navigate} />}
-            {page === 'kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`kubernetes/${c}`)} />}
+            {page === 'kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`kubernetes/${c}`)} onIncidente={(i) => navigate(`incidentes/${i}`)} />}
             {page === 'incidentes' && <IncidentsPage incidente={sub} onIncidente={(i) => navigate(`incidentes/${i}`)} />}
             {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}

@@ -132,6 +132,30 @@ def ingresar_alertmanager(payload: Dict[str, Any], cluster: Optional[str],
         return _agrupar(s, nuevo, ahora)
 
 
+def abrir_desde_kubernetes(cluster: str, i: Dict[str, Any], actor: str) -> Tuple[int, str]:
+    """
+    Incidente a pedido desde una incidencia de la foto de Kubernetes (nuevo o, si ya hay uno vivo de la misma
+    incidencia, ese). `i` sale de k8s_fleet.incidencias, no del usuario.
+    """
+    clave = _texto(f"kubernetes:{cluster}:{i['namespace'] or '-'}/{i['resource']}", 450)
+    tipo, nombre = (i["resource"].split("/", 1) + [""])[:2]
+    ahora = datetime.now(timezone.utc)
+    alerta = {"name": f"Incidencia de {i['category']}", "status": "firing", "severity": i["severity"],
+              "labels": {k: v for k, v in (("namespace", i["namespace"]), (tipo if tipo in ("pod", "node") else "deployment", nombre)) if v},
+              "summary": _texto(i["title"]), "description": _texto(i["detail"], 800), "starts_at": ahora.isoformat(), "ends_at": ""}
+    with db.session_scope() as s:
+        vivo = s.scalars(select(Incident).where(Incident.key == clave, Incident.status.in_(ABIERTOS))).first()
+        if vivo is not None:
+            return vivo.id, "existente"
+        nuevo = Incident(key=clave, source="kubernetes", cluster=cluster, title=_texto(i["title"], 300), severity=i["severity"],
+                         status="abierto", alerts=[alerta], opened_at=ahora, last_alert_at=ahora,
+                         diagnosis_status="diagnosticando", diagnosis_tools=[], assignee=_texto(actor, 200))
+        s.add(nuevo)
+        s.flush()
+        evento(s, nuevo.id, actor, "abierto", f"Abierto desde la incidencia de Kubernetes: {i['title']}", ahora)
+        return nuevo.id, "nuevo"
+
+
 def _agrupar(s, nuevo: Incident, ahora: datetime) -> Tuple[int, str]:
     """Tormenta: si con este ya son `umbral_tormenta` incidentes vivos del clúster en la ventana, cuelgan del primero."""
     if not nuevo.cluster:

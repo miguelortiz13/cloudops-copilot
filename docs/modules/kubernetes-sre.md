@@ -51,12 +51,32 @@ El job `k8s-watch` revisa las fotos cada 10 minutos (`kubernetes_watch_cron`) y 
 
 | Aviso | Cuándo |
 |---|---|
-| Incidencia nueva | Una incidencia crítica o alta aparece en dos fotos seguidas. Así no avisa de un pod que solo estaba arrancando ni de un despliegue en curso |
-| Resuelta | La incidencia avisada deja de aparecer |
-| El agente dejó de reportar | La última foto tiene más de 15 minutos (nodo apagado, clúster detenido o sin salida a Internet) |
+| Incidencia nueva | Una incidencia de las severidades que avisa el clúster (por defecto crítica y alta) aparece en dos fotos seguidas. Así no avisa de un pod que solo estaba arrancando ni de un despliegue en curso |
+| Resuelta | La incidencia avisada deja de aparecer (si se silencia, sale sin este aviso) |
+| El agente dejó de reportar | La última foto tiene más de 15 minutos (ajustable en *Incidentes → Ajustes*) (nodo apagado, clúster detenido o sin salida a Internet) |
 | El agente volvió a reportar | Llega una foto nueva después del aviso anterior |
 
 Cada aviso sale una sola vez; el estado vive en el File Share (`k8s_watch.json`), sin abrir la base. Entre que aparece un problema y llega el aviso pasan entre 10 y 20 minutos. El job solo existe si hay clústeres y webhook configurados, y cuesta unos segundos de 0,25 vCPU por ejecución, dentro del cupo gratuito.
+
+## Gestionar incidencias
+
+Desde la tabla de incidencias, un operador puede:
+
+- **Abrir incidente**: crea un incidente (fuente `kubernetes`) con la incidencia tal como está en la foto actual y el agente lo diagnostica como si hubiera llegado de Alertmanager. Si ya hay uno vivo para la misma incidencia, lleva a ese. Sirve para clústeres sin Alertmanager.
+- **Silenciar**: un silencio con el clúster, el namespace y el objeto ya puestos ([silencios](incidents.md#silencios)). La incidencia sigue a la vista, atenuada y con su vencimiento, pero no resta salud ni se avisa.
+
+### Ajustes del clúster
+
+Al final del detalle de cada clúster (los cambia un administrador; viven en `DATA_DIR/ajustes.json`, que lee `k8s-watch` sin abrir la base):
+
+| Ajuste | Por defecto | Qué hace |
+|---|---|---|
+| Namespaces ignorados | ninguno | Sus pods, cargas y servicios no generan incidencias |
+| Reinicios | 5 | Más que esto, con el último en la última hora, es "reinicios frecuentes" |
+| Gracia de un pod nuevo | 10 min | Antes, un pod pendiente o sin estar listo se considera arrancando |
+| Avisar y severidades | sí; crítica y alta | Si `k8s-watch` avisa de este clúster y de qué severidades |
+
+Lo que no se puede elegir por clúster es el canal: todos avisan al mismo webhook, porque la URL es una credencial y vive como secreto en Azure, no en un archivo que se edita desde el panel.
 
 ## Chat SRE
 
