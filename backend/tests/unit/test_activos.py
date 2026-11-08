@@ -130,6 +130,7 @@ def test_drift_de_terraform_borrados_fuera_y_tags_cambiadas(cliente, monkeypatch
               "managed_ids": {f"{rg}/microsoft.storage/storageaccounts/stdatos",           # existe, tags distintas
                               f"{rg}/microsoft.keyvault/vaults/kv-borrado",                # ya no existe: drift
                               f"{rg}/microsoft.network/virtualnetworks/vnet/subnets/sn1",  # hijo: no cuenta
+                              f"{rg}/microsoft.authorization/roleassignments/21323cca",    # no está en el inventario
                               "/subscriptions/9/resourcegroups/rg/providers/microsoft.web/sites/otra"},  # otra suscripción
               "tags_by_id": {f"{rg}/microsoft.storage/storageaccounts/stdatos": {"Environment": "prod", "Owner": "plataforma"}},
               "type_by_id": {f"{rg}/microsoft.keyvault/vaults/kv-borrado": "azurerm_key_vault"}}
