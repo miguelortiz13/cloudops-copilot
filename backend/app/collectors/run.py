@@ -138,10 +138,17 @@ def precalcular_vistas(ctx: Contexto, session) -> Resultado:
     return Resultado(items=precalentar(session))
 
 
+def _drift(ctx: Contexto, session) -> Resultado:
+    from app.dominios.activos import drift
+    return drift.recolectar(ctx, session)
+
+
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
     "inventory_aws": inventario_aws,
     "inventory_kubernetes": inventario_k8s,
+    # Drift de Terraform (app/dominios/activos/drift.py): después del inventario, con el mismo índice de estados.
+    "drift": _drift,
     "classification": classification.recolectar,
     "costs": costs.recolectar,
     "costs_aws": costos_aws,

@@ -70,7 +70,8 @@ ESTADO = {
 def test_solo_se_extraen_ids_y_tipos():
     """El resto del estado se descarta: ahi viven los secretos."""
     datos = TfStateService._extraer(json.dumps(ESTADO).encode("utf-8"))
-    serializado = json.dumps({"ids": sorted(datos["ids"]), "tipos": datos["tipos"]})
+    # Todo lo que sale del módulo, también las tags y el tipo por id del drift.
+    serializado = json.dumps({k: sorted(v) if isinstance(v, set) else v for k, v in datos.items()})
     assert "SECRETO-QUE-NO-DEBE-SALIR" not in serializado
     assert "SECRETO2" not in serializado
     assert datos["tipos"] == {"azurerm_storage_account": 1}

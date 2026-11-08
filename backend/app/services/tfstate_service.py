@@ -15,7 +15,8 @@ Lo que este modulo NO hace, a proposito
 Un archivo de estado contiene los atributos completos de cada recurso, y ahi
 viajan secretos: cadenas de conexion, llaves de acceso, contrasenas de
 administrador. De cada estado se extraen unicamente el `id` y el `type` de los
-recursos gestionados; **el resto se descarta sin registrarse, sin cachearse y
+recursos gestionados, y las tags de los de Azure (para el drift de tags, que no
+llevan secretos); **el resto se descarta sin registrarse, sin cachearse y
 sin salir de este modulo**. Tampoco se escribe nada: el Service Principal tiene
 permiso de escritura sobre esa cuenta porque es el mismo que ejecuta los
 pipelines de infraestructura, pero la plataforma solo lee.
@@ -124,9 +125,11 @@ class TfStateService:
         try:
             estado = json.loads(contenido)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            return {"ids": set(), "arns": set(), "tipos": {}, "ok": False}
+            return {"ids": set(), "arns": set(), "tipos": {}, "etiquetas": {}, "tipo_de": {}, "ok": False}
 
         ids: Set[str] = set()
+        etiquetas: Dict[str, Dict[str, str]] = {}
+        tipo_de: Dict[str, str] = {}
         arns: Set[str] = set()
         tipos: Dict[str, int] = {}
         for recurso in estado.get("resources", []):
@@ -141,13 +144,17 @@ class TfStateService:
                 if isinstance(rid, str) and rid.lower().startswith("/subscriptions/"):
                     ids.add(rid.lower())
                     tipos[tipo] = tipos.get(tipo, 0) + 1
+                    tipo_de[rid.lower()] = tipo
+                    tags = atributos.get("tags")
+                    if isinstance(tags, dict):
+                        etiquetas[rid.lower()] = {str(k)[:128]: str(v)[:256] for k, v in list(tags.items())[:50]}
                 # AWS: el `id` no siempre es el ARN (una instancia es "i-0abc", un
                 # bucket su nombre); el atributo `arn` sí, y es lo que da el inventario.
                 arn = atributos.get("arn")
                 if isinstance(arn, str) and arn.startswith("arn:aws"):
                     arns.add(arn)
                     tipos[tipo] = tipos.get(tipo, 0) + 1
-        return {"ids": ids, "arns": arns, "tipos": tipos, "ok": True}
+        return {"ids": ids, "arns": arns, "tipos": tipos, "etiquetas": etiquetas, "tipo_de": tipo_de, "ok": True}
 
     def _leer_estado(self, nombre: str, token: str) -> Dict[str, Any]:
         """`nombre` es `cuenta/contenedor/blob`, tal como se publica en el indice."""
@@ -171,6 +178,8 @@ class TfStateService:
             "ids": datos["ids"],
             "arns": datos["arns"],
             "tipos": datos["tipos"],
+            "etiquetas": datos["etiquetas"],
+            "tipo_de": datos["tipo_de"],
         }
 
     # ------------------------------------------------------------------
@@ -238,7 +247,11 @@ class TfStateService:
         gestionados: Set[str] = set()
         arns: Set[str] = set()
         tipos: Dict[str, int] = {}
+        etiquetas: Dict[str, Dict[str, str]] = {}
+        tipo_de: Dict[str, str] = {}
         for r in resultados:
+            etiquetas.update(r.get("etiquetas", {}))
+            tipo_de.update(r.get("tipo_de", {}))
             gestionados |= r["ids"]
             arns |= r.get("arns", set())
             for tipo, n in r["tipos"].items():
@@ -249,6 +262,9 @@ class TfStateService:
             "managed_ids": gestionados,
             # ARN de recursos de AWS en los mismos estados (fase 2, paso 6).
             "managed_arns": arns,
+            # Drift (app/dominios/activos/drift.py): tags y tipo de Terraform de cada id de Azure.
+            "tags_by_id": etiquetas,
+            "type_by_id": tipo_de,
             # Se publica el detalle por estado —sin un solo atributo— para que
             # el panel pueda decir sobre que se calculo la cobertura.
             "states": [

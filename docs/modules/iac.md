@@ -51,3 +51,15 @@ Con `GEMINI_API_KEY` el código lo genera el modelo a partir de las propiedades 
 ## Infraestructura de la propia plataforma
 
 La infraestructura de CloudOps Copilot está en [`infra/terraform`](../../infra/terraform); ver [deployment.md](../deployment.md).
+
+
+## Drift de Terraform (Activos → Drift de Terraform)
+
+El paso `drift` del job diario compara los estados de Terraform que la plataforma ya lee con el inventario de Azure:
+
+| Señal | Qué es | Cómo se calcula |
+|---|---|---|
+| Borrado fuera de Terraform | Un recurso que un estado gestiona y que ya no está en Azure | Ids de primer nivel (`/subscriptions/…/resourcegroups/…/providers/<ns>/<tipo>/<nombre>`) de suscripciones que la plataforma ve, ausentes del inventario |
+| Tags cambiadas a mano | Las tags del estado no coinciden con las reales | Tag por tag, nombres sin distinguir mayúsculas como Azure |
+
+Del estado se extraen además de los ids **solo las tags** de los recursos de Azure (sin secretos); el resto se sigue descartando dentro de `TfStateService`. El resultado queda en `DATA_DIR/drift.json` (el panel lo lee sin abrir la base) y en `GET /api/activos/drift`. Solo Azure: en AWS, Resource Explorer no indexa todos los tipos y daría falsos positivos. Los recursos hijos (subredes, reglas, asignaciones) no cuentan porque el inventario no los lista.

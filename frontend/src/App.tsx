@@ -24,6 +24,7 @@ const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ 
 const SilencesPage = lazy(() => import('./modules/incidents/SilencesView').then((m) => ({ default: m.SilencesPage })));
 const NotificationsPage = lazy(() => import('./modules/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ResourcesPage = lazy(() => import('./modules/assets/ResourcesPage').then((m) => ({ default: m.ResourcesPage })));
+const DriftPage = lazy(() => import('./modules/assets/DriftPage').then((m) => ({ default: m.DriftPage })));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
@@ -67,6 +68,7 @@ function Shell() {
             {seccion === 'activos/recursos' && <ResourcesPage uid={sub} onRecurso={(u) => navigate(u ? `activos/recursos/${encodeURIComponent(u)}` : 'activos/recursos')} onGo={navigate} />}
             {seccion === 'activos/inventario' && <AzureGuard><InventoryPage /></AzureGuard>}
             {seccion === 'activos/iac' && <AzureGuard><IacPage /></AzureGuard>}
+            {seccion === 'activos/drift' && <DriftPage onRecurso={(u) => navigate(`activos/recursos/${encodeURIComponent(u)}`)} />}
             {seccion === 'activos/kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`activos/kubernetes/${c}`)} onIncidente={(i) => navigate(`operacion/incidentes/${i}`)} />}
             {seccion === 'costos/gasto' && <FinOpsPage view="costos" />}
             {seccion === 'costos/historial' && <FinOpsPage view="historial" />}
