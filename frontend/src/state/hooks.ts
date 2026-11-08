@@ -9,7 +9,7 @@ export function useApp(): AppState {
   return ctx;
 }
 
-/** Ruta por hash: #/finops/costos -> ['finops', 'costos'] */
+/** Ruta por hash: #/costos/gasto -> ['costos', 'gasto'] */
 export function useRoute(): [string[], (path: string) => void] {
   const parse = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   const [parts, setParts] = useState<string[]>(parse);

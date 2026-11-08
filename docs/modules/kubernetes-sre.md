@@ -53,7 +53,7 @@ El job `k8s-watch` revisa las fotos cada 10 minutos (`kubernetes_watch_cron`) y 
 |---|---|
 | Incidencia nueva | Una incidencia de las severidades que avisa el clúster (por defecto crítica y alta) aparece en dos fotos seguidas. Así no avisa de un pod que solo estaba arrancando ni de un despliegue en curso |
 | Resuelta | La incidencia avisada deja de aparecer (si se silencia, sale sin este aviso) |
-| El agente dejó de reportar | La última foto tiene más de 15 minutos (ajustable en *Incidentes → Ajustes*) (nodo apagado, clúster detenido o sin salida a Internet) |
+| El agente dejó de reportar | La última foto tiene más de 15 minutos (ajustable en *Plataforma → Ajustes*) (nodo apagado, clúster detenido o sin salida a Internet) |
 | El agente volvió a reportar | Llega una foto nueva después del aviso anterior |
 
 Cada aviso sale una sola vez; el estado vive en el File Share (`k8s_watch.json`), sin abrir la base. Entre que aparece un problema y llega el aviso pasan entre 10 y 20 minutos. El job solo existe si hay clústeres y webhook configurados, y cuesta unos segundos de 0,25 vCPU por ejecución, dentro del cupo gratuito.

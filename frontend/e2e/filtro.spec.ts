@@ -1,7 +1,7 @@
 import { abrir, expect, test } from './mock-api';
 
 test('el filtro por nube deja solo AWS en las vistas de la base y avisa en las de Azure en vivo', async ({ page }) => {
-  await abrir(page, 'secops/gestion', 'Seguridad');
+  await abrir(page, 'riesgo/hallazgos', 'Hallazgos');
   await page.getByRole('button', { name: /Todas las cuentas \(3\)/ }).click();
   await page.getByRole('checkbox', { name: 'Microsoft Azure' }).click();
   await expect(page.getByRole('button', { name: /AWS laboratorio \(demo\)/ })).toBeVisible();

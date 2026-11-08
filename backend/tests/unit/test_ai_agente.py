@@ -139,7 +139,7 @@ def datos(monkeypatch):
 
 def test_buscar_recursos_filtra_y_acota(datos):
     r = herramientas.buscar_recursos(nube="azure", en_terraform=False)
-    assert [x["name"] for x in r["muestra"]] == ["st-datos"] and r["enlace"] == "#/inventario"
+    assert [x["name"] for x in r["muestra"]] == ["st-datos"] and r["enlace"] == "#/activos/inventario"
     r = herramientas.buscar_recursos(tipo="storage", limite=1)
     assert (r["total"], r["truncado"], r["muestra"][0]["name"], r["gasto_30d_de_los_encontrados"]) == (2, True, "st-datos", 5.5)
 

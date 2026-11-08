@@ -194,7 +194,7 @@ def mensaje(hallazgos: List[Dict], caidos: List[str], costos: Optional[Dict[str,
         lineas += ["**Presupuesto**"] + [a["line"] for a in costos["presupuestos"]]
     if costos.get("anomalias"):
         lineas += ["**Gasto diario anómalo**"] + [a["line"] for a in costos["anomalias"][:MAX_EN_MENSAJE]]
-    destino = "secops/gestion" if hallazgos else "admin" if caidos else "inventario" if a_mano else "finops/historial"
+    destino = "riesgo/hallazgos" if hallazgos else "plataforma/estado" if caidos else "activos/inventario" if a_mano else "costos/historial"
     enlace = f"{config.FRONTEND_URL}/#/{destino}"
     return {"titulo": f"{config.APP_NAME}: requiere atención", "lineas": lineas, "enlace": enlace}
 

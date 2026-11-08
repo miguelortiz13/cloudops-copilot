@@ -114,7 +114,7 @@ Solo configuración: `MANDATORY_TAGS` en `.env` y `mandatory_tags` en Terraform.
 
 ```
 frontend/src/
-├── App.tsx                 sesión de Entra ID, layout y enrutamiento por hash (#/finops/ahorro)
+├── App.tsx                 sesión de Entra ID, layout y enrutamiento por hash por dominio (#/costos/ahorro; ver components/nav.tsx)
 ├── styles/tokens.css       tokens de diseño: colores, radios, sombras; modo claro y oscuro
 ├── styles/app.css          layout y componentes, escritos contra los tokens
 ├── lib/                    cliente del API con caché (useApi), tipos de los contratos, formato es-CO, markdown

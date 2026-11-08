@@ -21,6 +21,9 @@ jobs:
       commands: |
         ruff check app tests
         python -m pytest
+        # Otra vez con el reloj un año adelante: una prueba que mezcla fechas fijas con la de hoy
+        # falla aquí, en el PR, y no el día en que vence (rompieron main el 1-nov y el 7-nov de 2026).
+        CLOUDOPS_TEST_DATE=$(date -u -d '+1 year' +%F) python -m pytest -q
 
   frontend:
     name: Frontend (eslint + Vitest + build)

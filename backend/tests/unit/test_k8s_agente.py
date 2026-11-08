@@ -325,7 +325,7 @@ def test_ejecutar_envia_al_webhook_y_guarda_el_estado_solo_si_salio(monkeypatch,
     assert k8s_watch.ejecutar(None, AHORA) == 1
     embed = enviados[0]["embeds"][0]
     assert embed["title"].endswith("Kubernetes · homelab") and "CrashLoopBackOff: web-1" in embed["description"]
-    assert embed["url"].endswith("/#/kubernetes/homelab")
+    assert embed["url"].endswith("/#/activos/kubernetes/homelab")
 
     # Si el webhook falla, el estado no avanza: la próxima vez se reintenta.
     antes = (tmp_path / "k8s_watch.json").read_text()

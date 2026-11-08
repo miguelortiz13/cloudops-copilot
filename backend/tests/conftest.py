@@ -22,6 +22,14 @@ for _var in ("AZURE_CLIENT_SECRET", "AZURE_READER_CLIENT_SECRET", "TFSTATE_ACCOU
     os.environ.pop(_var, None)
 
 
+# CLOUDOPS_TEST_DATE=2027-06-01 corre la suite con el reloj en esa fecha (y avanzando): así se
+# encuentran las pruebas que mezclan fechas fijas con la de hoy antes de que rompan solas.
+if os.environ.get("CLOUDOPS_TEST_DATE"):
+    import time_machine
+
+    time_machine.travel(os.environ["CLOUDOPS_TEST_DATE"] + "T12:00:00+00:00", tick=True).start()
+
+
 try:
     import pytest
 

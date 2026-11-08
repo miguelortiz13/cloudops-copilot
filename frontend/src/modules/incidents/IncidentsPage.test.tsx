@@ -8,6 +8,8 @@ const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del: 
 vi.mock('../../lib/api', () => api);
 
 const { IncidentsPage } = await import('./IncidentsPage');
+const { IncidentSettingsView } = await import('./IncidentSettingsView');
+const { SilencesPage } = await import('./SilencesView');
 
 const resumen: IncidentSummary = {
   id: 7, title: 'Tormenta en lab: 3 incidentes · PodCrashLooping · boutique · svc0-1', severity: 'alta', status: 'abierto',
@@ -76,8 +78,7 @@ describe('Incidentes', () => {
   });
 
   it('un administrador cambia los ajustes y no se puede silenciar todo', async () => {
-    const { user } = renderWithApp(<IncidentsPage onIncidente={vi.fn()} />);
-    await user.click(screen.getByRole('tab', { name: 'Ajustes' }));
+    const { user } = renderWithApp(<IncidentSettingsView />);
     const ventana = await screen.findByLabelText(/^Ventana de tormenta/);
     await user.clear(ventana);
     await user.type(ventana, '300');
@@ -85,7 +86,7 @@ describe('Incidentes', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(api.put).toHaveBeenCalledWith('/api/settings/incidents', expect.objectContaining({ ventana_tormenta_seg: 300, avisar: ['critica', 'alta'] }));
 
-    await user.click(screen.getByRole('tab', { name: 'Silencios' }));
+    renderWithApp(<SilencesPage />);
     await user.click(await screen.findByRole('button', { name: 'Nuevo silencio' }));
     const form = screen.getByRole('button', { name: 'Silenciar' });
     expect(form).toBeDisabled();

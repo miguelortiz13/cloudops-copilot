@@ -4,7 +4,7 @@ import { authEnabled, initAuth, login } from './auth';
 import { AppProvider } from './state/AppContext';
 import { useApp, useRoute } from './state/hooks';
 import { AgentDock, Sidebar, SyncDialog, Topbar } from './components/layout';
-import { NAV } from './components/nav';
+import { ETIQUETA, resolver } from './components/nav';
 import { AzureGuard } from './components/AzureGuard';
 import { SectionBoundary } from './components/SectionBoundary';
 import { Loading } from './components/ui';
@@ -21,52 +21,64 @@ const KubernetesPage = lazy(() => import('./modules/kubernetes/KubernetesPage').
 const IncidentsPage = lazy(() => import('./modules/incidents/IncidentsPage').then((m) => ({ default: m.IncidentsPage })));
 const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
-
-const LABELS: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.id, i.label])));
-const SUBVIEWS: Record<string, string> = {
-  costos: 'Visión general', historial: 'Historial y comparación', ahorro: 'Optimización y ahorro', gestion: 'Gestión de hallazgos',
-  actividad: 'Actividad de usuarios', cuentas: 'Cuentas conectadas', plataforma: 'Base y recolectores',
-  controles: 'Controles', reglas: 'Catálogo de reglas', activos: 'Clasificación de activos',
-};
+const SilencesPage = lazy(() => import('./modules/incidents/SilencesView').then((m) => ({ default: m.SilencesPage })));
+const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
   const [route, navigate] = useRoute();
   const { toasts, setDockAgent } = useApp();
   const [mobileNav, setMobileNav] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  // `iso` era la ruta anterior de Cumplimiento: los enlaces guardados siguen sirviendo.
-  const page = LABELS[route[0]] ? route[0] : route[0] === 'iso' ? 'cumplimiento' : 'resumen';
-  const sub = route[1];
+  const destino = resolver(route);
+  const seccion = 'seccion' in destino ? destino.seccion : null;
+  const [sub] = 'resto' in destino ? destino.resto : [];
+  const etiqueta = seccion ? ETIQUETA[seccion] : null;
+
+  // Rutas anteriores a los dominios (enlaces guardados, avisos ya enviados): a su sección nueva, sin dejar
+  // la vieja en el historial.
+  useEffect(() => {
+    if ('redirigir' in destino) window.location.replace(`#/${destino.redirigir}`);
+  });
 
   useEffect(() => {
-    document.title = `${LABELS[page]} · CloudOps Copilot`;
+    if (!seccion) return;
+    document.title = `${ETIQUETA[seccion].seccion} · CloudOps Copilot`;
     window.scrollTo(0, 0);
-    // La consola se sintoniza con la sección: casi siempre es el agente que se quiere.
-    const agente = { finops: 'finops', secops: 'secops' }[page] ?? 'inventory';
-    setDockAgent(agente as 'finops' | 'secops' | 'inventory');
-  }, [page, setDockAgent]);
+    // La consola se sintoniza con el dominio: casi siempre es el agente que se quiere.
+    const agente = seccion === 'activos/kubernetes' ? 'k8s' : { costos: 'finops', riesgo: 'secops' }[seccion.split('/')[0]] ?? 'inventory';
+    setDockAgent(agente as 'finops' | 'secops' | 'inventory' | 'k8s');
+  }, [seccion, setDockAgent]);
 
-  const trail = ['CloudOps Copilot', LABELS[page], ...((page === 'finops' || page === 'secops' || page === 'admin' || page === 'cumplimiento') && sub && SUBVIEWS[sub] ? [SUBVIEWS[sub]] : [])];
+  if (!seccion || !etiqueta) return null;
+  const trail = ['CloudOps Copilot', etiqueta.dominio, etiqueta.seccion];
 
   return (
     <div className="shell">
-      <Sidebar active={page} mobileOpen={mobileNav} onNavigate={() => setMobileNav(false)} />
+      <Sidebar active={seccion} mobileOpen={mobileNav} onNavigate={() => setMobileNav(false)} />
       {mobileNav && <div className="overlay" onClick={() => setMobileNav(false)} />}
       <div className="main">
         <Topbar trail={trail} onMenu={() => setMobileNav(true)} onSync={() => setSyncOpen(true)} />
         <main className="content">
-          <SectionBoundary name={LABELS[page]} key={page}>
+          <SectionBoundary name={etiqueta.seccion} key={seccion}>
             <Suspense fallback={<Loading />}>
-            {page === 'resumen' && <AzureGuard><OverviewPage /></AzureGuard>}
-            {page === 'inventario' && <AzureGuard><InventoryPage /></AzureGuard>}
-            {page === 'finops' && <FinOpsPage view={sub} onView={(v) => navigate(`finops/${v}`)} />}
-            {page === 'secops' && <SecOpsPage view={sub} onView={(v) => navigate(`secops/${v}`)} />}
-            {page === 'iac' && <AzureGuard><IacPage /></AzureGuard>}
-            {page === 'cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`cumplimiento/${v}`)} onGo={navigate} />}
-            {page === 'kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`kubernetes/${c}`)} onIncidente={(i) => navigate(`incidentes/${i}`)} />}
-            {page === 'incidentes' && <IncidentsPage incidente={sub} onIncidente={(i) => navigate(`incidentes/${i}`)} />}
-            {page === 'reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
-            {page === 'admin' && <AdminPage view={sub} onView={(v) => navigate(`admin/${v}`)} />}
+            {seccion === 'inicio/resumen' && <AzureGuard><OverviewPage /></AzureGuard>}
+            {seccion === 'activos/inventario' && <AzureGuard><InventoryPage /></AzureGuard>}
+            {seccion === 'activos/iac' && <AzureGuard><IacPage /></AzureGuard>}
+            {seccion === 'activos/kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`activos/kubernetes/${c}`)} onIncidente={(i) => navigate(`operacion/incidentes/${i}`)} />}
+            {seccion === 'costos/gasto' && <FinOpsPage view="costos" />}
+            {seccion === 'costos/historial' && <FinOpsPage view="historial" />}
+            {seccion === 'costos/ahorro' && <FinOpsPage view="ahorro" />}
+            {seccion === 'riesgo/hallazgos' && <SecOpsPage view="gestion" />}
+            {seccion === 'riesgo/exposicion' && <SecOpsPage view="vivo" />}
+            {seccion === 'riesgo/cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`riesgo/cumplimiento/${v}`)} onGo={navigate} />}
+            {seccion === 'riesgo/clasificacion' && <CompliancePage view="activos" onView={(v) => navigate(`riesgo/cumplimiento/${v}`)} onGo={navigate} />}
+            {seccion === 'operacion/incidentes' && <IncidentsPage incidente={sub} onIncidente={(i) => navigate(`operacion/incidentes/${i}`)} />}
+            {seccion === 'operacion/silencios' && <SilencesPage />}
+            {seccion === 'plataforma/reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
+            {seccion === 'plataforma/ajustes' && <SettingsPage onGo={navigate} />}
+            {seccion === 'plataforma/cuentas' && <AdminPage view="cuentas" />}
+            {seccion === 'plataforma/auditoria' && <AdminPage view="actividad" />}
+            {seccion === 'plataforma/estado' && <AdminPage view="plataforma" />}
             </Suspense>
           </SectionBoundary>
         </main>

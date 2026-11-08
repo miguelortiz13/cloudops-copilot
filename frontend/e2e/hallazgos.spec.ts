@@ -3,7 +3,7 @@ import { abrir, expect, test } from './mock-api';
 test.use({ role: 'operador' });
 
 test('aceptar un riesgo con vencimiento y justificación', async ({ page, api }) => {
-  await abrir(page, 'secops/gestion', 'Seguridad');
+  await abrir(page, 'riesgo/hallazgos', 'Hallazgos');
   await page.getByRole('row', { name: /kv-pagos-prod/ }).getByRole('button', { name: 'Gestionar' }).click();
   const panel = page.getByRole('dialog', { name: 'Key Vault alcanzable desde red pública' });
   await expect(panel.getByText('CIS 8.7')).toBeVisible();
@@ -28,7 +28,7 @@ test('aceptar un riesgo con vencimiento y justificación', async ({ page, api })
 });
 
 test('asumir un hallazgo deja al usuario como responsable', async ({ page }) => {
-  await abrir(page, 'secops/gestion', 'Seguridad');
+  await abrir(page, 'riesgo/hallazgos', 'Hallazgos');
   await page.getByRole('row', { name: /nsg-pagos-prod/ }).getByRole('button', { name: 'Gestionar' }).click();
   const panel = page.getByRole('dialog');
   await panel.getByRole('button', { name: 'Asumir' }).click();

@@ -5,9 +5,8 @@ import { dateTime, number, percent } from '../../lib/format';
 import { Markdown } from '../../lib/markdown';
 import type { CloseReason, IncidentDetail, IncidentStats, IncidentStatus, IncidentSummary, Severity } from '../../lib/types';
 import { useApp } from '../../state/hooks';
-import { Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile, Tabs } from '../../components/ui';
-import { IncidentSettingsView } from './IncidentSettingsView';
-import { SilenceForm, SilencesView } from './SilencesView';
+import { Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile } from '../../components/ui';
+import { SilenceForm } from './SilencesView';
 
 const DIAGNOSTICO: Record<IncidentSummary['diagnosis_status'], string> = {
   diagnosticando: 'Diagnosticando…', listo: 'Diagnosticado', sin_modelo: 'Sin modelo', error: 'Falló el modelo',
@@ -42,28 +41,21 @@ function Estado({ i }: { i: IncidentSummary }) {
   );
 }
 
-type Vista = 'incidentes' | 'silencios' | 'ajustes';
 type Filtro = 'vivos' | 'todos' | 'terminados';
 
 /**
- * Incidentes: alertas agrupadas y diagnosticadas por el agente de IA (plan 09,
- * etapa B), con su gestión: estado, responsable, notas, línea de tiempo,
- * post-mortem, silencios y ajustes.
+ * Operación → Incidentes: alertas agrupadas y diagnosticadas por el agente de IA
+ * (plan 09, etapa B), con su gestión: estado, responsable, notas, línea de tiempo
+ * y post-mortem. Los silencios son su propia sección y los ajustes viven en Plataforma.
  */
 export function IncidentsPage({ incidente, onIncidente }: { incidente?: string; onIncidente: (id: number) => void }) {
-  const [vista, setVista] = useState<Vista>('incidentes');
   return (
     <>
       <PageHeader
         title="Incidentes"
-        description="Alertas agrupadas en incidentes y diagnosticadas por el agente de IA con herramientas de solo lectura. Gestiona su estado, silencia el ruido y ajusta qué se diagnostica y qué se avisa."
+        description="Alertas agrupadas en incidentes y diagnosticadas por el agente de IA con herramientas de solo lectura. Gestiona su estado, su responsable y su post-mortem."
       />
-      <Tabs value={vista} onChange={setVista} tabs={[{ id: 'incidentes', label: 'Incidentes' }, { id: 'silencios', label: 'Silencios' }, { id: 'ajustes', label: 'Ajustes' }]} />
-      <div style={{ marginTop: 16 }}>
-        {vista === 'incidentes' && <Lista incidente={incidente} onIncidente={onIncidente} />}
-        {vista === 'silencios' && <SilencesView />}
-        {vista === 'ajustes' && <IncidentSettingsView />}
-      </div>
+      <Lista incidente={incidente} onIncidente={onIncidente} />
     </>
   );
 }

@@ -10,7 +10,7 @@ test.describe('sin base de datos', () => {
   });
 
   test('Cumplimiento explica el motivo y ofrece reintentar', async ({ page, api }) => {
-    await abrir(page, 'cumplimiento/controles', 'Cumplimiento');
+    await abrir(page, 'riesgo/cumplimiento', 'Cumplimiento');
     await expect(page.getByRole('alert')).toContainText('El cumplimiento no está disponible');
     await expect(page.getByRole('alert')).toContainText('la base de datos no está configurada');
     const antes = api.calls.filter((c) => c.path === '/api/compliance').length;
@@ -19,7 +19,7 @@ test.describe('sin base de datos', () => {
   });
 
   test('la gestión de hallazgos remite a los hallazgos en vivo', async ({ page }) => {
-    await abrir(page, 'secops/gestion', 'Seguridad');
+    await abrir(page, 'riesgo/hallazgos', 'Hallazgos');
     await expect(page.getByRole('alert')).toContainText('Los hallazgos en vivo siguen en la otra pestaña');
   });
 });
@@ -28,7 +28,7 @@ test.describe('sin conexión con Azure', () => {
   test.use({ overrides: { 'GET /api/inventory/health': () => ({ azureConnected: false }) } });
 
   test('el indicador lo dice', async ({ page }) => {
-    await abrir(page, 'resumen', 'Resumen');
+    await abrir(page, 'inicio/resumen', 'Resumen');
     await expect(page.getByText('Sin conexión')).toBeVisible();
   });
 });
@@ -41,7 +41,7 @@ test.describe('error al guardar', () => {
   });
 
   test('el panel muestra el error y conserva el formulario', async ({ page }) => {
-    await abrir(page, 'cumplimiento/activos', 'Cumplimiento');
+    await abrir(page, 'riesgo/clasificacion', 'Clasificación de activos');
     await page.getByRole('row', { name: /app-web-dev/ }).getByRole('button', { name: 'Detalle' }).click();
     const panel = page.getByRole('dialog');
     await panel.getByRole('button', { name: 'Cambiar clasificación' }).click();

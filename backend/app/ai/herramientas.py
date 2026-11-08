@@ -43,7 +43,7 @@ def buscar_recursos(texto: Optional[str] = None, nube: Optional[str] = None, tip
              and _contiene(r.get("created_by"), creado_por)]
     items.sort(key=lambda r: -(r["cost_30d"] or 0))
     return {**_acotar(items, limite), "gasto_30d_de_los_encontrados": round(sum(r["cost_30d"] or 0 for r in items), 2),
-            "enlace": "#/inventario",
+            "enlace": "#/activos/inventario",
             "nota": "in_iac: true en Terraform, false fuera, null sin estados para saberlo."}
 
 
@@ -53,7 +53,7 @@ def recursos_nuevos(dias: int = 7, solo_fuera_de_terraform: bool = False, limite
              if r.get("first_seen") and datetime.fromisoformat(r["first_seen"]) >= desde
              and (not solo_fuera_de_terraform or r.get("in_iac") is False)]
     items.sort(key=lambda r: r["first_seen"], reverse=True)
-    return {**_acotar(items, limite), "desde": desde.date().isoformat(), "enlace": "#/inventario",
+    return {**_acotar(items, limite), "desde": desde.date().isoformat(), "enlace": "#/activos/inventario",
             "nota": "created_by solo existe si el registro de actividad mostró que lo creó una persona."}
 
 
@@ -70,7 +70,7 @@ def hallazgos(severidad: Optional[str] = None, estado: str = "activos", nube: Op
         por_severidad[h["severity"]] = por_severidad.get(h["severity"], 0) + 1
     campos = ("severity", "status", "title", "rule_id", "resource_name", "account", "remediation", "accepted_until", "first_seen")
     return {**_acotar([{k: h.get(k) for k in campos} for h in elegidos], limite), "por_severidad": por_severidad,
-            "enlace": "#/secops/gestion"}
+            "enlace": "#/riesgo/hallazgos"}
 
 
 def costos(periodo: str = "30d", nube: Optional[str] = None) -> Dict[str, Any]:
@@ -79,7 +79,7 @@ def costos(periodo: str = "30d", nube: Optional[str] = None) -> Dict[str, Any]:
         cuentas = [a["uid"] for a in service.cuentas()["accounts"] if a["provider"] == nube] or ["-"]
     c = service.costos(periodo, cuentas)
     if not c.get("available"):
-        return {"error": c.get("message", "Sin costos recolectados."), "enlace": "#/finops/historial"}
+        return {"error": c.get("message", "Sin costos recolectados."), "enlace": "#/costos/historial"}
 
     def top(clave, campos):
         return [{k: x.get(k) for k in campos} for x in c[clave][:10]]
@@ -88,7 +88,7 @@ def costos(periodo: str = "30d", nube: Optional[str] = None) -> Dict[str, Any]:
             "periodo_anterior": c["previous_total"], "variacion_pct": c["delta_percentage"],
             "por_cuenta": top("by_account", ("name", "cost", "share")), "por_servicio": top("by_service", ("key", "cost", "share")),
             "por_recurso": top("by_resource", ("name", "cost", "account", "type")), "datos_hasta": c["data_through"],
-            "enlace": "#/finops/historial"}
+            "enlace": "#/costos/historial"}
 
 
 def cumplimiento() -> Dict[str, Any]:
@@ -97,7 +97,7 @@ def cumplimiento() -> Dict[str, Any]:
                         "no_cumplen": [{"control": x["id"], "titulo": x["title"], "hallazgos_activos": x["active"]}
                                        for x in m["controls"] if x["status"] == "no_cumple"]}
                        for m in c["frameworks"]],
-            "enlace": "#/cumplimiento/controles"}
+            "enlace": "#/riesgo/cumplimiento"}
 
 
 MAX_INCIDENCIAS, MAX_PODS, MAX_EVENTOS, MAX_LINEAS = 20, 6, 20, 15
@@ -139,7 +139,7 @@ def para_asistente(credenciales) -> List[Herramienta]:
             r = k8s_fleet.resumen(nombre, k8s_fleet.leer(credenciales, nombre), momento)
             salida.append({k: r.get(k) for k in ("name", "reporting", "distribution", "version", "support", "stale",
                                                   "nodes", "nodes_ready", "pods", "pods_running", "health", "incidents")})
-        return {"clusters": salida, "enlace": "#/kubernetes"}
+        return {"clusters": salida, "enlace": "#/activos/kubernetes"}
 
     def estado_cluster(nombre: str, namespace: Optional[str] = None, objeto: Optional[str] = None) -> Dict[str, Any]:
         if nombre not in k8s_fleet.configurados():
@@ -148,7 +148,7 @@ def para_asistente(credenciales) -> List[Herramienta]:
         if foto is None:
             return {"error": f"El agente de {nombre} todavía no envió ninguna foto."}
         return {**enfocar(foto, k8s_fleet.detalle(nombre, foto, k8s_fleet.ahora()), namespace, objeto),
-                "enlace": f"#/kubernetes/{nombre}"}
+                "enlace": f"#/activos/kubernetes/{nombre}"}
 
     def cambios_recientes(horas: int = 24, cluster: Optional[str] = None, namespace: Optional[str] = None,
                           objeto: Optional[str] = None) -> Dict[str, Any]:
@@ -182,7 +182,7 @@ def para_asistente(credenciales) -> List[Herramienta]:
         return {"desde": desde.isoformat(timespec="minutes"),
                 "despliegues_kubernetes": _acotar(sorted(despliegues, key=lambda x: x["hora"], reverse=True), MUESTRA),
                 "recursos_nuevos": _acotar(nuevos, MUESTRA),
-                "sin_historial_de_despliegues": sin_dato, "enlace": f"#/kubernetes/{cluster}" if cluster else "#/kubernetes",
+                "sin_historial_de_despliegues": sin_dato, "enlace": f"#/activos/kubernetes/{cluster}" if cluster else "#/activos/kubernetes",
                 "nota": "Un despliegue es una revisión nueva de un Deployment (su ReplicaSet). Compara su hora con el "
                         "inicio de la alerta: un cambio minutos antes es el primer sospechoso."}
 
