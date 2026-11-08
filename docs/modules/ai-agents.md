@@ -93,3 +93,20 @@ Los agentes no conocen el SDK del proveedor: piden texto a [`app/llm`](../../bac
 Cada respuesta del agente (`invoke_agent`) y cada llamada directa al modelo (`chat`) deja una traza con la convención semántica de [OpenTelemetry GenAI](https://opentelemetry.io/docs/specs/semconv/gen-ai/) ([`core/trazas.py`](../../backend/app/core/trazas.py)): el span raíz con el uso, su dominio, el modelo, los tokens y la duración, y un span por turno del modelo y por herramienta (argumentos acotados, tamaño del resultado, error). **No se guarda el texto** de las preguntas ni de las respuestas, solo su tamaño. Van a `DATA_DIR/trazas/AAAA-MM.jsonl`, sin abrir la base ni usar un servicio externo.
 
 *Plataforma → IA* (rol Operador) muestra por dominio y por uso las llamadas, errores, tokens, costo estimado y latencia p50/p95, las herramientas más usadas y las trazas recientes con sus pasos. El costo usa el precio por millón de tokens de *Plataforma → Ajustes → Inteligencia artificial* (0 = sin precio: no se inventa). El evento de diagnóstico de cada incidente nombra su traza. API: `GET /api/ia/resumen?dias=`, `GET /api/ia/trazas?dias=&uso=` y `GET /api/ia/trazas/{id}`.
+
+
+## Evals continuos
+
+Tres suites con el modelo real, cada una con `--json` para publicar su resultado:
+
+| Suite | Qué mide | Casos |
+|---|---|---|
+| `eval.agentes` | Que el asistente responda con las herramientas correctas | 9 preguntas |
+| `eval.incidentes` | Que el diagnóstico nombre la causa sembrada, con ruido de un clúster real | 6 incidentes |
+| `eval.dominios` | La IA de cada dominio con su prompt de producción: ficha del recurso, alerta de costo, borrador de excepción, post-mortem, resumen semanal | 5 casos |
+
+`eval.dominios` aplica además el **chequeo determinista de cifras** ([`eval/cifras.py`](../../backend/eval/cifras.py)): toda cifra de la respuesta tiene que estar en los datos o en el prompt, o ser la suma o diferencia de dos de ellas (04:30 − 04:18 = "12 minutos"); se ignoran los enteros menores que 10 y los porcentajes. Una cifra inventada hace fallar el caso aunque el texto sea correcto.
+
+El workflow [`evals.yml`](../../.github/workflows/evals.yml) las corre los lunes a las 07:00 UTC (y a mano), deja el resumen en el job, guarda los JSON como artefacto y los publica en `POST /api/ia/evals/ingesta` con el token de ingesta (el mismo de Alertmanager). *Plataforma → IA* muestra la última corrida por suite contra el objetivo (90 % y cero cifras inventadas) y la tendencia. Necesita los secretos `GEMINI_API_KEY` y `ALERTS_INGEST_TOKEN` y la variable `API_URL` del repositorio; sin la clave, no corre.
+
+Medición del 9-nov-2026 (`gemini-3.5-flash`): `eval.dominios` 5/5 en dos corridas, sin cifras inventadas.
