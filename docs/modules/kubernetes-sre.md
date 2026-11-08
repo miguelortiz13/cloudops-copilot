@@ -58,6 +58,10 @@ El job `k8s-watch` revisa las fotos cada 10 minutos (`kubernetes_watch_cron`) y 
 
 Cada aviso sale una sola vez; el estado vive en el File Share (`k8s_watch.json`), sin abrir la base. Entre que aparece un problema y llega el aviso pasan entre 10 y 20 minutos. El job solo existe si hay clústeres y webhook configurados, y cuesta unos segundos de 0,25 vCPU por ejecución, dentro del cupo gratuito.
 
+## Historial de incidencias
+
+`k8s-watch` lleva la historia de **todas** las incidencias del clúster, también las que no se avisan o están silenciadas: cuando una aparece en la foto anota su inicio; cuando deja de aparecer, su fin y su duración, en `DATA_DIR/k8s_historial/<clúster>.jsonl` (sin abrir la base). El detalle del clúster muestra las abiertas y las cerradas de 7, 30 o 90 días con la mediana de duración. La precisión es de unos 10 minutos, lo que tarda `k8s-watch` en volver a mirar. API: `GET /api/activos/kubernetes/{clúster}/historial?dias=`.
+
 ## Gestionar incidencias
 
 Desde la tabla de incidencias, un operador puede:

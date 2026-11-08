@@ -473,3 +473,31 @@ def test_cambios_recientes_dice_que_imagen_cambio_y_cuando(monkeypatch):
     assert d["cambio_de_imagen"] == ["reg/currencyservice:v0.10.6 -> reg/currencyservice:v9.9.9"]
     assert r["recursos_nuevos"]["muestra"][0]["error"].startswith("Inventario no disponible")
     assert h.funcion(horas=24)["sin_historial_de_despliegues"] == ["sin-agente"]
+
+
+def test_la_historia_de_incidencias_guarda_inicio_fin_y_duracion(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app.collectors import k8s_watch, notify
+    from app.core import config
+    from app.main import app
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setenv("NOTIFY_WEBHOOK_URL", "https://discord.com/api/webhooks/1/SECRETO")
+    monkeypatch.setenv("K8S_CLUSTERS", "homelab")
+    monkeypatch.setattr(notify.requests, "post", lambda url, json=None, timeout=None: SimpleNamespace(status_code=204))
+    fotos = iter([_foto(30), _foto(20), _foto(10, roto=False)])
+    monkeypatch.setattr(k8s_fleet, "leer", lambda cred, nombre: next(fotos))
+    for minutos in (30, 20):  # dos corridas con el pod roto
+        k8s_watch.ejecutar(None, AHORA - timedelta(minutes=minutos - 2))
+    abiertas = k8s_watch.historial("homelab", ahora=AHORA)["open"]
+    assert any(h["resource"] == "pod/web-1" for h in abiertas)
+    k8s_watch.ejecutar(None, AHORA - timedelta(minutes=8))  # sano
+
+    h = k8s_watch.historial("homelab", dias=7, ahora=AHORA)
+    web = next(c for c in h["closed"] if c["resource"] == "pod/web-1")
+    assert (web["severity"], web["minutes"]) == ("critica", 20) and web["hasta"] > web["desde"]
+    assert not any(a["resource"] == "pod/web-1" for a in h["open"]) and h["median_minutes"] is not None
+    r = TestClient(app).get("/api/activos/kubernetes/homelab/historial?dias=365").json()
+    assert set(r) == {"cluster", "days", "open", "closed", "median_minutes"} and r["days"] == 365
+    assert TestClient(app).get("/api/activos/kubernetes/otro/historial").status_code == 404
