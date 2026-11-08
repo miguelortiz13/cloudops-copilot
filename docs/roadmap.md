@@ -2,13 +2,13 @@
 
 > Registro de lo que falta. Las fases, sus criterios de salida y lo ya hecho están en la **[hoja de ruta](plan/07-hoja-de-ruta.md)**; el análisis completo, en el [plan de evolución](plan/README.md).
 
-Estado al 24 de octubre de 2026: las fases 0 y 1 están cerradas, la fase 2 (AWS) está implementada con tres piezas que esperan recursos en AWS, y la fase 3 tiene 2 de sus 11 entregables hechos.
+Estado al 7 de noviembre de 2026: las fases 0 y 1 están cerradas (sus criterios por tiempo se cumplieron), la fase 2 (AWS) está implementada con tres piezas que esperan recursos en AWS, y la fase 3 avanzó con los avisos, el reporte mensual, el módulo de Kubernetes y los agentes de IA con diagnóstico y gestión de incidentes.
 
 ```mermaid
 flowchart LR
     F0[Fase 0 · Cierre y CD<br/><b>Cerrada</b>] --> F1[Fase 1 · Fundamentos<br/><b>Cerrada</b><br/>criterios por tiempo]
     F1 --> F2[Fase 2 · AWS<br/><b>Implementada</b><br/>3 piezas bloqueadas]
-    F2 --> F3[Fase 3 · Valor<br/><b>En curso</b><br/>avisos, presupuestos, reporte PDF]
+    F2 --> F3[Fase 3 · Valor<br/><b>En curso</b><br/>avisos, reporte PDF, Kubernetes,<br/>incidentes con IA]
     F3 --> F4[Fase 4 · Producto<br/><b>Sin empezar</b>]
     classDef hecho fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef parcial fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -22,12 +22,12 @@ flowchart LR
 
 Solo hay que verificarlos en la fecha.
 
-| Fecha | Qué verificar | Fase | Cómo |
+| Fecha | Qué verificar | Fase | Estado |
 |---|---|---|---|
-| 29-oct-2026 | El job diario lleva 14 días seguidos con éxito | 1 | Administración → estado de recolectores |
-| 4-nov-2026 | Llegó el primer reporte mensual (octubre) con el PDF adjunto | 3 | Canal de avisos; si falló, el paso `report` queda en error y reintenta al día siguiente |
-| 5-nov-2026 | La factura de AWS de octubre coincide con el panel | 2 | Factura de AWS contra Costos → historial, mes anterior |
-| 7-nov-2026 | El panel muestra 30 días de historia propia de inventario, costos y hallazgos | 1 | Costos → historial, 30 días |
+| 29-oct-2026 | El job diario lleva 14 días seguidos con éxito | 1 | ✅ Cumplido |
+| 4-nov-2026 | Llegó el primer reporte mensual (octubre) con el PDF adjunto | 3 | ✅ Enviado el 4-nov a las 06:15 UTC (el paso de costos falló una vez por Cost Management y el reintento salió bien) |
+| 5-nov-2026 | La factura de AWS de octubre coincide con el panel | 2 | ⏳ Pendiente: necesita una sesión SSO de AWS para leer la factura |
+| 7-nov-2026 | El panel muestra 30 días de historia propia de inventario, costos y hallazgos | 1 | ✅ Costos con 30 días (9-oct al 7-nov); inventario y hallazgos sin revisar aparte |
 
 ## Bloqueados
 
@@ -39,11 +39,10 @@ No avanzan hasta que exista un recurso o se tome una decisión fuera del código
 | Leer estados de Terraform guardados en S3 | Un bucket de estados de Terraform en AWS |
 | Probar el agente en EKS | Un clúster EKS (el agente es el mismo para cualquier clúster) |
 | PR de remediación automático | Una GitHub App con permiso para abrir PRs en los repositorios de IaC |
-| Presupuesto en el PDF descargado del panel | Pasar `MONTHLY_BUDGETS_USD` también al API con un `terraform apply` (hoy solo lo tiene el job; el PDF enviado sí lo trae) |
 
 ## Fase 3: lo que falta
 
-Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el reporte mensual se envía solo). Falta el PR de remediación; la evaluación del agente ya supera el 90 %. Orden sugerido: de arriba abajo.
+Tres criterios de salida ya se cumplen: una anomalía sembrada genera aviso, el reporte mensual se envía solo y la evaluación del agente supera el 90 %. Falta el PR de remediación, que está bloqueado. Orden sugerido: de arriba abajo.
 
 | Tarea | Qué entrega | Estado |
 |---|---|---|
@@ -52,10 +51,21 @@ Dos criterios de salida ya se cumplen (una anomalía sembrada genera aviso; el r
 | Pronóstico con estacionalidad | Hoy anomalías de 14 días y pronóstico lineal; falta estacionalidad semanal y mensual | En parte |
 | Seguimiento del ahorro realizado | Registrar recomendaciones aplicadas y el ahorro medido después | Sin empezar |
 | Cumplimiento por control con excepciones | Excepciones aprobadas por control, con vencimiento | Sin empezar |
-| Diagnóstico de incidentes con IA | Hecho con Alertmanager ([incidentes](modules/incidents.md), evaluación 10/10). Falta, de la etapa B del [plan](plan/09-agentes-ia.md): fuentes `k8s-watch`, chequeo HTTP y Azure Monitor; herramientas de métricas, salud del recurso y despliegues; cola y job si el diagnóstico en el API se queda corto | En parte |
-| Kubernetes: historia de incidencias | Lo que falta del [plan del módulo](plan/08-kubernetes.md) (parte 2): incidencias con hora de inicio y fin y su duración. Las partes 1, 3, 4 y 5 están hechas | En parte |
+| Diagnóstico de incidentes con IA | Hecho con Alertmanager y a pedido desde una incidencia de Kubernetes ([incidentes](modules/incidents.md)): evaluación 6/6 con ruido, `cambios_recientes` (despliegues de Kubernetes), gestión (estados, responsable, notas, línea de tiempo), silencios, tormentas, ajustes y post-mortem. Falta, de la etapa B del [plan](plan/09-agentes-ia.md): chequeo HTTP y Azure Monitor como fuentes; métricas, salud del recurso y despliegues de la nube como herramientas; cola y job si el diagnóstico en el API se pierde | En parte |
+| Kubernetes: historia de incidencias | Lo que falta del [plan del módulo](plan/08-kubernetes.md) (parte 2): incidencias con hora de inicio y fin y su duración. Las partes 1, 3, 4 y 5 están hechas, más incidencias accionables (abrir incidente, silenciar) y ajustes por clúster | En parte |
 | Bot de Teams con credencial federada | Volver a aprovisionar el bot sin secreto de cliente | Sin empezar |
-| "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario | Sin empezar |
+| Resumen semanal con IA | Cada lunes al canal: costos contra la semana anterior, hallazgos, incidentes y precisión del diagnóstico, recursos nuevos fuera de Terraform y salud del job ([avisos](modules/notifications-reports.md#resumen-semanal)) | Hecho |
+| "Qué cambió" y "Mis pendientes" | Bloques del resumen con los cambios desde la última visita y lo asignado al usuario (los incidentes ya tienen responsable) | Sin empezar |
+
+## Plan de mejoras (noviembre de 2026)
+
+Salió de lo que mostró el laboratorio en la primera semana de incidentes reales.
+
+| Bloque | Qué | Estado |
+|---|---|---|
+| 1. Incidentes fiables | Tormentas, foto vieja, post-mortem, precisión medida; más control: ciclo de vida, silencios y ajustes; en Kubernetes, incidencias accionables y ajustes por clúster | Hecho (#118, #119). Falta repetirlo en el laboratorio ([ejercicio 5](labs/incidentes.md)) |
+| 2. Fiabilidad y mantenimiento | Roadmap al día y ejercicio de tormenta (hechos), runbooks en `docs/runbooks/`, cola y job para el diagnóstico solo si se pierde alguno | En curso |
+| 3. Valor diario | Resumen semanal con IA (hecho), "Qué cambió" y "Mis pendientes", seguimiento del ahorro, correo y enrutamiento | En curso |
 
 ## Integraciones futuras
 
@@ -86,6 +96,7 @@ Cada integración mantiene la regla de solo lectura: la plataforma propone y una
 
 ## Deuda técnica
 
+- [ ] Las pruebas que mezclan fechas fijas con la fecha real se rompen solas con el paso del tiempo (pasó el 1-nov y el 7-nov): buscar las que quedan y fijarlas.
 - [ ] Revisar por qué el panel cuenta 8 recursos de AWS en Terraform cuando los estados tienen 9 ARNs.
 - [ ] Revisar por qué solo 3 de 9 creaciones de CloudTrail se asocian a un recurso.
 - [ ] Crear `docs/runbooks/` con los runbooks del [plan](plan/06-seguridad-calidad-operacion.md#runbooks).

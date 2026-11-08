@@ -23,8 +23,11 @@ locals {
     # (app/readmodel), para que leerlas no despierte la base.
     DATA_DIR = local.data_mount_path
     # Titulo y enlace de los avisos (app/collectors/notify.py).
-    APP_NAME            = var.app_display_name
-    FRONTEND_URL        = module.web.url
+    APP_NAME     = var.app_display_name
+    ORG_NAME     = var.org_name
+    FRONTEND_URL = module.web.url
+    # Resumen semanal redactado por el modelo (app/collectors/semanal.py); sin clave, sale con las cifras.
+    GEMINI_MODEL        = var.gemini_model
     MONTHLY_BUDGETS_USD = join(",", [for nube, monto in var.monthly_budgets_usd : "${nube}=${monto}"])
     # Clústeres con agente: inventario y hallazgos desde sus fotos (kubernetes.tf).
     K8S_CLUSTERS         = join(",", sort(var.kubernetes_clusters))
@@ -63,7 +66,13 @@ module "collector" {
   volumes = { (local.data_share) = local.data_mount_path }
   env     = merge(local.collector_env, local.aws_env)
 
-  # La URL del webhook es una credencial: va como secreto, no como variable.
-  secrets    = local.notify_enabled ? { "notify-webhook-url" = var.notify_webhook_url } : {}
-  secret_env = local.notify_enabled ? { NOTIFY_WEBHOOK_URL = "notify-webhook-url" } : {}
+  # La URL del webhook y la clave del modelo son credenciales: van como secretos, no como variables.
+  secrets = merge(
+    local.notify_enabled ? { "notify-webhook-url" = var.notify_webhook_url } : {},
+    local.gemini_enabled ? { "gemini-api-key" = var.gemini_api_key } : {},
+  )
+  secret_env = merge(
+    local.notify_enabled ? { NOTIFY_WEBHOOK_URL = "notify-webhook-url" } : {},
+    local.gemini_enabled ? { GEMINI_API_KEY = "gemini-api-key" } : {},
+  )
 }
