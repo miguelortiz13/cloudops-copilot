@@ -324,3 +324,21 @@ def test_aws_relee_el_mes_anterior_entero_despues_de_la_carga_inicial(monkeypatc
         assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "ok"
     # La primera vez, la carga inicial; despues, del 1-oct al 7-nov.
     assert pedidos == [costs.DIAS_INICIALES, 37]
+
+
+def test_export_de_aws_con_archivos_y_sin_filas_queda_como_alerta(monkeypatch):
+    """Lo que pasó con la tabla de Glue en mayúsculas: el paso era "ok" con total 0 y nadie se enteraba."""
+    from app.db.models import CostEvent
+    from app.providers.aws.provider import AwsProvider
+    from tests.contract.proveedores import FabricaAws
+
+    aws = FabricaAws().normal()
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: aws))
+    monkeypatch.setattr(type(aws), "_consultar", lambda self, sql: [])
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=DIA, subscription_ids=[])
+    assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+    assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "parcial"
+    run.ejecutar("costs_aws", run.costos_aws, ctx)  # otra corrida el mismo mes: una sola alerta
+    with db.session_scope() as s:
+        e = s.scalars(__import__("sqlalchemy").select(CostEvent)).one()
+        assert (e.kind, e.provider, e.key) == ("export_vacio", "aws", "export_vacio:aws:2026-10")

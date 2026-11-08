@@ -12,7 +12,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Date, DateTime, ForeignKey, Index, Numeric, String, Unicode, UnicodeText, UniqueConstraint
+from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Index, Numeric, String, Unicode, UnicodeText, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Los identificadores de recurso de Azure rara vez pasan de 300 caracteres;
@@ -243,6 +243,33 @@ class Incident(Base):
     postmortem: Mapped[Optional[str]] = mapped_column(UnicodeText)
     # Tormenta: incidentes casi simultáneos del mismo clúster cuelgan del primero, que se diagnostica por todos.
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("incidents.id"), index=True)
+
+
+class CostEvent(Base):
+    """
+    Alerta de costo gestionable (fase 4 del plan 10): una anomalía de gasto diario, un presupuesto al 80 %,
+    100 % o con pronóstico de superarse, o un export de costos que entrega archivos y ninguna fila. Una por clave.
+    """
+
+    __tablename__ = "cost_events"
+    __table_args__ = (UniqueConstraint("key", name="uq_cost_events_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(300))
+    kind: Mapped[str] = mapped_column(String(32))  # anomalia | presupuesto | export_vacio
+    provider: Mapped[str] = mapped_column(String(16))
+    account_uid: Mapped[Optional[str]] = mapped_column(String(200))
+    day: Mapped[Optional[date]] = mapped_column(Date)
+    amount: Mapped[float] = mapped_column(Float)
+    reference: Mapped[Optional[float]] = mapped_column(Float)  # la media de la anomalía o el límite del presupuesto
+    title: Mapped[str] = mapped_column(Unicode(300))
+    status: Mapped[str] = mapped_column(String(16), default="abierto")  # abierto | reconocido | resuelto | descartado
+    assignee: Mapped[Optional[str]] = mapped_column(Unicode(200))
+    note: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    explanation: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[Optional[str]] = mapped_column(Unicode(320))
 
 
 class ControlException(Base):

@@ -11,6 +11,7 @@ const SECCIONES: [ruta: string, titulo: string, migas: string][] = [
   ['costos/gasto', 'Gasto', 'Costos'],
   ['costos/historial', 'Historial', 'Costos'],
   ['costos/ahorro', 'Ahorro', 'Costos'],
+  ['costos/alertas', 'Alertas de costo', 'Costos'],
   ['riesgo/hallazgos', 'Hallazgos', 'Riesgo'],
   ['riesgo/exposicion', 'Exposición en vivo', 'Riesgo'],
   ['riesgo/cumplimiento', 'Cumplimiento', 'Riesgo'],

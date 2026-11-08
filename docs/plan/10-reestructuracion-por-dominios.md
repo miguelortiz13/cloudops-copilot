@@ -163,6 +163,15 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Riesgo: excepciones por control con vencimiento (con borrador de la IA) y reglas desactivables; dominio en `app/dominios/riesgo` | Hecho |
 | Drift de Terraform (Azure): borrados fuera de Terraform y tags cambiadas a mano | Hecho |
 
+### Fase 4 · Costos y Operación completos (en curso)
+
+| Entregable | Estado |
+|---|---|
+| Alertas de costo gestionables (anomalías, presupuestos, export vacío) con explicación de la IA; dominio `app/dominios/costos` | Hecho |
+| Seguimiento del ahorro realizado | Siguiente |
+| Enrutamiento de avisos por severidad y dominio, y silencios para todo aviso | Pendiente |
+| Chequeo HTTP como fuente de incidentes | Pendiente |
+
 ## Riesgos y compatibilidad
 
 | Riesgo | Mitigación |
