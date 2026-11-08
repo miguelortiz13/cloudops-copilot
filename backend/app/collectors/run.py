@@ -95,8 +95,17 @@ def costos_aws(ctx: Contexto, session) -> Resultado:
     # AWS reajusta el mes anterior hasta emitir la factura (primeros dias del mes): se relee entero, no solo 7 dias.
     hoy = ctx.momento.date()
     mes_anterior = (hoy.replace(day=1) - timedelta(days=1)).replace(day=1)
-    return costs.recolectar(aws, session, nombre="costs_aws", fuente="export",
-                            ventana_movil=max(costs.DIAS_MOVILES, (hoy - mes_anterior).days))
+    resultado = costs.recolectar(aws, session, nombre="costs_aws", fuente="export",
+                                 ventana_movil=max(costs.DIAS_MOVILES, (hoy - mes_anterior).days))
+    if resultado.items == 0:
+        # El export entregó archivos y la consulta no devolvió ni una fila: algo no lee los datos (pasó con la tabla de
+        # Glue en mayúsculas). Una cuenta con gasto cero también trae filas de uso.
+        from app.dominios.costos import servicio as eventos_de_costo
+        eventos_de_costo.registrar(session, f"export_vacio:aws:{hoy:%Y-%m}", {
+            "kind": "export_vacio", "provider": "aws", "account_uid": None, "day": hoy, "amount": 0.0, "reference": None,
+            "title": "El export de costos de AWS entrega archivos, pero la consulta no devuelve filas"}, ctx.momento)
+        return Resultado(status="parcial", items=0, detail={**resultado.detail, "reason": "Export con archivos y sin filas"})
+    return resultado
 
 
 def hallazgos_aws(ctx: Contexto, session) -> Resultado:

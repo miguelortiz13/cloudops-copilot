@@ -456,6 +456,39 @@ def test_una_anomalia_sembrada_se_avisa_una_vez(monkeypatch):
     assert avisar(monkeypatch, DIA + timedelta(days=1), webhook) == "ok"
     assert len(webhook.enviados) == 1
 
+    # Y queda como alerta de costo gestionable, una sola vez, con su explicación de la IA.
+    from fastapi.testclient import TestClient
+
+    from app import llm
+    from app.db.models import CostEvent
+    from app.llm.base import Respuesta
+    from app.main import app
+    with db.session_scope() as s:
+        e = s.scalars(select(CostEvent)).one()
+        assert (e.kind, e.status, round(e.amount, 2), e.day) == ("anomalia", "abierto", 3.0, DIA.date() - timedelta(days=1))
+        evento_id = e.id
+    c = TestClient(app)
+    assert c.get("/api/costos/alertas?estado=vivos").json()["open"] == 1
+    r = c.post(f"/api/costos/alertas/{evento_id}", json={"status": "resuelto", "note": "Prueba de carga del equipo de datos"}).json()
+    assert (r["status"], r["note"]) == ("resuelto", "Prueba de carga del equipo de datos") and r["assignee"]
+    assert c.get("/api/costos/alertas?estado=vivos").json()["open"] == 0
+
+    class Modelo:
+        nombre, modelo = "f", "f"
+
+        def generar(self, sistema, mensaje, **k):
+            self.mensaje = mensaje
+            return Respuesta(texto="**Qué pasó** el gasto subió a 3 USD", modelo="f")
+
+    modelo = Modelo()
+    llm.reiniciar(modelo)
+    try:
+        assert c.post(f"/api/costos/alertas/{evento_id}/explicacion").json()["explanation"].startswith("**Qué pasó**")
+    finally:
+        llm.reiniciar(None)
+    assert '"por_servicio"' in modelo.mensaje and '"dia": 3.0' in modelo.mensaje
+    assert c.post("/api/costos/alertas/999", json={"status": "resuelto"}).status_code == 404
+
 
 def test_un_gasto_normal_no_es_anomalia(monkeypatch):
     monkeypatch.delenv("MONTHLY_BUDGETS_USD", raising=False)

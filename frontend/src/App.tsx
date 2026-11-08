@@ -25,6 +25,7 @@ const SilencesPage = lazy(() => import('./modules/incidents/SilencesView').then(
 const NotificationsPage = lazy(() => import('./modules/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ResourcesPage = lazy(() => import('./modules/assets/ResourcesPage').then((m) => ({ default: m.ResourcesPage })));
 const DriftPage = lazy(() => import('./modules/assets/DriftPage').then((m) => ({ default: m.DriftPage })));
+const CostAlertsPage = lazy(() => import('./modules/finops/CostAlertsPage').then((m) => ({ default: m.CostAlertsPage })));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
@@ -73,6 +74,7 @@ function Shell() {
             {seccion === 'costos/gasto' && <FinOpsPage view="costos" />}
             {seccion === 'costos/historial' && <FinOpsPage view="historial" />}
             {seccion === 'costos/ahorro' && <FinOpsPage view="ahorro" />}
+            {seccion === 'costos/alertas' && <CostAlertsPage />}
             {seccion === 'riesgo/hallazgos' && <SecOpsPage view="gestion" />}
             {seccion === 'riesgo/exposicion' && <SecOpsPage view="vivo" />}
             {seccion === 'riesgo/cumplimiento' && <CompliancePage view={sub} onView={(v) => navigate(`riesgo/cumplimiento/${v}`)} onGo={navigate} />}

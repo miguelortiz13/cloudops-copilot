@@ -129,7 +129,10 @@ def anomalias(session, hoy: date) -> List[Dict]:
             if costo >= MINIMO_ANOMALIA and (costo > media + 3 * desviacion or costo > 2 * media):
                 salida.append({"key": f"anomalia:{cuenta}:{dia}", "line":
                                f"- {nombres.get(cuenta, cuenta)}: {costo:.2f} USD el {dia:%d-%m} "
-                               f"(media de {VENTANA_BASE} días: {media:.2f})"})
+                               f"(media de {VENTANA_BASE} días: {media:.2f})",
+                               "evento": {"kind": "anomalia", "provider": cuenta.split(":", 1)[0], "account_uid": cuenta,
+                                          "day": dia, "amount": costo, "reference": media,
+                                          "title": f"Gasto anómalo en {nombres.get(cuenta, cuenta)} el {dia:%d-%m}"}})
     return salida
 
 
@@ -163,7 +166,10 @@ def presupuestos(session, hoy: date) -> List[Dict]:
             que = {"100": "superó", "80": "llegó al 80 % de", "pronostico": "va a superar"}[nivel]
             salida.append({"key": f"presupuesto:{nube}:{inicio:%Y-%m}:{nivel}", "line":
                            f"- {nube.upper()} {que} su presupuesto: {g:.2f} de {limite:.2f} USD en el mes "
-                           f"(pronóstico {pronostico:.2f})"})
+                           f"(pronóstico {pronostico:.2f})",
+                           "evento": {"kind": "presupuesto", "provider": nube, "account_uid": None, "day": hoy,
+                                      "amount": g, "reference": limite,
+                                      "title": f"{nube.upper()} {que} su presupuesto de {inicio:%m-%Y}"}})
     return salida
 
 
@@ -236,6 +242,10 @@ def recolectar(ctx: Contexto, session) -> Resultado:
     caidos = recolectores_caidos(session, desde)
     a_mano = recursos_a_mano(session, desde, hasta)
     vigentes = {"presupuestos": presupuestos(session, hasta.date()), "anomalias": anomalias(session, hasta.date())}
+    from app.dominios.costos import servicio as eventos_de_costo
+    # Costos → Alertas: cada anomalía y presupuesto queda como evento gestionable (una vez por clave).
+    for a in vigentes["presupuestos"] + vigentes["anomalias"]:
+        eventos_de_costo.registrar(session, a["key"], a["evento"], hasta)
     enviadas = set(previa.detail.get("sent", [])) if previa else set()
     costos = {tipo: [a for a in avisos if a["key"] not in enviadas] for tipo, avisos in vigentes.items()}
     detalle = {"since": desde.isoformat(), "until": hasta.isoformat(), "findings": len(hallazgos), "collectors_failed": caidos,

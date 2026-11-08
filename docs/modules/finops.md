@@ -59,3 +59,10 @@ El reporte necesita del orden de dos consultas a Cost Management por suscripció
 Pruebas: `test_finops_coverage.py`, `test_cost_cache_persistente.py`, `test_cost_warm_retry.py`, `test_chat_cost_coherence.py`.
 
 Decisión registrada en [ADR 0003](../adr/0003-cache-de-costos-persistente.md).
+
+
+## Alertas de costo (Costos → Alertas)
+
+Cada anomalía de gasto diario, cada presupuesto al 80 % o al 100 % (o con pronóstico de superarse) y cada export de costos que entrega archivos sin devolver filas queda como **alerta gestionable** en la tabla `cost_events` (migración 0007), una sola vez por clave. Las registran el paso de avisos del job diario (anomalías y presupuestos, que además se siguen avisando al canal) y el de costos de AWS (export vacío: lo que pasó con la tabla de Glue en mayúsculas, que dejaba el paso en "ok" con total 0; ahora queda `parcial` con el motivo).
+
+En *Costos → Alertas* un operador las reconoce, resuelve o descarta con una nota (queda como responsable). **Explicar con IA** compara el día de la anomalía con la media de los 14 anteriores por servicio y por recurso, cruza los recursos que aparecieron en esos días y propone la causa con su confianza. Las abiertas se ven siempre; las cerradas, 90 días. API: `GET /api/costos/alertas?estado=vivos`, `POST /api/costos/alertas/{id}` y `POST /api/costos/alertas/{id}/explicacion` (dominio `app/dominios/costos`).
