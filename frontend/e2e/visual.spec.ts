@@ -15,6 +15,7 @@ async function estable(page: Page) {
 const VISTAS: [ruta: string, titulo: string, archivo: string][] = [
   ['inicio/resumen', 'Resumen', 'resumen'],
   ['activos/inventario', 'Inventario', 'inventario'],
+  ['activos/recursos/azure%3A%2Fsubscriptions%2F1%2Fx%2Fstdatos', 'stdatos', 'activos-ficha'],
   ['costos/gasto', 'Gasto', 'costos-vision-general'],
   ['costos/historial', 'Historial', 'costos-historial'],
   ['riesgo/hallazgos', 'Hallazgos', 'seguridad-gestion'],

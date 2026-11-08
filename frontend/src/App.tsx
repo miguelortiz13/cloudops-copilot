@@ -23,6 +23,7 @@ const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) 
 const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 const SilencesPage = lazy(() => import('./modules/incidents/SilencesView').then((m) => ({ default: m.SilencesPage })));
 const NotificationsPage = lazy(() => import('./modules/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const ResourcesPage = lazy(() => import('./modules/assets/ResourcesPage').then((m) => ({ default: m.ResourcesPage })));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
@@ -63,6 +64,7 @@ function Shell() {
           <SectionBoundary name={etiqueta.seccion} key={seccion}>
             <Suspense fallback={<Loading />}>
             {seccion === 'inicio/resumen' && <AzureGuard><OverviewPage /></AzureGuard>}
+            {seccion === 'activos/recursos' && <ResourcesPage uid={sub} onRecurso={(u) => navigate(u ? `activos/recursos/${encodeURIComponent(u)}` : 'activos/recursos')} onGo={navigate} />}
             {seccion === 'activos/inventario' && <AzureGuard><InventoryPage /></AzureGuard>}
             {seccion === 'activos/iac' && <AzureGuard><IacPage /></AzureGuard>}
             {seccion === 'activos/kubernetes' && <KubernetesPage cluster={sub} onCluster={(c) => navigate(`activos/kubernetes/${c}`)} onIncidente={(i) => navigate(`operacion/incidentes/${i}`)} />}

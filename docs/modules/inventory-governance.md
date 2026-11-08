@@ -2,6 +2,24 @@
 
 Código: [`services/inventory_service.py`](../../backend/app/services/inventory_service.py), [`services/governance.py`](../../backend/app/services/governance.py), [`services/history_service.py`](../../backend/app/services/history_service.py), [`routers/inventory.py`](../../backend/app/routers/inventory.py).
 
+
+## Recursos y ficha única (Activos → Recursos)
+
+*Activos → Recursos* lista todo el inventario de Azure, AWS y Kubernetes que guarda la plataforma, ordenado por gasto, con búsqueda y filtros por nube y por Terraform. Sale de la caché del inventario: listar no despierta la base. *Inventario Azure* sigue siendo la vista en vivo de gobernanza de Azure.
+
+Cada recurso tiene su **ficha** (`#/activos/recursos/<uid>`), lo único que abre la base:
+
+| Bloque | Qué muestra |
+|---|---|
+| Cifras | Gasto de 30 días, hallazgos abiertos, clasificación ISO (C·I·D) y gobierno (tags faltantes, Terraform) |
+| Explicación con IA | Qué es, cuánto cuesta, sus riesgos y qué harías, redactado por el modelo solo con los datos de la ficha; cuenta contra el cupo del usuario |
+| Gasto | Diario de los últimos 90 días y por servicio de los últimos 30 |
+| Hallazgos | Con su estado, responsable, aceptación y cómo corregirlos |
+| Incidentes | Si es de Kubernetes: los del clúster (o los que nombran la carga) |
+| Etiquetas y línea de tiempo | Las tags (con las obligatorias que faltan) y cuándo apareció, quién lo creó, sus hallazgos e incidentes |
+
+API del dominio (estructura nueva, `app/dominios/activos`): `GET /api/activos/recursos`, `GET /api/activos/ficha?uid=` y `POST /api/activos/ficha/explicacion`.
+
 ## Qué ofrece
 
 - Inventario multi-suscripción en tiempo real desde Azure Resource Graph, con paginación por `skip_token` (supera el límite de 1.000 filas por consulta).
