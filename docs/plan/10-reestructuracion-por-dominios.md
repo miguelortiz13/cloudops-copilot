@@ -160,8 +160,8 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 |---|---|
 | *Activos → Recursos*: lista multinube y ficha única del recurso con explicación de la IA; primer dominio en `app/dominios/` con rutas `/api/activos/...` | Hecho |
 | Historia de incidencias de Kubernetes (inicio, fin, duración) | Hecho |
-| Riesgo: excepciones por control con vencimiento y reglas configurables | Siguiente |
-| Drift de lo gestionado por Terraform | Pendiente |
+| Riesgo: excepciones por control con vencimiento (con borrador de la IA) y reglas desactivables; dominio en `app/dominios/riesgo` | Hecho |
+| Drift de lo gestionado por Terraform | Siguiente |
 
 ## Riesgos y compatibilidad
 

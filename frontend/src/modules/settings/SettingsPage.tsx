@@ -33,6 +33,12 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     ],
   },
   {
+    id: 'riesgo', titulo: 'Riesgo', descripcion: 'Reglas del catálogo que no se evalúan: sus hallazgos se cierran con una nota y no cuentan en los controles. Se aplica desde la próxima recolección.',
+    campos: [
+      { k: 'reglas_desactivadas', label: 'Reglas desactivadas', hint: 'Identificadores separados por comas, por ejemplo network.admin-port-open. Los ves en Riesgo → Cumplimiento → Catálogo de reglas.' },
+    ],
+  },
+  {
     id: 'avisos', titulo: 'Avisos', descripcion: 'El motor de avisos común. En modo registro envía todo como antes y anota lo que habría silenciado o descartado; en modo activo aplica los silencios y descarta duplicados.',
     campos: [
       { k: 'modo', label: 'Modo', hint: 'Revisa Operación → Avisos una semana en modo registro antes de activarlo.' },
@@ -119,7 +125,7 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
   );
 }
 
-const NOMBRE_SECCION: Record<string, string> = { incidentes: 'Incidentes', gobierno: 'Gobierno', costos: 'Costos', avisos: 'Avisos', ia: 'Inteligencia artificial' };
+const NOMBRE_SECCION: Record<string, string> = { incidentes: 'Incidentes', gobierno: 'Gobierno', costos: 'Costos', riesgo: 'Riesgo', avisos: 'Avisos', ia: 'Inteligencia artificial' };
 
 function resumen(c: Cambio): string {
   const claves = Object.keys(c.despues).filter((k) => JSON.stringify(c.antes[k]) !== JSON.stringify(c.despues[k]));

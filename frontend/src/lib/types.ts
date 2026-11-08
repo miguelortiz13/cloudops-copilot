@@ -393,7 +393,9 @@ export type IacResult = Record<IacFile, string> & { generation_mode: string };
 
 // ---------------------------------------------------------------- Cumplimiento
 
-export type ControlStatus = 'no_cumple' | 'sin_evidencia' | 'riesgo_aceptado' | 'cumple';
+export type ControlStatus = 'no_cumple' | 'sin_evidencia' | 'exceptuado' | 'riesgo_aceptado' | 'cumple' | 'desactivada';
+
+export interface ControlException { id: number; justification: string; created_by: string; until: string; created_at: string }
 export type MatchLevel = 'directa' | 'parcial';
 export type ControlRef = { control: string; match: MatchLevel };
 
@@ -415,6 +417,8 @@ export interface ComplianceControl {
   active: number;
   accepted: number;
   evidence: ControlEvidence[];
+  /** Excepción aprobada vigente (Riesgo → Cumplimiento); con ella el control figura como exceptuado. */
+  exception?: ControlException | null;
 }
 
 export interface ComplianceFramework {
@@ -423,7 +427,7 @@ export interface ComplianceFramework {
   version: string;
   url: string;
   controls_evaluated: number;
-  summary: Record<ControlStatus, number>;
+  summary: Partial<Record<ControlStatus, number>>;
   controls: ComplianceControl[];
 }
 
