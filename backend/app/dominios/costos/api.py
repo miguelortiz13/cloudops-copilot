@@ -58,3 +58,32 @@ def explicacion(evento_id: int, usuario: Usuario = requiere("lector")):
         raise HTTPException(status_code=404, detail=str(exc))
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=f"El modelo no respondió: {str(exc)[:200]}")
+
+
+class Aplicada(BaseModel):
+    resource_id: str = Field(max_length=450)
+    name: str = Field(max_length=260)
+    category: str = Field(max_length=100)
+    expected_monthly: float = Field(ge=0, le=1_000_000)
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
+@router.post("/api/costos/ahorro/aplicadas", status_code=201)
+def aplicar(body: Aplicada, usuario: Usuario = requiere("operador")):
+    """Marca una oportunidad de ahorro como aplicada; se verifica sola cuando el recurso desaparece del inventario."""
+    from app.dominios.costos import ahorro
+
+    _base()
+    uid = body.resource_id if ":" in body.resource_id.split("/", 1)[0] else f"azure:{body.resource_id.lower()}"
+    a = ahorro.aplicar(uid, body.name, body.category, body.expected_monthly, body.note, usuario.actor)
+    auditar(usuario, "costo.ahorro_aplicado", objetivo=uid, detalle={"esperado": body.expected_monthly, "categoria": body.category})
+    return a
+
+
+@router.get("/api/costos/ahorro/realizado")
+def ahorro_realizado(dias: int = Query(default=90, ge=1, le=365)):
+    """Aplicadas (pendientes y verificadas con su ahorro real) y bajas del periodo con el gasto mensual evitado."""
+    from app.dominios.costos import ahorro
+
+    _base()
+    return ahorro.realizado(dias)

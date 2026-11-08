@@ -272,6 +272,24 @@ class CostEvent(Base):
     updated_by: Mapped[Optional[str]] = mapped_column(Unicode(320))
 
 
+class SavingAction(Base):
+    """
+    Oportunidad de ahorro que una persona marcó como aplicada (fase 4 del plan 10). Se verifica sola cuando el
+    recurso deja de estar en el inventario: el ahorro realizado es su gasto real de los 30 días previos a la baja.
+    """
+
+    __tablename__ = "saving_actions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    resource_uid: Mapped[str] = mapped_column(UID, index=True)
+    name: Mapped[str] = mapped_column(Unicode(260))
+    category: Mapped[str] = mapped_column(Unicode(100))
+    expected_monthly: Mapped[float] = mapped_column(Float)
+    note: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    applied_by: Mapped[str] = mapped_column(Unicode(320))
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class ControlException(Base):
     """
     Excepción aprobada de un control (CIS o ISO) con su vencimiento: mientras rige, el control se
