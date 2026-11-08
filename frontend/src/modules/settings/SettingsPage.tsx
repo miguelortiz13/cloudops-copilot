@@ -5,6 +5,7 @@ import { dateTime } from '../../lib/format';
 import { useApp } from '../../state/hooks';
 import { Badge, Card, Empty, ErrorState, Loading, Notice, PageHeader, Section } from '../../components/ui';
 import { IncidentSettingsView } from '../incidents/IncidentSettingsView';
+import { ChecksStatus } from './ChecksStatus';
 
 type Valor = number | boolean | string[];
 interface SeccionApi { values: Record<string, Valor>; defaults: Record<string, Valor>; origin: 'ajuste' | 'variable' | 'defecto'; schema: Record<string, (string | number | boolean)[]> }
@@ -36,6 +37,12 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     id: 'riesgo', titulo: 'Riesgo', descripcion: 'Reglas del catálogo que no se evalúan: sus hallazgos se cierran con una nota y no cuentan en los controles. Se aplica desde la próxima recolección.',
     campos: [
       { k: 'reglas_desactivadas', label: 'Reglas desactivadas', hint: 'Identificadores separados por comas, por ejemplo network.admin-port-open. Los ves en Riesgo → Cumplimiento → Catálogo de reglas.' },
+    ],
+  },
+  {
+    id: 'chequeos', titulo: 'Chequeos HTTP', descripcion: 'URLs que se revisan cada 10 minutos. Dos fallas seguidas (sin respuesta o 5xx) abren un incidente con diagnóstico; al responder se resuelve.',
+    campos: [
+      { k: 'urls', label: 'URLs', hint: 'Solo https, separadas por comas (hasta 20). No se revisan direcciones privadas ni locales.' },
     ],
   },
   {
@@ -71,7 +78,8 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
     setGuardando(true);
     setFallo(null);
     const tipo = (k: string) => data.schema[k][0];
-    const cuerpo = Object.fromEntries(def.campos.map((c) => [c.k, tipo(c.k) === 'nombres'
+    const lista = (k: string) => tipo(k) === 'nombres' || tipo(k) === 'urls';
+    const cuerpo = Object.fromEntries(def.campos.map((c) => [c.k, lista(c.k)
       ? v[c.k].split(',').map((x) => x.trim()).filter(Boolean)
       : tipo(c.k) === 'opcion' ? v[c.k] : Number(v[c.k])]));
     try {
@@ -111,7 +119,7 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
                 </label>
               );
             }
-            const numero = esquema[0] !== 'nombres';
+            const numero = esquema[0] !== 'nombres' && esquema[0] !== 'urls';
             return (
               <label className="field" key={c.k}>
                 {c.label}
@@ -208,6 +216,7 @@ export function SettingsPage({ onGo }: { onGo: (path: string) => void }) {
           Los ajustes de cada clúster (namespaces ignorados, umbrales y avisos) están al final de su detalle:{' '}
           <button className="btn btn-ghost btn-sm" onClick={() => onGo('activos/kubernetes')}>Activos → Kubernetes</button>. Sus cambios también aparecen en el historial.
         </Notice>
+        <ChecksStatus version={version} />
         <Historial key={`historial-${version}`} onCambio={recargar} />
       </div>
     </>

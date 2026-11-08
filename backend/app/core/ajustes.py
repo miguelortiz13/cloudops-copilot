@@ -48,6 +48,7 @@ ESQUEMA: Dict[str, Tuple] = {
     **{f"minimo_{d}": ("opcion", "info", "media", "alta", "critica")
        for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")},
     "reglas_desactivadas": ("nombres", 100, True),
+    "urls": ("urls", 20),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
 ESQUEMA_CLUSTER = {**ESQUEMA, "avisar": ("bool",)}
@@ -77,6 +78,8 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
                **{f"minimo_{d}": "info" for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")}},
     # Riesgo: reglas del catálogo que no se evalúan (sus hallazgos se cierran con una nota y no cuentan en los controles).
     "riesgo": {"reglas_desactivadas": []},
+    # Operación: URLs que k8s-watch revisa cada 10 minutos; dos fallas seguidas abren un incidente.
+    "chequeos": {"urls": []},
 }
 # Las que vienen de variables de entorno: el panel muestra "variable" como origen hasta que se guarden.
 DESDE_ENTORNO = {"gobierno", "costos", "ia"}
@@ -119,6 +122,14 @@ def _valor(k: str, v: Any, esquema: Dict[str, Tuple]) -> Any:
         if v not in tipo[1:]:
             raise ValueError(f"{k} debe ser uno de: {', '.join(tipo[1:])}.")
         return v
+    if tipo[0] == "urls":
+        if not isinstance(v, list) or len(v) > tipo[1]:
+            raise ValueError(f"{k}: hasta {tipo[1]} URLs.")
+        limpias = list(dict.fromkeys(u.strip() for u in v if isinstance(u, str)))
+        malas = [u for u in limpias if not re.match(r"^https://[A-Za-z0-9.-]+(:\d+)?(/[^\s]*)?$", u) or len(u) > 300]
+        if malas:
+            raise ValueError(f"Solo URLs https de hasta 300 caracteres: {', '.join(malas[:3])}.")
+        return limpias
     if tipo[0] == "severidades":
         if not isinstance(v, list) or not set(v) <= set(SEVERIDADES):
             raise ValueError(f"{k} debe ser una lista de severidades ({', '.join(SEVERIDADES)}).")

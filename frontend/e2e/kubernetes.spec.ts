@@ -2,7 +2,7 @@ import { abrir, expect, test } from './mock-api';
 
 test('la página de Kubernetes muestra el clúster y avisa del que no reporta', async ({ page }) => {
   await abrir(page, 'activos/kubernetes', 'Kubernetes');
-  await expect(page.getByText('CrashLoopBackOff: grafana-7d9c6b5f4-x2kqp')).toBeVisible();
+  await expect(page.getByText('CrashLoopBackOff: grafana-7d9c6b5f4-x2kqp').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Ver log' }).click();
   await expect(page.getByText('failed to initialize database', { exact: false })).toBeVisible();

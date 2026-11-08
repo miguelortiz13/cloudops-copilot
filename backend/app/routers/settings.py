@@ -70,3 +70,13 @@ def avisos_enviados(dias: int = 7):
                       "duplicados": sum(e["decision"] == "duplicado" for e in items),
                       "filtrados": sum(e["decision"] == "filtrado" for e in items),
                       "fallidos": sum(bool(e["error"]) for e in items)}}
+
+
+
+@router.get("/api/checks")
+def chequeos():
+    """Las URLs de Plataforma → Ajustes → Chequeos con su última respuesta (las revisa k8s-watch cada 10 minutos)."""
+    from app.collectors import chequeos as modulo
+
+    estado = modulo.leer_estado()
+    return {"items": [{"url": u, **estado.get(u, {"ok": None})} for u in ajustes.seccion("chequeos")["urls"]]}
