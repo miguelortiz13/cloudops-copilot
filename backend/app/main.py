@@ -16,10 +16,11 @@ from app.core import config  # noqa: F401  (carga el .env antes que el resto)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core import ajustes
 from app.core.container import start_cost_warmer
 from app.routers import (
-    admin, chat, compliance, finops, history, iac, incidents, inventory, k8s, legacy, me, recommendations, secops, sync,
-    teams,
+    admin, chat, compliance, finops, history, iac, incidents, inventory, k8s, legacy, me, recommendations, secops, settings,
+    sync, teams,
 )
 from app.services.auth import auth_middleware, startup_banner
 from app.services.bot_auth import startup_banner as bot_startup_banner
@@ -28,6 +29,7 @@ from app.services.bot_auth import startup_banner as bot_startup_banner
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     config.ensure_data_dirs()
+    ajustes.aplicar_a_config()  # tags, topes del modelo: lo guardado en Plataforma → Ajustes
     startup_banner()
     bot_startup_banner()
     start_cost_warmer()
@@ -55,10 +57,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # PUT (ajustes) y DELETE (silencios) también: sin ellos, el navegador bloquea esas acciones del panel.
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 for modulo in (k8s, finops, secops, inventory, iac, sync, teams, recommendations, chat, admin, history, compliance, me,
-               incidents, legacy):
+               incidents, settings, legacy):
     app.include_router(modulo.router)

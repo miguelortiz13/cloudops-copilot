@@ -51,5 +51,13 @@ try:
         from app.core import ajustes
 
         monkeypatch.setattr(ajustes, "_ruta", lambda: tmp_path / "ajustes.json")
+        # Guardar ajustes cambia estas listas de config en su lugar: cada prueba las deja como estaban.
+        from app.core import config
+
+        tags, showback = list(config.MANDATORY_TAGS), list(config.SHOWBACK_TAGS)
+        topes = config.LLM_MAX_REQUESTS_PER_HOUR, config.LLM_MAX_REQUESTS_PER_DAY
+        yield
+        config.MANDATORY_TAGS[:], config.SHOWBACK_TAGS[:] = tags, showback
+        config.LLM_MAX_REQUESTS_PER_HOUR, config.LLM_MAX_REQUESTS_PER_DAY = topes
 except ImportError:  # las pruebas de integracion se ejecutan sin pytest
     pass

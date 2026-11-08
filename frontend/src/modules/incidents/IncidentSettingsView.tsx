@@ -46,7 +46,7 @@ export function IncidentSettingsView() {
   };
 
   return (
-    <Section title="Ajustes de incidentes" description="Se aplican a las alertas que lleguen desde ahora.">
+    <Section title="Incidentes" description="Tormentas, foto vieja, qué se diagnostica y qué se avisa. Se aplican a las alertas que lleguen desde ahora.">
       <Card footer={editar ? (
         <>
           <span className="secondary">{borrador ? 'Hay cambios sin guardar.' : 'Sin cambios.'}</span>

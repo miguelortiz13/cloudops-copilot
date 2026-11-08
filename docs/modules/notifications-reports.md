@@ -10,7 +10,7 @@ La plataforma avisa sola en un canal de Discord, Slack o Teams y envía un repor
 | `collector.failed` | Las dos últimas ejecuciones de un recolector fallaron | Cada día mientras siga caído (es un recordatorio) |
 | `resource.unmanaged_created` | Apareció un recurso que ningún estado de Terraform contiene y que creó una persona según Activity Log o CloudTrail; el aviso dice quién | No: solo cuenta lo aparecido desde el último aviso |
 | `cost.anomaly` | En los últimos 3 días completos, una cuenta gastó más que la media de los 14 días previos + 3 desviaciones, o más del doble; mínimo 0,50 USD | No: clave `anomalia:{cuenta}:{día}` |
-| `budget.threshold` | El gasto del mes de una nube llega al 80 % o al 100 % de `MONTHLY_BUDGETS_USD`, o desde el día 8 el pronóstico lineal lo supera | No: clave `presupuesto:{nube}:{mes}:{nivel}` |
+| `budget.threshold` | El gasto del mes de una nube llega al 80 % o al 100 % de su presupuesto (*Plataforma → Ajustes → Costos*; `MONTHLY_BUDGETS_USD` es el valor inicial), o desde el día 8 el pronóstico lineal lo supera | No: clave `presupuesto:{nube}:{mes}:{nivel}` |
 
 Los avisos de Kubernetes (incidencias de clúster y agente sin reportar) salen del job `k8s-watch` cada 10 minutos, al mismo webhook: ver [Kubernetes](kubernetes-sre.md#avisos).
 
