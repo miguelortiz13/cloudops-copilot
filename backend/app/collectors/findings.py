@@ -10,6 +10,8 @@ Estados: abierto -> asumido -> resuelto, o aceptado (riesgo aceptado hasta
 - No detectado y estaba abierto, asumido o aceptado: pasa a `resuelto`
   (evento "resuelto"). Solo si la consulta de su regla respondio: una consulta
   fallida no es evidencia de que el problema desaparecio.
+- Su regla esta desactivada (Plataforma → Ajustes → Riesgo): no se crea, y el
+  que estaba activo pasa a `resuelto` con esa nota.
 
 Cada hallazgo es unico por (regla, recurso). El proveedor decide que es "el
 recurso" (en Azure, la regla de seguridad concreta de un NSG) y que reglas no
@@ -22,6 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.collectors.common import Contexto, Resultado
+from app.core import ajustes
 from app.compliance.catalog import POR_ID, REGLAS, frameworks_json
 from app.db.models import Finding, FindingEvent, Rule
 from app.providers.base import Hallazgo
@@ -53,10 +56,11 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
 
     resultado = ctx.proveedor.evaluar_reglas(ctx.cuentas_uid)
     reglas_sin_evidencia = set(resultado.reglas_sin_evidencia)
+    desactivadas = set(ajustes.seccion("riesgo")["reglas_desactivadas"])
 
     detectados: Dict[Tuple[str, str], Hallazgo] = {}
     for h in resultado.hallazgos:
-        if h.rule_id in POR_ID:
+        if h.rule_id in POR_ID and h.rule_id not in desactivadas:
             detectados[(h.rule_id, h.resource_uid)] = h
 
     cuentas = ctx.cuentas_uid
@@ -65,7 +69,7 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
         for f in session.scalars(select(Finding).where(Finding.account_uid.in_(cuentas)))
     }
 
-    conteo = {"nuevos": 0, "reabiertos": 0, "vencidos": 0, "resueltos": 0}
+    conteo = {"nuevos": 0, "reabiertos": 0, "vencidos": 0, "resueltos": 0, "desactivados": 0}
 
     def evento(hallazgo: Finding, tipo: str, desde, hasta, nota=None):
         session.add(FindingEvent(finding_id=hallazgo.id, at=momento, kind=tipo, from_status=desde,
@@ -99,6 +103,11 @@ def recolectar(ctx: Contexto, session: Session) -> Resultado:
 
     for clave, hallazgo in existentes.items():
         if clave in detectados or hallazgo.status not in ACTIVOS:
+            continue
+        if hallazgo.rule_id in desactivadas:
+            evento(hallazgo, "resuelto", hallazgo.status, "resuelto", "Su regla se desactivó en Plataforma → Ajustes → Riesgo.")
+            hallazgo.status, hallazgo.resolved_at = "resuelto", momento
+            conteo["desactivados"] += 1
             continue
         if hallazgo.rule_id in reglas_sin_evidencia:
             continue

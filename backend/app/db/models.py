@@ -245,6 +245,25 @@ class Incident(Base):
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("incidents.id"), index=True)
 
 
+class ControlException(Base):
+    """
+    Excepción aprobada de un control (CIS o ISO) con su vencimiento: mientras rige, el control se
+    muestra como exceptuado en vez de no cumple. Al vencer, vuelve a su estado real.
+    """
+
+    __tablename__ = "control_exceptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    framework: Mapped[str] = mapped_column(String(64))
+    control: Mapped[str] = mapped_column(String(64))
+    justification: Mapped[str] = mapped_column(UnicodeText)
+    created_by: Mapped[str] = mapped_column(Unicode(320))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    until: Mapped[date] = mapped_column(Date)
+    revoked_by: Mapped[Optional[str]] = mapped_column(Unicode(320))
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class IncidentEvent(Base):
     """Línea de tiempo de un incidente: lo que hizo la fuente, el agente y cada persona."""
 

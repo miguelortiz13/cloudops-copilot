@@ -45,6 +45,7 @@ ESQUEMA: Dict[str, Tuple] = {
     "presupuesto_azure_usd": ("float", 0, 1_000_000), "presupuesto_aws_usd": ("float", 0, 1_000_000),
     "max_consultas_hora": ("int", 0, 10_000), "max_consultas_dia": ("int", 0, 100_000),
     "modo": ("opcion", "registro", "activo"), "deduplicar_min": ("int", 0, 1440),
+    "reglas_desactivadas": ("nombres", 100, True),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
 ESQUEMA_CLUSTER = {**ESQUEMA, "avisar": ("bool",)}
@@ -70,6 +71,8 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     "ia": {"max_consultas_hora": config.LLM_MAX_REQUESTS_PER_HOUR, "max_consultas_dia": config.LLM_MAX_REQUESTS_PER_DAY},
     # Motor de avisos (app/core/avisos.py): en `registro` envía como antes y anota lo que habría silenciado o descartado.
     "avisos": {"modo": "registro", "deduplicar_min": 10},
+    # Riesgo: reglas del catálogo que no se evalúan (sus hallazgos se cierran con una nota y no cuentan en los controles).
+    "riesgo": {"reglas_desactivadas": []},
 }
 # Las que vienen de variables de entorno: el panel muestra "variable" como origen hasta que se guarden.
 DESDE_ENTORNO = {"gobierno", "costos", "ia"}
@@ -120,6 +123,11 @@ def _valor(k: str, v: Any, esquema: Dict[str, Tuple]) -> Any:
     if not isinstance(v, list) or len(v) > maximo or not all(isinstance(n, str) and _NOMBRE.match(n.strip()) for n in v):
         raise ValueError(f"{k}: hasta {maximo} nombres de 1 a 64 caracteres, sin < > % & \\ ? /.")
     limpios = list(dict.fromkeys(n.strip() for n in v))
+    if k == "reglas_desactivadas":
+        from app.compliance.catalog import POR_ID
+        desconocidas = [n for n in limpios if n not in POR_ID]
+        if desconocidas:
+            raise ValueError(f"Reglas desconocidas: {', '.join(desconocidas)}.")
     if k == "tags_obligatorias" and not limpios:
         raise ValueError("tags_obligatorias necesita al menos una tag.")
     return sorted(limpios) if ordenar else limpios
