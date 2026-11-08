@@ -152,3 +152,27 @@ def test_drift_de_terraform_borrados_fuera_y_tags_cambiadas(cliente, monkeypatch
     ctx.proveedor = SimpleNamespace(_tfstate=None)
     assert run.ejecutar("drift", run._drift, ctx) == "parcial"
     assert drift.leer()["totals"] == {"deleted": 1, "tags": 1}
+
+
+
+def test_ahorro_aplicado_se_verifica_cuando_el_recurso_se_da_de_baja(cliente):
+    from app.dominios.costos import ahorro
+
+    r = cliente.post("/api/costos/ahorro/aplicadas", json={
+        "resource_id": "/subscriptions/1/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/stdatos",
+        "name": "stdatos", "category": "Disco sin VM", "expected_monthly": 4.0}).json()
+    assert r["resource_uid"] == ST and r["status"] == "pendiente"
+    pendiente = cliente.get("/api/costos/ahorro/realizado").json()
+    assert pendiente["applied"][0]["status"] == "pendiente" and pendiente["totals"]["realized_monthly"] == 0
+
+    baja = datetime(2026, 10, 30, tzinfo=timezone.utc)
+    with db.session_scope() as s:
+        s.get(Resource, ST).deleted_at = baja
+    d = ahorro.realizado(dias=30, ahora=baja + timedelta(days=1))
+    a = d["applied"][0]
+    # 10 días de 0,50 antes de la baja: 5,00 al mes realizado (esperaba 4,00).
+    assert (a["status"], a["realized_monthly"], a["expected_monthly"]) == ("verificado", 5.0, 4.0)
+    assert d["removed"][0]["name"] == "stdatos" and d["totals"] == {
+        "applied_pending": 0, "expected_monthly": 4.0, "realized_monthly": 5.0, "removed_monthly": 5.0}
+    assert cliente.post("/api/costos/ahorro/aplicadas", json={"resource_id": "x", "name": "x", "category": "c",
+                                                              "expected_monthly": -1}).status_code == 422

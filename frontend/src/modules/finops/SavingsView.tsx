@@ -1,5 +1,7 @@
-import { MessageSquare } from 'lucide-react';
-import { get, scopeQuery } from '../../lib/api';
+import { useState } from 'react';
+import { CheckCircle2, MessageSquare } from 'lucide-react';
+import { get, post, scopeQuery } from '../../lib/api';
+import { RealizedSavings } from './RealizedSavings';
 import { useApi } from '../../lib/useApi';
 import { money, number, percent, shortType } from '../../lib/format';
 import type { FinOpsReport, OrphanResource } from '../../lib/types';
@@ -21,7 +23,9 @@ const CATEGORIES: { key: keyof FinOpsReport; label: string; hint: (r: OrphanReso
  * sabiendo cuánto pesa sobre el gasto total.
  */
 export function SavingsView() {
-  const { scope, scopeKey, askAgent } = useApp();
+  const { scope, scopeKey, askAgent, can, toast } = useApp();
+  const [version, setVersion] = useState(0);
+  const [aplicadas, setAplicadas] = useState<Set<string>>(new Set());
   const { data, error, loading, refreshing, reload } = useApi<FinOpsReport>(
     `finops-report:${scopeKey}`,
     () => get<FinOpsReport>(`/api/finops/report${scopeQuery(scope)}`),
@@ -103,6 +107,20 @@ export function SavingsView() {
                         >
                           <MessageSquare size={14} />
                         </button>
+                        {can('operador') && r.id && (
+                          <button className="btn btn-ghost btn-sm" disabled={aplicadas.has(r.id)} onClick={async () => {
+                            try {
+                              await post('/api/costos/ahorro/aplicadas', { resource_id: r.id, name: r.name, category: r.category, expected_monthly: r.monthly_cost_usd ?? 0 });
+                              setAplicadas(new Set(aplicadas).add(r.id!));
+                              setVersion((n) => n + 1);
+                              toast(`${r.name}: marcada como aplicada; se verifica cuando desaparezca del inventario`);
+                            } catch (e) {
+                              toast(`No se pudo: ${e instanceof Error ? e.message : String(e)}`);
+                            }
+                          }}>
+                            <CheckCircle2 size={14} /> {aplicadas.has(r.id) ? 'Aplicada' : 'Marcar como aplicada'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -256,6 +274,7 @@ export function SavingsView() {
           </Card>
         </div>
       </Section>
+      <RealizedSavings version={version} />
     </div>
   );
 }
