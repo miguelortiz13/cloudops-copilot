@@ -26,6 +26,7 @@ Rutas siempre publicas:
                             token de usuario.
 * `/api/alerts/alertmanager` — la llama Alertmanager; se autentica con su
                             propio token (`ALERTS_INGEST_TOKEN`).
+* `/api/ia/evals/ingesta` — la corrida semanal de evals; mismo token.
 """
 
 import os
@@ -46,6 +47,8 @@ PUBLIC_PATHS = {
     "/api/teams/webhook",
     # La llama Alertmanager: se autentica con su propio token (routers/incidents.py).
     "/api/alerts/alertmanager",
+    # La corrida semanal de evals (GitHub Actions): mismo token de ingesta (app/dominios/plataforma/api.py).
+    "/api/ia/evals/ingesta",
     "/docs",
     "/openapi.json",
     "/redoc",

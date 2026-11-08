@@ -24,7 +24,8 @@ os.environ.setdefault("LLM_PROVIDER", "gemini")
 os.environ["DATABASE_URL"] = f"sqlite:///{TMP}/eval.db"
 os.environ["DATA_DIR"] = TMP
 
-from app import llm  # noqa: E402
+from app import llm
+from eval import resultado  # noqa: E402
 from app.ai import asistente  # noqa: E402
 from app.collectors.findings import _sincronizar_reglas  # noqa: E402
 from app.db import engine as db  # noqa: E402
@@ -121,7 +122,7 @@ def main() -> int:
     sembrar()
     k8s_fleet.configurados = lambda: ["lab-k8s"]
     k8s_fleet.leer = lambda credenciales, nombre: foto_lab() if nombre == "lab-k8s" else None
-    aciertos = 0
+    aciertos, casos = 0, []
     for pregunta, esperado in PREGUNTAS:
         try:
             r = asistente.responder(pregunta, "inventory", None, usuario="eval")
@@ -130,9 +131,11 @@ def main() -> int:
             texto, usadas = f"(error: {exc})", []
         ok = all(re.search(p, texto, re.IGNORECASE) for p in esperado)
         aciertos += ok
+        casos.append({"name": pregunta, "ok": ok, "reason": None if ok else texto[:200]})
         print(f"[{'OK' if ok else 'FALLA'}] {pregunta}\n    herramientas: {usadas}\n    {texto[:300]!r}\n")
     exactitud = aciertos / len(PREGUNTAS)
     print(f"Exactitud: {aciertos}/{len(PREGUNTAS)} = {exactitud:.0%} (objetivo: 90 %)")
+    resultado.guardar("asistente", casos)
     return 0 if exactitud >= 0.9 else 1
 
 

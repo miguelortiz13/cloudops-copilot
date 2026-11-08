@@ -1,8 +1,12 @@
 """Plataforma → IA (plan 11, hito IA-1): trazas del modelo y su resumen por dominio."""
 
+import hmac
+import json
+import os
+from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 
 from app.core import ajustes, trazas
 from app.core.authz import Usuario, requiere
@@ -32,3 +36,50 @@ def detalle(traza_id: str, usuario: Usuario = requiere("operador")):
     if t is None:
         raise HTTPException(status_code=404, detail="No existe esa traza en los últimos 30 días.")
     return t
+
+
+# ---------------------------------------------------------------- evals (plan 11, hito IA-1)
+
+def _carpeta_evals():
+    from app.core import config
+    return config.DATA_DIR / "evals"
+
+
+@router.post("/api/ia/evals/ingesta", status_code=201)
+async def publicar_evals(request: Request, authorization: str = Header(default="")):
+    """
+    La corrida semanal de evals (GitHub Actions) publica aquí su resultado, con el token de ingesta de la
+    plataforma (el mismo de Alertmanager). Público con token propio, como /api/alerts/alertmanager.
+    """
+    esperado = os.getenv("ALERTS_INGEST_TOKEN", "")
+    if not esperado:
+        raise HTTPException(status_code=503, detail="La ingesta no está configurada (ALERTS_INGEST_TOKEN).")
+    if not hmac.compare_digest(authorization.encode(), f"Bearer {esperado}".encode()):
+        raise HTTPException(status_code=401, detail="Token de ingesta inválido.")
+    cuerpo = await request.body()
+    if len(cuerpo) > 200_000:
+        raise HTTPException(status_code=413, detail="Resultado demasiado grande.")
+    try:
+        datos = json.loads(cuerpo)
+        corrida = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "model": str(datos.get("model", ""))[:64],
+                   "run": str(datos.get("run", ""))[:120],
+                   "suites": [{k: s.get(k) for k in ("suite", "cases", "passed", "accuracy", "target", "invented_numbers", "details")}
+                              for s in datos["suites"][:20]]}
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise HTTPException(status_code=400, detail="Se espera {model, run, suites: [...]}.")
+    carpeta = _carpeta_evals()
+    carpeta.mkdir(parents=True, exist_ok=True)
+    with open(carpeta / "historial.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(corrida, ensure_ascii=False) + "\n")
+    return {"stored": len(corrida["suites"])}
+
+
+@router.get("/api/ia/evals")
+def evals(limite: int = Query(default=12, ge=1, le=100), usuario: Usuario = requiere("operador")):
+    """Las últimas corridas de evals, la más reciente primero."""
+    try:
+        with open(_carpeta_evals() / "historial.jsonl", encoding="utf-8") as f:
+            corridas = [json.loads(linea) for linea in f if linea.strip()]
+    except FileNotFoundError:
+        corridas = []
+    return {"runs": corridas[::-1][:limite]}

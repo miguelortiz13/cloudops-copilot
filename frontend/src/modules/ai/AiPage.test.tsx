@@ -16,6 +16,8 @@ describe('Plataforma → IA', () => {
   it('muestra costo, latencia por dominio y abre una traza con sus pasos', async () => {
     api.get.mockImplementation(async (path: string) => {
       if (path.startsWith('/api/ia/resumen')) return { days: 7, priced: true, total: bloque, by_domain: { operacion: bloque }, by_use: { 'incidente.diagnostico': bloque }, tools: [{ name: 'estado_cluster', calls: 3, errors: 0 }] };
+      if (path.startsWith('/api/ia/evals')) return { runs: [{ at: '2026-11-09T07:10:00Z', model: 'gemini-3.5-flash', run: '1',
+        suites: [{ suite: 'dominios', cases: 5, passed: 4, accuracy: 0.8, target: 0.9, invented_numbers: 1 }] }] };
       if (path.startsWith('/api/ia/trazas?')) return { total: 1, items: [{ trace_id: 'a1b2', name: 'invoke_agent incidente.diagnostico', start: '2026-11-09T06:00:00Z', duration_ms: 8200, spans: 2,
         attributes: { 'cloudops.use': 'incidente.diagnostico', 'gen_ai.usage.input_tokens': 8000, 'gen_ai.usage.output_tokens': 400 } }] };
       return { trace_id: 'a1b2', name: 'invoke_agent incidente.diagnostico', start: '2026-11-09T06:00:00Z', duration_ms: 8200,
@@ -26,6 +28,8 @@ describe('Plataforma → IA', () => {
     const { user } = renderWithApp(<IaWrapper />);
     expect(await screen.findByText('Operación')).toBeInTheDocument();
     expect(screen.getAllByText('9,8 s').length).toBeGreaterThan(0);
+    expect(await screen.findByText('IA de los dominios')).toBeInTheDocument();
+    expect(screen.getByText('80 % · objetivo 90 %')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /9\/11\/2026|11\/9\/2026|2026/ }));
     expect(await screen.findByText('execute_tool estado_cluster')).toBeInTheDocument();
   });
