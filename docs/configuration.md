@@ -2,6 +2,8 @@
 
 Toda la configuración del backend se lee de variables de entorno. En local se cargan desde `backend/.env` (plantilla: [`backend/.env.example`](../backend/.env.example)); en Azure, de los *app settings* que define Terraform. `load_dotenv` nunca sobrescribe una variable ya definida en el entorno.
 
+**Reglas en Plataforma → Ajustes.** Las tags obligatorias y de showback, los presupuestos por nube y los topes del modelo se cambian en el panel (*Plataforma → Ajustes*, rol Administrador), con historial y deshacer. Las variables `MANDATORY_TAGS`, `SHOWBACK_TAGS`, `MONTHLY_BUDGETS_USD` y `LLM_MAX_REQUESTS_PER_HOUR`/`_PER_DAY` quedan como **valor inicial**: rigen hasta que alguien guarda esa sección, y el panel muestra de dónde sale cada una. Lo guardado vive en `DATA_DIR/ajustes.json`, que comparten el API y los jobs ([incidentes](modules/incidents.md#ajustes), [plan 10](plan/10-reestructuracion-por-dominios.md)).
+
 El punto de entrada es [`app/core/config.py`](../backend/app/core/config.py). Algunos servicios leen además sus propios parámetros de ajuste fino; todos aparecen abajo.
 
 ## Organización

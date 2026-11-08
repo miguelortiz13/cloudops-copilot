@@ -142,6 +142,16 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Enlaces nuevos en avisos, diagnósticos y herramientas del agente | Hecho |
 | Pruebas estables con cualquier fecha: la suite corre con el reloj adelantado | Hecho |
 
+### Fase 2 · Avisos y ajustes centrales (en curso)
+
+| Entregable | Estado |
+|---|---|
+| Registro de ajustes por dominio (incidentes, gobierno, costos, IA, clústeres) con esquema, origen, historial y deshacer | Hecho |
+| Tags obligatorias y de showback, presupuestos y topes del modelo pasan a ajustes; la variable es el valor inicial | Hecho |
+| *Plataforma → Ajustes* con una sección por dominio y el historial de cambios | Hecho |
+| CORS con `PUT` y `DELETE`: guardar ajustes y quitar silencios desde el panel publicado fallaba en el navegador | Hecho |
+| Motor de avisos común, una semana en modo registro, y *Operación → Avisos* | Siguiente |
+
 ## Riesgos y compatibilidad
 
 | Riesgo | Mitigación |

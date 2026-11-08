@@ -134,9 +134,9 @@ def anomalias(session, hoy: date) -> List[Dict]:
 
 
 def limites_de_presupuesto() -> Dict[str, float]:
-    """`MONTHLY_BUDGETS_USD="azure=5,aws=5"` -> {"azure": 5.0, "aws": 5.0}."""
-    return {nube.strip(): float(monto) for nube, monto in
-            (p.split("=", 1) for p in os.getenv("MONTHLY_BUDGETS_USD", "").split(",") if p.strip())}
+    """Presupuesto mensual por nube (Plataforma → Ajustes → Costos; `MONTHLY_BUDGETS_USD` es el valor inicial)."""
+    from app.core import ajustes
+    return ajustes.presupuestos()
 
 
 def presupuestos(session, hoy: date) -> List[Dict]:

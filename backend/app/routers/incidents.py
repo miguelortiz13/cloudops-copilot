@@ -292,7 +292,7 @@ def ver_ajustes():
 @router.put("/api/settings/incidents")
 def cambiar_ajustes(body: Dict[str, Any], usuario: Usuario = requiere("administrador")):
     try:
-        valores = ajustes.guardar_incidentes(body)
+        valores = ajustes.guardar_incidentes(body, usuario.actor)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     auditar(usuario, "ajustes.incidentes", detalle=body)

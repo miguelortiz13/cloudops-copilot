@@ -118,7 +118,7 @@ def cambiar_ajustes(nombre: str, body: Dict[str, Any], usuario: Usuario = requie
     """Namespaces ignorados, umbrales de reinicios y de gracia, y si el clúster avisa (y de qué severidades)."""
     _configurado(nombre)
     try:
-        valores = ajustes.guardar_cluster(nombre, body)
+        valores = ajustes.guardar_cluster(nombre, body, usuario.actor)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     auditar(usuario, "ajustes.kubernetes", objetivo=nombre, detalle=body)

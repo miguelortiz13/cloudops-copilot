@@ -228,6 +228,8 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--only", default="", help="Recolectores separados por coma: " + ",".join(RECOLECTORES))
     parser.add_argument("--skip-migrations", action="store_true")
     args = parser.parse_args(argv)
+    from app.core import ajustes
+    ajustes.aplicar_a_config()  # tags y topes del modelo guardados en Plataforma → Ajustes
 
     from app.providers.aws.provider import AwsProvider
 
