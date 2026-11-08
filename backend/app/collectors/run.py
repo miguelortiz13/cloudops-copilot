@@ -8,7 +8,7 @@ Orden: migraciones -> inventario (Azure y, si estan configurados, AWS y los clus
 Kubernetes con agente) -> clasificacion ISO
 (costos de AWS despues de los de Azure) -> costos -> hallazgos -> KPIs -> cache de la
 vision general de costos -> vistas precalculadas para el panel (app/readmodel) -> reporte
-mensual (app/collectors/report.py) -> avisos (app/collectors/notify.py). Cada
+mensual (app/collectors/report.py) -> resumen semanal (app/collectors/semanal.py) -> avisos (app/collectors/notify.py). Cada
 recolector corre en su propia transaccion y deja su ejecucion en
 `collector_runs`: un fallo en costos no impide guardar el inventario. El codigo
 de salida es 1 si alguno termino en error, para que Container Apps lo marque
@@ -25,7 +25,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
-from app.collectors import classification, costs, findings, inventory, kpis, notify, report
+from app.collectors import classification, costs, findings, inventory, kpis, notify, report, semanal
 from app.collectors.common import Contexto, Resultado, ahora
 from app.db import engine as db
 from app.db.models import CollectorRun
@@ -148,6 +148,8 @@ RECOLECTORES: Dict[str, Callable] = {
     "readmodel": precalcular_vistas,
     # Reporte ejecutivo del mes anterior, una vez por mes (app/collectors/report.py).
     "report": report.recolectar,
+    # Resumen de la semana anterior, en la primera corrida de cada semana (app/collectors/semanal.py).
+    "weekly": semanal.recolectar,
     # Al final: avisa de lo que dejaron los pasos anteriores de esta misma corrida.
     "notify": notify.recolectar,
 }

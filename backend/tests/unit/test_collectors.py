@@ -581,3 +581,61 @@ def test_recurso_creado_a_mano_fuera_de_terraform_se_avisa_una_vez(monkeypatch):
 
     assert avisar(monkeypatch, DIA + timedelta(hours=1), webhook) == "ok"
     assert len(webhook.enviados) == 1
+
+
+def resumir(monkeypatch, momento, webhook, modelo=None):
+    from app import llm
+    from app.collectors import notify, semanal
+    monkeypatch.setenv("NOTIFY_WEBHOOK_URL", DISCORD)
+    monkeypatch.setattr(notify.requests, "post", webhook)
+    llm.reiniciar(modelo)
+    with db.session_scope() as s:
+        if not s.scalar(select(func.count()).select_from(CollectorRun)):
+            s.add(CollectorRun(collector="inventory", started_at=DIA, finished_at=DIA, status="ok", items=0, detail={}))
+    try:
+        return run.ejecutar("weekly", semanal.recolectar, contexto(momento))
+    finally:
+        llm.reiniciar(None)
+
+
+def test_el_resumen_semanal_sale_una_vez_por_semana_con_las_cifras(monkeypatch):
+    from app.db.models import Incident
+    lunes = datetime(2026, 10, 19, 6, tzinfo=timezone.utc)
+    for d in range(5, 19):
+        gasto(date(2026, 10, d), 1.0 if d >= 12 else 0.5)  # 7.00 esta semana, 3.50 la anterior
+    with db.session_scope() as s:
+        s.add(Incident(key="k", source="alertmanager", cluster="lab", title="PodNotReady · boutique", severity="alta",
+                       status="cerrado", closed_reason="ruido", alerts=[], opened_at=datetime(2026, 10, 15, tzinfo=timezone.utc),
+                       last_alert_at=datetime(2026, 10, 15, tzinfo=timezone.utc), resolved_at=datetime(2026, 10, 15, 0, 20, tzinfo=timezone.utc),
+                       diagnosis_status="listo", diagnosis_tools=[], feedback="correcto"))
+    webhook = Webhook()
+
+    # Menos de una semana de historia: nada.
+    assert resumir(monkeypatch, DIA + timedelta(days=3), webhook) == "ok" and webhook.enviados == []
+
+    assert resumir(monkeypatch, lunes, webhook) == "ok"
+    embed = webhook.enviados[0][1]["embeds"][0]
+    assert embed["title"].endswith("resumen de la semana del 12-10 al 18-10")
+    assert "**Gasto:** 7.00 USD (+100 % contra la anterior)" in embed["description"]
+    assert "**Incidentes:** 1 (0 siguen abiertos), diagnóstico correcto en 1 de 1 marcados" in embed["description"]
+
+    # Otra corrida en la misma semana no lo repite; la semana siguiente, sí.
+    assert resumir(monkeypatch, lunes + timedelta(days=2), webhook) == "ok" and len(webhook.enviados) == 1
+    assert resumir(monkeypatch, lunes + timedelta(days=7), webhook) == "ok" and len(webhook.enviados) == 2
+
+
+def test_el_resumen_semanal_lo_redacta_el_modelo_con_las_cifras(monkeypatch):
+    from app.llm.base import Respuesta
+
+    class Modelo:
+        nombre, modelo = "f", "f"
+
+        def generar(self, sistema, mensaje, **k):
+            self.mensaje = mensaje
+            return Respuesta(texto="- El gasto se duplicó.\n**Para esta semana:** revisar x", modelo="f")
+
+    gasto(date(2026, 10, 14), 2.0)
+    modelo, webhook = Modelo(), Webhook()
+    assert resumir(monkeypatch, datetime(2026, 10, 19, 6, tzinfo=timezone.utc), webhook, modelo) == "ok"
+    assert '"total_usd": 2.0' in modelo.mensaje
+    assert webhook.enviados[0][1]["embeds"][0]["description"].startswith("- El gasto se duplicó.")

@@ -304,7 +304,9 @@ class FabricaAws:
 
 def _escenario_en_memoria(**kw) -> ProveedorEnMemoria:
     a, b = "memoria:acct/a", "memoria:acct/b"
-    hoy = datetime.now(timezone.utc).date()
+    # Fecha fija, como las grabaciones de AWS (9-oct): con la de hoy, la distancia entre ambas crecía cada día
+    # y a los 30 días el gasto de AWS salía de la ventana de las pruebas que mezclan los dos proveedores.
+    hoy = date(2026, 10, 8)
     return ProveedorEnMemoria(
         lista_cuentas=[Cuenta(a, "memoria", "a", "Cuenta A"), Cuenta(b, "memoria", "b", "Cuenta B", parent="memoria:org/1")],
         lista_recursos=[

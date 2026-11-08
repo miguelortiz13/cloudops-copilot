@@ -47,6 +47,18 @@ Desde el día 4 de cada mes, el paso `report` envía el reporte del mes anterior
 
 El PDF se genera sin dependencias externas ([`app/reports/pdf.py`](../../backend/app/reports/pdf.py)): una librería de PDF traería Pillow y sus avisos de Trivy a la imagen. En el panel, Reportes → *Reporte ejecutivo mensual* descarga el de cualquier mes.
 
+## Resumen semanal
+
+En la primera corrida del job de cada semana ISO (los lunes a las 06:00 UTC, en régimen normal), el paso `weekly` ([`collectors/semanal.py`](../../backend/app/collectors/semanal.py)) junta las cifras de los 7 días cerrados anteriores y las publica en el canal:
+
+- Gasto contra la semana anterior y los tres servicios que más gastaron. Los costos llegan con hasta 72 h de retraso, y el resumen dice hasta qué fecha hay datos.
+- Hallazgos nuevos y resueltos en la semana, y los críticos y altos abiertos hoy.
+- Incidentes: cuántos hubo, cuántos siguen abiertos, mediana para resolver, cuántos se cerraron como ruido y la precisión del diagnóstico según las marcas del panel.
+- Recursos nuevos (y cuántos fuera de Terraform) y borrados.
+- Salud del job: pasos bien y con error.
+
+El modelo (Gemini, la misma clave del API como secreto del job) lo redacta como un resumen ejecutivo con 1 o 2 acciones para la semana, usando solo esas cifras. Sin modelo, o si falla, sale con las cifras tal cual. La semana enviada queda en `detail.sent` del paso y no se repite. Hace falta al menos una semana de historia propia.
+
 ## Configuración
 
 | Variable de Terraform | Variable de entorno | Para qué |
