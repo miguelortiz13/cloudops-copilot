@@ -23,7 +23,10 @@ from sqlalchemy import select
 from app.core import config
 from app.db.models import Account, Resource
 
-_PRIMER_NIVEL = re.compile(r"^/subscriptions/([^/]+)/resourcegroups/[^/]+/providers/[^/]+/[^/]+/[^/]+$")
+_PRIMER_NIVEL = re.compile(r"^/subscriptions/([^/]+)/resourcegroups/[^/]+/providers/([^/]+)/[^/]+/[^/]+$")
+# Tienen forma de recurso de primer nivel pero el inventario (Resource Graph `resources`) no los lista:
+# asignaciones de rol, bloqueos y políticas, y despliegues. Sin excluirlos serían falsos "borrados".
+FUERA_DEL_INVENTARIO = {"microsoft.authorization", "microsoft.resources"}
 MAX = 500
 
 
@@ -38,7 +41,7 @@ def calcular(session, indice: Dict[str, Any], ahora: datetime) -> Dict[str, Any]
     tags: List[Dict[str, Any]] = []
     for rid in sorted(indice.get("managed_ids") or ()):
         m = _PRIMER_NIVEL.match(rid)
-        if not m or m.group(1) not in suscripciones:
+        if not m or m.group(1) not in suscripciones or m.group(2) in FUERA_DEL_INVENTARIO:
             continue
         uid = f"azure:{rid}"
         r = vivos.get(uid)
