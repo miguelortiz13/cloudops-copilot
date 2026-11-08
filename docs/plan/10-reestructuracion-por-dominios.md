@@ -95,6 +95,10 @@ La IA es el copiloto de cada módulo: explica, prioriza y redacta con los datos 
 
 Reglas comunes: solo lectura y con aprobación de una persona; cada afirmación cita su vista; evaluación de 90 % o más por dominio, alimentada por las marcas Correcto/Incorrecto; cupo por dominio y respaldo sin modelo; un motor y un modelo cambiable.
 
+## Plataforma de IA
+
+La IA de todos los dominios se apoya en una capa común que la hace medible, observable, segura y consultable desde fuera: **evals continuos** (por dominio, con chequeo de cifras inventadas y regresión desde producción), **trazas** con la convención OpenTelemetry GenAI y una página *Plataforma → IA*, **guardas** contra prompt injection (suite en los evals, contenido delimitado, enlaces permitidos, OWASP LLM Top 10), un **servidor MCP** con las mismas herramientas de solo lectura y **RAG** sobre incidentes resueltos, post-mortems, runbooks y documentación. Es la parte de agentes de la fase 5; el diseño detallado, los criterios de aceptación y los hitos están en el [plan 11](11-plataforma-ia.md).
+
 ## Arquitectura por dominios
 
 ```
@@ -123,7 +127,7 @@ flowchart TB
     G3{{Puerta: los 10 puntos de módulo completo}}
     F4[Fase 4 · Costos y Operación completos<br/>presupuestos, anomalías gestionables, ahorro realizado, enrutamiento y correo, chequeo HTTP]
     G4{{Puerta: los 10 puntos de módulo completo}}
-    F5[Fase 5 · Inicio y agentes<br/>Mis pendientes, Qué cambió, consola única, reportes por bloques]
+    F5[Fase 5 · Inicio y plataforma de IA<br/>Mis pendientes, Qué cambió, reportes por bloques; evals, trazas, guardas, MCP y RAG]
     G5{{Puerta: evaluación de 90 % o más por dominio}}
     F6[Fase 6 · Limpieza<br/>sin alias ni rutas heredadas, documentación y runbooks por dominio]
     G6{{Puerta: 30 días sin llamadas a rutas obsoletas; 6 dominios completos}}
