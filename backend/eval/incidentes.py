@@ -23,6 +23,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TMP}/eval.db"
 os.environ["DATA_DIR"] = TMP
 
 from app import llm  # noqa: E402
+from eval import resultado  # noqa: E402
 from app.ai import agente, herramientas, incidentes  # noqa: E402
 from app.core import config  # noqa: E402
 from app.db import engine as db  # noqa: E402
@@ -148,7 +149,7 @@ def main() -> int:
     db.reset_engine()
     Base.metadata.create_all(db.get_engine())
     k8s_fleet.configurados = lambda: ["lab"]
-    aciertos = 0
+    aciertos, casos = 0, []
     for nombre, f, alertas, esperado in ESCENARIOS:
         k8s_fleet.leer = lambda credenciales, cluster, f=f: f if cluster == "lab" else None
         i = SimpleNamespace(source="alertmanager", cluster="lab", title=f"{alertas[0]['name']} · boutique",
@@ -163,8 +164,10 @@ def main() -> int:
         causa = causa.group(0) if causa else texto
         ok = all(re.search(p, causa, re.I) for p in esperado)
         aciertos += ok
+        casos.append({"name": nombre, "ok": ok, "reason": None if ok else causa.strip()[:200]})
         print(f"[{'OK' if ok else 'FALLA'}] {nombre}\n    herramientas: {usadas}\n    {causa.strip()[:280]!r}\n")
     print(f"Diagnósticos correctos: {aciertos}/{len(ESCENARIOS)} = {aciertos / len(ESCENARIOS):.0%} (objetivo: 90 %)")
+    resultado.guardar("incidentes", casos)
     return 0 if aciertos / len(ESCENARIOS) >= 0.9 else 1
 
 

@@ -93,3 +93,22 @@ def test_resumen_con_costo_estimado_y_api():
         assert c.get("/api/ia/trazas/nada").status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+def test_ingesta_y_lectura_de_evals(monkeypatch):
+    app.dependency_overrides[deps.services] = lambda: SimpleNamespace(azure=None)
+    try:
+        c = TestClient(app)
+        corrida = {"model": "gemini-3.5-flash", "run": "123", "suites": [
+            {"suite": "dominios", "cases": 5, "passed": 5, "accuracy": 1.0, "target": 0.9, "invented_numbers": 0, "details": []}]}
+        monkeypatch.delenv("ALERTS_INGEST_TOKEN", raising=False)
+        assert c.post("/api/ia/evals/ingesta", json=corrida).status_code == 503
+        monkeypatch.setenv("ALERTS_INGEST_TOKEN", "t0k3n")
+        assert c.post("/api/ia/evals/ingesta", json=corrida, headers={"Authorization": "Bearer otro"}).status_code == 401
+        ok = {"Authorization": "Bearer t0k3n"}
+        assert c.post("/api/ia/evals/ingesta", json={"nada": 1}, headers=ok).status_code == 400
+        assert c.post("/api/ia/evals/ingesta", json=corrida, headers=ok).json() == {"stored": 1}
+        runs = c.get("/api/ia/evals").json()["runs"]
+        assert runs[0]["run"] == "123" and runs[0]["suites"][0]["accuracy"] == 1.0
+    finally:
+        app.dependency_overrides.clear()

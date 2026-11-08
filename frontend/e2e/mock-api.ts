@@ -88,6 +88,10 @@ function rutas(role: Role): Record<string, Handler> {
       by_use: { 'incidente.diagnostico': { calls: 4, errors: 0, input_tokens: 32000, output_tokens: 1800, cost_usd: 0.0196, p50_ms: 8200, p95_ms: 9800 },
         'asistente.chat': { calls: 8, errors: 1, input_tokens: 16000, output_tokens: 1400, cost_usd: 0.0108, p50_ms: 1900, p95_ms: 3100 } },
       tools: [{ name: 'estado_cluster', calls: 6, errors: 0 }, { name: 'cambios_recientes', calls: 4, errors: 0 }] }),
+    'GET /api/ia/evals': () => ({ runs: [{ at: '2026-10-05T07:12:00Z', model: 'gemini-3.5-flash', run: '42', suites: [
+      { suite: 'asistente', cases: 9, passed: 9, accuracy: 1, target: 0.9, invented_numbers: 0 },
+      { suite: 'incidentes', cases: 6, passed: 6, accuracy: 1, target: 0.9, invented_numbers: 0 },
+      { suite: 'dominios', cases: 5, passed: 5, accuracy: 1, target: 0.9, invented_numbers: 0 }] }] }),
     'GET /api/ia/trazas': () => ({ total: 1, items: [{ trace_id: 'a1b2', name: 'invoke_agent incidente.diagnostico', start: '2026-10-10T06:10:00Z',
       duration_ms: 8200, spans: 5, attributes: { 'cloudops.use': 'incidente.diagnostico', 'gen_ai.usage.input_tokens': 8000, 'gen_ai.usage.output_tokens': 450 } }] }),
     'GET /api/activos/ficha': () => ({
