@@ -154,14 +154,14 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | *Operación → Avisos* con el registro y *Plataforma → Ajustes → Avisos* con el modo | Hecho |
 | Una semana en modo registro sin diferencias y paso a `activo` (puerta de la fase) | Desde el despliegue |
 
-### Fase 3 · Activos y Riesgo completos (en curso)
+### Fase 3 · Activos y Riesgo completos (hecha)
 
 | Entregable | Estado |
 |---|---|
 | *Activos → Recursos*: lista multinube y ficha única del recurso con explicación de la IA; primer dominio en `app/dominios/` con rutas `/api/activos/...` | Hecho |
 | Historia de incidencias de Kubernetes (inicio, fin, duración) | Hecho |
 | Riesgo: excepciones por control con vencimiento (con borrador de la IA) y reglas desactivables; dominio en `app/dominios/riesgo` | Hecho |
-| Drift de lo gestionado por Terraform | Siguiente |
+| Drift de Terraform (Azure): borrados fuera de Terraform y tags cambiadas a mano | Hecho |
 
 ## Riesgos y compatibilidad
 

@@ -117,3 +117,37 @@ def test_la_ia_explica_el_recurso_con_los_datos_de_su_ficha(cliente):
     llm.reiniciar(modelo)
     r = cliente.post("/api/activos/ficha/explicacion", json={"uid": ST}).json()
     assert r["explanation"].startswith("**Qué es**") and "Blobs públicos" in modelo.mensaje and '"total_30d": 5.0' in modelo.mensaje
+
+
+def test_drift_de_terraform_borrados_fuera_y_tags_cambiadas(cliente, monkeypatch, tmp_path):
+    from app.collectors import run
+    from app.collectors.common import Contexto
+    from app.dominios.activos import drift
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    rg = "/subscriptions/1/resourcegroups/rg/providers"
+    indice = {"available": True, "states_read": 2,
+              "managed_ids": {f"{rg}/microsoft.storage/storageaccounts/stdatos",           # existe, tags distintas
+                              f"{rg}/microsoft.keyvault/vaults/kv-borrado",                # ya no existe: drift
+                              f"{rg}/microsoft.network/virtualnetworks/vnet/subnets/sn1",  # hijo: no cuenta
+                              "/subscriptions/9/resourcegroups/rg/providers/microsoft.web/sites/otra"},  # otra suscripción
+              "tags_by_id": {f"{rg}/microsoft.storage/storageaccounts/stdatos": {"Environment": "prod", "Owner": "plataforma"}},
+              "type_by_id": {f"{rg}/microsoft.keyvault/vaults/kv-borrado": "azurerm_key_vault"}}
+
+    class Estados:
+        def get_index(self):
+            return indice
+
+    ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, subscription_ids=["1"], momento=T,
+                   proveedor=SimpleNamespace(_tfstate=Estados()))
+    assert run.ejecutar("drift", run._drift, ctx) == "ok"
+    d = cliente.get("/api/activos/drift").json()
+    assert d["available"] and d["totals"] == {"deleted": 1, "tags": 1}
+    assert (d["deleted"][0]["name"], d["deleted"][0]["terraform_type"]) == ("kv-borrado", "azurerm_key_vault")
+    cambios = {c["tag"]: (c["terraform"], c["real"]) for c in d["tags"][0]["changes"]}
+    assert cambios == {"Environment": ("prod", "dev"), "Owner": ("plataforma", None)}
+
+    # Sin estados configurados: parcial, sin inventar nada.
+    ctx.proveedor = SimpleNamespace(_tfstate=None)
+    assert run.ejecutar("drift", run._drift, ctx) == "parcial"
+    assert drift.leer()["totals"] == {"deleted": 1, "tags": 1}

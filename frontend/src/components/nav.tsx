@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Role } from '../lib/types';
 import {
-  Activity, BellOff, Boxes, Layers, Megaphone, CircleDollarSign, ClipboardCheck, Container, FileCode2, FileSpreadsheet, History, LayoutGrid,
+  Activity, BellOff, Boxes, GitCompareArrows, Layers, Megaphone, CircleDollarSign, ClipboardCheck, Container, FileCode2, FileSpreadsheet, History, LayoutGrid,
   Plug, PiggyBank, Radar, ScrollText, Settings2, ShieldCheck, Siren, Tags,
 } from 'lucide-react';
 
@@ -21,6 +21,7 @@ export const NAV: { group: string; id: string; items: { id: string; label: strin
       { id: 'activos/recursos', label: 'Recursos', icon: <Layers size={16} /> },
       { id: 'activos/inventario', label: 'Inventario Azure', icon: <Boxes size={16} /> },
       { id: 'activos/iac', label: 'IaC y Terraform', icon: <FileCode2 size={16} /> },
+      { id: 'activos/drift', label: 'Drift de Terraform', icon: <GitCompareArrows size={16} /> },
       { id: 'activos/kubernetes', label: 'Kubernetes', icon: <Container size={16} /> },
     ],
   },

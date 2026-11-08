@@ -62,3 +62,10 @@ def historial_kubernetes(nombre: str, dias: int = Query(default=30, ge=1, le=365
     if nombre not in k8s_fleet.configurados():
         raise HTTPException(status_code=404, detail=f"El clúster {nombre!r} no está configurado.")
     return k8s_watch.historial(nombre, dias)
+
+
+@router.get("/api/activos/drift")
+def drift_terraform():
+    """Recursos borrados fuera de Terraform y tags cambiadas a mano (Azure), de la última recolección."""
+    from app.dominios.activos import drift
+    return drift.leer()

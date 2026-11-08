@@ -6,6 +6,7 @@ const SECCIONES: [ruta: string, titulo: string, migas: string][] = [
   ['activos/recursos', 'Recursos', 'Activos'],
   ['activos/inventario', 'Inventario', 'Activos'],
   ['activos/iac', 'Infraestructura como código', 'IaC y Terraform'],
+  ['activos/drift', 'Drift de Terraform', 'Activos'],
   ['activos/kubernetes', 'Kubernetes', 'Activos'],
   ['costos/gasto', 'Gasto', 'Costos'],
   ['costos/historial', 'Historial', 'Costos'],
