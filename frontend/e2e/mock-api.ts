@@ -80,6 +80,7 @@ function rutas(role: Role): Record<string, Handler> {
         schema: { max_consultas_hora: ['int', 0, 10000], max_consultas_dia: ['int', 0, 100000] } },
     } }),
     'GET /api/settings-history': () => ({ items: [] }),
+    'GET /api/checks': () => ({ items: [] }),
     'GET /api/activos/ficha': () => ({
       uid: 'azure:/subscriptions/1/x/stdatos', name: 'stdatos', provider: 'azure', type: 'storage.account',
       native_type: 'microsoft.storage/storageaccounts', region: 'eastus2', group: 'rg-datos', account: { uid: 'azure:sub/1', name: 'sub-lab' },
