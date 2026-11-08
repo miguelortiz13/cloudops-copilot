@@ -20,26 +20,34 @@ type View = 'controles' | 'reglas' | 'activos';
  */
 export function CompliancePage({ view, onView, onGo }: {
   view: string | undefined;
-  onView: (v: View) => void;
+  onView: (v: 'controles' | 'reglas') => void;
   onGo: (path: string) => void;
 }) {
   const active: View = view === 'reglas' || view === 'activos' ? view : 'controles';
+  if (active === 'activos') {
+    return (
+      <>
+        <PageHeader title="Clasificación de activos"
+          description="Clasificación de los activos de información por confidencialidad, integridad y disponibilidad, con su custodio (ISO/IEC 27001:2022 A.5.9 y A.5.12)." />
+        <AssetsView onGo={onGo} />
+      </>
+    );
+  }
   return (
     <>
       <PageHeader
         title="Cumplimiento"
-        description="Estado de los controles de CIS Azure Foundations e ISO/IEC 27001:2022 que la plataforma evalúa, el catálogo de reglas que los evidencian y la clasificación de activos de información (ISO 27001 A.5.9 y A.5.12)."
+        description="Estado de los controles de CIS Azure Foundations e ISO/IEC 27001:2022 que la plataforma evalúa y el catálogo de reglas que los evidencian."
       />
-      <Tabs<View>
+      <Tabs<'controles' | 'reglas'>
         value={active}
         onChange={onView}
         tabs={[
           { id: 'controles', label: 'Controles' },
           { id: 'reglas', label: 'Catálogo de reglas' },
-          { id: 'activos', label: 'Clasificación de activos' },
         ]}
       />
-      {active === 'activos' ? <AssetsView onGo={onGo} /> : <StatusViews view={active} onGo={onGo} />}
+      <StatusViews view={active} onGo={onGo} />
     </>
   );
 }
@@ -147,9 +155,9 @@ function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refr
           subtitle={<ControlStatusBadge status={selected.status} />}
           onClose={() => setSelected(null)}
           footer={selected.active > 0 && selected.evidence.some((e) => e.kind === 'rule')
-            ? <button className="btn btn-primary" onClick={() => onGo('secops/gestion')}>Ir a la gestión de hallazgos</button>
+            ? <button className="btn btn-primary" onClick={() => onGo('riesgo/hallazgos')}>Ir a la gestión de hallazgos</button>
             : selected.evidence.some((e) => e.kind === 'classification')
-              ? <button className="btn btn-primary" onClick={() => onGo('cumplimiento/activos')}>Ver la clasificación de activos</button>
+              ? <button className="btn btn-primary" onClick={() => onGo('riesgo/clasificacion')}>Ver la clasificación de activos</button>
               : undefined}
         >
           <p style={{ margin: 0, fontSize: 13.5 }}><strong>{selected.title}</strong></p>
@@ -225,7 +233,7 @@ function RulesView({ data, refreshing, onGo }: { data: ComplianceStatus; refresh
           title={selected.title}
           subtitle={<><SeverityBadge severity={selected.severity_default} /> <ControlStatusBadge status={selected.status} /></>}
           onClose={() => setSelected(null)}
-          footer={selected.active > 0 ? <button className="btn btn-primary" onClick={() => onGo('secops/gestion')}>Ver sus hallazgos</button> : undefined}
+          footer={selected.active > 0 ? <button className="btn btn-primary" onClick={() => onGo('riesgo/hallazgos')}>Ver sus hallazgos</button> : undefined}
         >
           <dl className="kv">
             <dt>Identificador</dt><dd className="mono">{selected.id}</dd>

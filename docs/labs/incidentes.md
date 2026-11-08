@@ -142,13 +142,13 @@ Así pasó de verdad el 5-nov-2026: al arrancar la máquina, los pods de la tien
 docker restart boutique-worker boutique-worker2
 ```
 
-- **Qué esperar:** los contenedores de los dos workers se reinician y sus pods suman un reinicio. Como `PodCrashLooping` cuenta reinicios en 15 minutos, a los ~2 minutos dispara para varios pods, cada uno en su grupo de Alertmanager. Desde el tercero dentro de la ventana (120 s, *Incidentes → Ajustes*), los demás cuelgan del primero: en el panel ves **un** incidente "Tormenta en local-k8s-lab: N incidentes" y en Discord **un** aviso, no N.
+- **Qué esperar:** los contenedores de los dos workers se reinician y sus pods suman un reinicio. Como `PodCrashLooping` cuenta reinicios en 15 minutos, a los ~2 minutos dispara para varios pods, cada uno en su grupo de Alertmanager. Desde el tercero dentro de la ventana (120 s, *Plataforma → Ajustes*), los demás cuelgan del primero: en el panel ves **un** incidente "Tormenta en local-k8s-lab: N incidentes" y en Discord **un** aviso, no N.
 - **Diagnóstico correcto si dice:** reinicio de los nodos (o de la máquina) como causa común, no una falla de cada aplicación.
 - **Después, practica la gestión:**
   1. *Reconocer* el incidente y dejar una nota con lo que hiciste.
   2. Cerrarlo como **Ruido** (fue a propósito) y marcar el diagnóstico.
   3. Mirar el **borrador de post-mortem** (si cerraste como *Solucionado*, o cuando Alertmanager avise que se resolvió).
-- **Ahora, el mantenimiento planificado:** en *Incidentes → Silencios*, silencia `clúster=local-k8s-lab`, `alerta=PodCrashLooping` durante 1 hora con el motivo "mantenimiento", y repite el `docker restart`. No debe abrirse ningún incidente ni llegar ningún aviso. Quita el silencio al terminar.
+- **Ahora, el mantenimiento planificado:** en *Operación → Silencios*, silencia `clúster=local-k8s-lab`, `alerta=PodCrashLooping` durante 1 hora con el motivo "mantenimiento", y repite el `docker restart`. No debe abrirse ningún incidente ni llegar ningún aviso. Quita el silencio al terminar.
 - **Para pensar:** ¿qué umbral de tormenta usarías en un clúster con 200 pods? ¿Y qué pasa si la tormenta mezcla una falla real con el ruido? (Pista: abre el incidente padre y revisa la lista de agrupados.)
 - **Estado:** escrito el 7-nov-2026 a partir del caso real; la agrupación está probada con datos simulados y falta repetirla en el laboratorio.
 - **Reparar:** nada; los pods vuelven solos. Si alguno queda mal, `kubectl --context kind-boutique -n boutique get pods`.

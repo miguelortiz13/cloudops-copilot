@@ -392,7 +392,7 @@ def test_un_hallazgo_critico_se_avisa_una_sola_vez(monkeypatch):
     assert avisar(monkeypatch, DIA, webhook) == "ok"
     assert len(webhook.enviados) == 1
     tarjeta = webhook.enviados[0][1]["attachments"][0]["content"]
-    assert "kv1" in tarjeta["body"][1]["text"] and tarjeta["actions"][0]["url"].endswith("/#/secops/gestion")
+    assert "kv1" in tarjeta["body"][1]["text"] and tarjeta["actions"][0]["url"].endswith("/#/riesgo/hallazgos")
 
     # Sigue abierto al dia siguiente: no hay evento nuevo, no se repite.
     correr(findings, contexto(DIA + timedelta(days=1), sec=sec))
@@ -432,7 +432,7 @@ def test_discord_recibe_un_embed_con_enlace(monkeypatch):
     webhook = Webhook(204)
     assert avisar(monkeypatch, DIA, webhook, url="https://discord.com/api/webhooks/1/x") == "ok"
     embed = webhook.enviados[0][1]["embeds"][0]
-    assert "kv1" in embed["description"] and embed["url"].endswith("/#/secops/gestion")
+    assert "kv1" in embed["description"] and embed["url"].endswith("/#/riesgo/hallazgos")
 
 
 def gasto(dia, monto, cuenta=f"azure:sub/{SUB}"):
@@ -531,7 +531,7 @@ def test_el_reporte_no_se_envia_de_un_mes_sin_datos_y_a_teams_va_el_enlace(monke
     assert reportar(monkeypatch, datetime(2026, 11, 4, 6, tzinfo=timezone.utc), webhook, teams) == "ok"
     _, cuerpo, archivos = webhook.enviados[0]
     assert archivos is None
-    assert cuerpo["attachments"][0]["content"]["actions"][0]["url"].endswith("/#/reportes")
+    assert cuerpo["attachments"][0]["content"]["actions"][0]["url"].endswith("/#/plataforma/reportes")
 
 
 def test_el_pdf_es_valido_aunque_el_texto_traiga_parentesis_y_tildes():
@@ -577,7 +577,7 @@ def test_recurso_creado_a_mano_fuera_de_terraform_se_avisa_una_vez(monkeypatch):
     texto = tarjeta["body"][1]["text"]
     assert "**1 recurso(s) creados a mano fuera de Terraform**" in texto
     assert "- st-a-mano (storageaccounts) en lab, por ana@contoso.test" in texto
-    assert tarjeta["actions"][0]["url"].endswith("/#/inventario")
+    assert tarjeta["actions"][0]["url"].endswith("/#/activos/inventario")
 
     assert avisar(monkeypatch, DIA + timedelta(hours=1), webhook) == "ok"
     assert len(webhook.enviados) == 1

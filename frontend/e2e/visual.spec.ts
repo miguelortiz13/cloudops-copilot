@@ -13,19 +13,19 @@ async function estable(page: Page) {
 }
 
 const VISTAS: [ruta: string, titulo: string, archivo: string][] = [
-  ['resumen', 'Resumen', 'resumen'],
-  ['inventario', 'Inventario', 'inventario'],
-  ['finops/costos', 'Costos', 'costos-vision-general'],
-  ['finops/historial', 'Costos', 'costos-historial'],
-  ['secops/gestion', 'Seguridad', 'seguridad-gestion'],
-  ['cumplimiento/controles', 'Cumplimiento', 'cumplimiento-controles'],
-  ['cumplimiento/reglas', 'Cumplimiento', 'cumplimiento-reglas'],
-  ['cumplimiento/activos', 'Cumplimiento', 'cumplimiento-activos'],
-  ['kubernetes', 'Kubernetes', 'kubernetes'],
-  ['incidentes', 'Incidentes', 'incidentes'],
-  ['reportes', 'Reportes y automatización', 'reportes'],
-  ['admin/plataforma', 'Administración', 'admin-plataforma'],
-  ['admin/cuentas', 'Administración', 'admin-cuentas'],
+  ['inicio/resumen', 'Resumen', 'resumen'],
+  ['activos/inventario', 'Inventario', 'inventario'],
+  ['costos/gasto', 'Gasto', 'costos-vision-general'],
+  ['costos/historial', 'Historial', 'costos-historial'],
+  ['riesgo/hallazgos', 'Hallazgos', 'seguridad-gestion'],
+  ['riesgo/cumplimiento', 'Cumplimiento', 'cumplimiento-controles'],
+  ['riesgo/cumplimiento/reglas', 'Cumplimiento', 'cumplimiento-reglas'],
+  ['riesgo/clasificacion', 'Clasificación de activos', 'cumplimiento-activos'],
+  ['activos/kubernetes', 'Kubernetes', 'kubernetes'],
+  ['operacion/incidentes', 'Incidentes', 'incidentes'],
+  ['plataforma/reportes', 'Reportes y automatización', 'reportes'],
+  ['plataforma/estado', 'Estado de la plataforma', 'admin-plataforma'],
+  ['plataforma/cuentas', 'Cuentas', 'admin-cuentas'],
 ];
 
 test.describe('@visual', () => {
@@ -38,7 +38,7 @@ test.describe('@visual', () => {
   }
 
   test('detalle de un control', async ({ page }) => {
-    await abrir(page, 'cumplimiento/controles', 'Cumplimiento');
+    await abrir(page, 'riesgo/cumplimiento', 'Cumplimiento');
     await estable(page);
     await page.getByRole('row', { name: /6\.2/ }).getByRole('button', { name: 'Detalle' }).click();
     await expect(page.getByRole('dialog')).toHaveScreenshot('cumplimiento-detalle-control.png');
@@ -46,14 +46,14 @@ test.describe('@visual', () => {
 
   test('cumplimiento en tema oscuro', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await abrir(page, 'cumplimiento/controles', 'Cumplimiento');
+    await abrir(page, 'riesgo/cumplimiento', 'Cumplimiento');
     await estable(page);
     await expect(page).toHaveScreenshot('cumplimiento-controles-oscuro.png', { fullPage: true });
   });
 
   test('cumplimiento en un teléfono', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await abrir(page, 'cumplimiento/activos', 'Cumplimiento');
+    await abrir(page, 'riesgo/clasificacion', 'Clasificación de activos');
     await estable(page);
     await expect(page).toHaveScreenshot('cumplimiento-activos-movil.png', { fullPage: true });
   });

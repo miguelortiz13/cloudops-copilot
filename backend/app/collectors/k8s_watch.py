@@ -108,7 +108,7 @@ def ejecutar(credenciales, ahora: Optional[datetime] = None) -> int:
             avisos[nombre] = lineas
     for nombre, lineas in avisos.items():
         m = {"titulo": f"{config.APP_NAME}: Kubernetes · {nombre}", "lineas": lineas,
-             "enlace": f"{config.FRONTEND_URL}/#/kubernetes/{nombre}"}
+             "enlace": f"{config.FRONTEND_URL}/#/activos/kubernetes/{nombre}"}
         grave = any(x.startswith(("- [critica]", "- El agente dejó")) for x in lineas)
         resuelto = all(x.startswith(("- Resuelta", "- El agente volvió")) for x in lineas)
         notify.enviar(url, json=notify.payload(url, m, color=0x22C55E if resuelto else 0xEF4444 if grave else 0xF59E0B))

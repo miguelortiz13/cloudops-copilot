@@ -4,7 +4,7 @@ import { useApi } from '../../lib/useApi';
 import { dateTime } from '../../lib/format';
 import type { Silence } from '../../lib/types';
 import { useApp } from '../../state/hooks';
-import { Card, Empty, ErrorState, Loading, Notice, Section } from '../../components/ui';
+import { Card, Empty, ErrorState, Loading, Notice, PageHeader, Section } from '../../components/ui';
 
 const DURACIONES = [{ h: 1, label: '1 hora' }, { h: 4, label: '4 horas' }, { h: 24, label: '1 día' }, { h: 168, label: '7 días' }, { h: 720, label: '30 días' }];
 
@@ -128,5 +128,15 @@ export function SilencesView() {
         )}
       </Section>
     </div>
+  );
+}
+
+/** Operación → Silencios. */
+export function SilencesPage() {
+  return (
+    <>
+      <PageHeader title="Silencios" description="Silencios vigentes por clúster, namespace, alerta u objeto, con su motivo y su vencimiento." />
+      <SilencesView />
+    </>
   );
 }

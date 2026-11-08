@@ -52,7 +52,7 @@ describe('Cumplimiento', () => {
     expect(within(panel).getByText('Key Vault alcanzable desde red pública')).toBeInTheDocument();
     expect(within(panel).getByText(/Añadir private endpoint/)).toBeInTheDocument();
     await user.click(within(panel).getByRole('button', { name: 'Ir a la gestión de hallazgos' }));
-    expect(onGo).toHaveBeenCalledWith('secops/gestion');
+    expect(onGo).toHaveBeenCalledWith('riesgo/hallazgos');
   });
 
   it('el catálogo muestra el mapeo y marca la evidencia parcial', async () => {
@@ -69,8 +69,10 @@ describe('Cumplimiento', () => {
   it('las pestañas navegan por la URL', async () => {
     const onView = vi.fn();
     const { user } = renderWithApp(<CompliancePage view="controles" onView={onView} onGo={vi.fn()} />);
-    await user.click(screen.getByRole('tab', { name: 'Clasificación de activos' }));
-    expect(onView).toHaveBeenCalledWith('activos');
+    await user.click(screen.getByRole('tab', { name: 'Catálogo de reglas' }));
+    expect(onView).toHaveBeenCalledWith('reglas');
+    // La clasificación de activos es su propia sección (Riesgo → Clasificación), no una pestaña.
+    expect(screen.queryByRole('tab', { name: 'Clasificación de activos' })).not.toBeInTheDocument();
   });
 
   it('ControlRefs: sin controles muestra una raya', () => {

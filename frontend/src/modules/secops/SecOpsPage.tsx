@@ -6,7 +6,7 @@ import { money, number } from '../../lib/format';
 import type { Finding, RiskExposure, SecOpsReport, Severity } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import {
-  Card, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile, Tabs,
+  Card, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile,
 } from '../../components/ui';
 import { AzureGuard } from '../../components/AzureGuard';
 import { ManagementView } from './ManagementView';
@@ -34,22 +34,18 @@ function CostCell({ f, currency }: { f: Finding; currency: string }) {
 
 type View = 'vivo' | 'gestion';
 
-export function SecOpsPage({ view, onView }: { view: string | undefined; onView: (v: View) => void }) {
+/** Riesgo: la bandeja de hallazgos con su ciclo de vida (`gestion`) y la exposición en vivo de Azure (`vivo`). */
+export function SecOpsPage({ view }: { view: string | undefined }) {
   const active: View = view === 'gestion' ? 'gestion' : 'vivo';
   return (
     <>
-      <PageHeader
-        title="Seguridad"
-        description="Hallazgos de exposición y salud operativa. En vivo, ordenados por severidad y gasto expuesto; en gestión, con su ciclo de vida: quién los asumió, qué riesgos se aceptaron y cuáles se resolvieron."
-      />
-      <Tabs<View>
-        value={active}
-        onChange={onView}
-        tabs={[
-          { id: 'vivo', label: 'Hallazgos en vivo' },
-          { id: 'gestion', label: 'Gestión de hallazgos' },
-        ]}
-      />
+      {active === 'gestion' ? (
+        <PageHeader title="Hallazgos"
+          description="Todos los hallazgos de seguridad y gobierno de Azure, AWS y Kubernetes con su ciclo de vida: quién los asumió, qué riesgos se aceptaron y hasta cuándo, y cuáles se resolvieron." />
+      ) : (
+        <PageHeader title="Exposición en vivo"
+          description="Lo que está expuesto en Azure ahora mismo, consultado en vivo y ordenado por severidad y gasto expuesto." />
+      )}
       {active === 'vivo' ? <AzureGuard><LiveFindings /></AzureGuard> : <ManagementView />}
     </>
   );

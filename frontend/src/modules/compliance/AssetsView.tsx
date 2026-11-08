@@ -240,7 +240,7 @@ function AssetDrawer({ asset: a, onClose, onChanged, onGo }: {
         </>
       ) : (
         <>
-          {a.open_findings > 0 && <button className="btn btn-ghost" onClick={() => onGo('secops/gestion')}>Ver sus hallazgos</button>}
+          {a.open_findings > 0 && <button className="btn btn-ghost" onClick={() => onGo('riesgo/hallazgos')}>Ver sus hallazgos</button>}
           {puedeEditar && a.method === 'manual' && (
             <button className="btn" onClick={() => enviar(true)} disabled={busy}>Restaurar la automática</button>
           )}

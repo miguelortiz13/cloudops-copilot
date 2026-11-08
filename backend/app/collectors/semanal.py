@@ -145,6 +145,6 @@ def recolectar(ctx: Contexto, session) -> Resultado:
     texto = redactar(d)
     lineas = [texto] if texto else cifras(d)
     m = {"titulo": f"{config.APP_NAME}: resumen de la semana del {date.fromisoformat(d['desde']):%d-%m} al {date.fromisoformat(d['hasta']):%d-%m}",
-         "lineas": lineas, "enlace": f"{config.FRONTEND_URL}/#/"}
+         "lineas": lineas, "enlace": f"{config.FRONTEND_URL}/#/inicio/resumen"}
     notify.enviar(url, json=notify.payload(url, m, color=0x8B5CF6))
     return Resultado(items=1, detail={"sent": clave, "llm": bool(texto)})

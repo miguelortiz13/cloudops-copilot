@@ -49,11 +49,11 @@ stateDiagram-v2
 
 ### Silencios
 
-Un silencio cubre lo que coincide con **todos** sus campos: clúster, namespace, nombre de la alerta y objeto (parte del nombre del pod, deployment, servicio o nodo). Los campos vacíos son "cualquiera", pero al menos uno es obligatorio, y dura de minutos a 30 días. Lo silenciado no abre incidentes, no se diagnostica y no se avisa; las incidencias de Kubernetes que coinciden tampoco se avisan. Se crean desde la pestaña *Silencios* o desde un incidente (*Silenciar similares*).
+Un silencio cubre lo que coincide con **todos** sus campos: clúster, namespace, nombre de la alerta y objeto (parte del nombre del pod, deployment, servicio o nodo). Los campos vacíos son "cualquiera", pero al menos uno es obligatorio, y dura de minutos a 30 días. Lo silenciado no abre incidentes, no se diagnostica y no se avisa; las incidencias de Kubernetes que coinciden tampoco se avisan. Se crean desde *Operación → Silencios* o desde un incidente (*Silenciar similares*).
 
 ### Ajustes
 
-Los cambia un administrador en la pestaña *Ajustes* y se aplican a la siguiente alerta:
+Los cambia un administrador en *Plataforma → Ajustes* y se aplican a la siguiente alerta:
 
 | Ajuste | Por defecto | Qué hace |
 |---|---|---|

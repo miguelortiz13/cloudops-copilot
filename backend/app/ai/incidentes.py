@@ -315,7 +315,7 @@ def reportar(incidente_id: int) -> None:
         i = s.get(Incident, incidente_id)
         if i.parent_id is not None or i.severity not in ajustes.incidentes()["avisar"]:
             return  # lo cubre el aviso de su tormenta, o su severidad no se avisa
-        enlace = f"{config.FRONTEND_URL}/#/incidentes/{i.id}"
+        enlace = f"{config.FRONTEND_URL}/#/operacion/incidentes/{i.id}"
         if i.status == "resuelto":
             minutos = int(((i.resolved_at - i.opened_at).total_seconds()) // 60)
             titulo, color = f"Resuelto · incidente #{i.id}: {i.title}", 0x22C55E

@@ -131,7 +131,7 @@ def test_diagnostico_con_herramientas_se_guarda_y_se_publica(canal, monkeypatch)
     embed = canal[0]["embeds"][0]
     assert embed["title"] == f"[alta] Incidente #{i}: KubePodCrashLooping · boutique · paymentservice-1"
     assert "(https://panel.example/#/kubernetes/local-k8s-lab)" in embed["description"]
-    assert "hunter2" not in embed["description"] and embed["url"] == f"https://panel.example/#/incidentes/{i}"
+    assert "hunter2" not in embed["description"] and embed["url"] == f"https://panel.example/#/operacion/incidentes/{i}"
 
     incidentes.ingresar_alertmanager(webhook("resolved"), "local-k8s-lab", AHORA + timedelta(minutes=17))
     incidentes.reportar(i)

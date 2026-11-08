@@ -6,7 +6,7 @@ import { dateTime, number } from '../../lib/format';
 import type { Role } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import {
-  Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, StatTile, Tabs,
+  Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, StatTile,
 } from '../../components/ui';
 import { AccountsView } from './AccountsView';
 
@@ -75,7 +75,7 @@ const FAMILIAS = [
 const RECOLECTOR: Record<string, string> = {
   inventory: 'Inventario', inventory_aws: 'Inventario de AWS', classification: 'Clasificación ISO', costs: 'Costos', costs_aws: 'Costos de AWS', findings: 'Hallazgos', findings_aws: 'Hallazgos de AWS', kpis: 'KPIs',
   inventory_kubernetes: 'Inventario de Kubernetes', findings_kubernetes: 'Hallazgos de Kubernetes',
-  costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel', report: 'Reporte mensual', notify: 'Avisos',
+  costcache: 'Caché de costos en vivo', readmodel: 'Vistas del panel', report: 'Reporte mensual', weekly: 'Resumen semanal', notify: 'Avisos',
 };
 
 function Outcome({ ok, label }: { ok: boolean; label?: string }) {
@@ -109,14 +109,20 @@ function resumen(a: AuditItem): string {
  * precalculada): despierta Azure SQL si estaba pausada. Es una consulta
  * ocasional de una persona, dentro del presupuesto del cupo gratuito.
  */
-export function AdminPage({ view, onView }: { view: string | undefined; onView: (v: View) => void }) {
+const CABECERA: Record<View, { title: string; description: string }> = {
+  actividad: { title: 'Auditoría', description: 'Quién hizo qué en la plataforma: cada cambio de estado, clasificación, ajuste o sincronización, con su actor y resultado.' },
+  cuentas: { title: 'Cuentas', description: 'Qué cuentas de cada nube están conectadas, con qué identidad y qué permisos tiene la plataforma en cada una.' },
+  plataforma: { title: 'Estado de la plataforma', description: 'La base de datos y las últimas ejecuciones de cada recolector del job diario.' },
+};
+
+export function AdminPage({ view }: { view: string | undefined }) {
   const { can, me } = useApp();
   const active: View = view === 'plataforma' || view === 'cuentas' ? view : 'actividad';
 
   if (me && !can('administrador')) {
     return (
       <>
-        <PageHeader title="Administración" />
+        <PageHeader title={CABECERA[active].title} />
         <Empty title="Requiere el rol Administrador">Tu rol es {ROLE_LABEL[me.role]}. Pídele acceso a un administrador de la plataforma.</Empty>
       </>
     );
@@ -124,19 +130,7 @@ export function AdminPage({ view, onView }: { view: string | undefined; onView: 
 
   return (
     <>
-      <PageHeader
-        title="Administración"
-        description="Quién hizo qué en la plataforma, qué cuentas de cada nube están conectadas y con qué permisos, y cómo están la base de datos y los recolectores."
-      />
-      <Tabs<View>
-        value={active}
-        onChange={onView}
-        tabs={[
-          { id: 'actividad', label: 'Actividad de usuarios' },
-          { id: 'cuentas', label: 'Cuentas conectadas' },
-          { id: 'plataforma', label: 'Base y recolectores' },
-        ]}
-      />
+      <PageHeader {...CABECERA[active]} />
       {active === 'actividad' ? <Activity /> : active === 'cuentas' ? <AccountsView /> : <Platform />}
     </>
   );

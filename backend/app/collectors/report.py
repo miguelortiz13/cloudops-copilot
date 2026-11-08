@@ -39,7 +39,7 @@ def resumen(d) -> dict:
                        f"**Hallazgos abiertos:** {sum(a.values())} (críticos {a['critica']}, altos {a['alta']}); "
                        f"{d['resueltos']} resueltos en el mes",
                        f"**Recursos:** {sum(d['recursos'].values())}, {d['en_iac']} en Terraform"],
-            "enlace": f"{config.FRONTEND_URL}/#/reportes"}
+            "enlace": f"{config.FRONTEND_URL}/#/plataforma/reportes"}
 
 
 def recolectar(ctx: Contexto, session) -> Resultado:
