@@ -6,6 +6,7 @@ import type { K8sClusterDetail, K8sClusterSummary, K8sIncident, K8sPod, K8sSuppo
 import { useApp } from '../../state/hooks';
 import { SilenceForm } from '../incidents/SilencesView';
 import { ClusterSettings } from './ClusterSettings';
+import { K8sHistory } from './K8sHistory';
 import {
   Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, SeverityBadge, StatTile,
 } from '../../components/ui';
@@ -213,6 +214,8 @@ function Detalle({ nombre, onIncidente }: { nombre: string; onIncidente?: (id: n
           ) : <Empty title="Sin incidencias">Todos los nodos están listos y las cargas tienen sus réplicas.</Empty>}
         </Card>
       </Section>
+
+      <K8sHistory nombre={nombre} />
 
       <div className="grid grid-2">
         <Section title="Nodos">

@@ -15,7 +15,9 @@ altas y avisa al webhook de `NOTIFY_WEBHOOK_URL`:
 Respeta los ajustes del clúster (si avisa y de qué severidades) y los silencios
 (app/core/ajustes.py): una incidencia silenciada no se avisa.
 
-El estado (qué está abierto y qué ya se avisó) vive en DATA_DIR/k8s_watch.json.
+El estado (qué está abierto y qué ya se avisó) vive en DATA_DIR/k8s_watch.json. Además lleva la
+historia de TODAS las incidencias (también las que no se avisan): cuando una deja de aparecer, su
+inicio, fin y duración quedan en DATA_DIR/k8s_historial/<clúster>.jsonl (Activos → Kubernetes).
 Si el envío falla, el estado no se guarda y la siguiente ejecución lo repite.
 """
 
@@ -23,7 +25,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -50,6 +52,44 @@ def guardar_estado(estado: Dict) -> None:
     temporal.replace(ruta)
 
 
+def _carpeta_historial() -> Path:
+    return Path(config.DATA_DIR) / "k8s_historial"
+
+
+def anotar_historial(cluster: str, filas: List[Dict]) -> None:
+    if not filas:
+        return
+    carpeta = _carpeta_historial()
+    carpeta.mkdir(parents=True, exist_ok=True)
+    with open(carpeta / f"{cluster}.jsonl", "a", encoding="utf-8") as f:
+        for fila in filas:
+            f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+
+
+def historial(cluster: str, dias: int = 30, ahora: Optional[datetime] = None) -> Dict:
+    """Las incidencias cerradas de los últimos `dias` (más reciente primero) y las abiertas ahora, con su duración."""
+    ahora = ahora or k8s_fleet.ahora()
+    desde = (ahora - timedelta(days=dias)).isoformat()
+
+    def minutos(a: Optional[str], b: Optional[str]) -> Optional[int]:
+        if not a or not b:
+            return None
+        return int((datetime.fromisoformat(b.replace("Z", "+00:00")) - datetime.fromisoformat(a.replace("Z", "+00:00"))).total_seconds() // 60)
+
+    try:
+        with open(_carpeta_historial() / f"{cluster}.jsonl", encoding="utf-8") as f:
+            cerradas = [json.loads(linea) for linea in f if linea.strip()]
+    except FileNotFoundError:
+        cerradas = []
+    cerradas = sorted((c | {"minutes": minutos(c["desde"], c["hasta"])} for c in cerradas if (c.get("hasta") or "") >= desde),
+                      key=lambda c: c["hasta"], reverse=True)
+    abiertas = sorted((h | {"hasta": None, "minutes": minutos(h["desde"], ahora.isoformat())}
+                       for h in leer_estado().get(cluster, {}).get("historia", {}).values()), key=lambda h: h["desde"] or "")
+    duraciones = sorted(c["minutes"] for c in cerradas if c["minutes"] is not None)
+    return {"cluster": cluster, "days": dias, "open": abiertas, "closed": cerradas[:300],
+            "median_minutes": duraciones[len(duraciones) // 2] if duraciones else None}
+
+
 def _clave(i: Dict) -> str:
     return f"{i['namespace'] or '-'}/{i['resource']}"
 
@@ -60,7 +100,8 @@ def evaluar(nombre: str, foto: Optional[Dict], previo: Dict, ahora: datetime) ->
         return previo, []
     lineas: List[str] = []
     estado = {"collected_at": foto.get("collected_at"), "abiertas": dict(previo.get("abiertas", {})),
-              "pendientes": dict(previo.get("pendientes", {})), "sin_reportar": previo.get("sin_reportar", False)}
+              "pendientes": dict(previo.get("pendientes", {})), "sin_reportar": previo.get("sin_reportar", False),
+              "historia": dict(previo.get("historia", {}))}
     edad = k8s_fleet._segundos(foto.get("collected_at"), ahora)
     if edad is None or edad > k8s_fleet.vieja_segundos():
         if not estado["sin_reportar"]:
@@ -76,6 +117,12 @@ def evaluar(nombre: str, foto: Optional[Dict], previo: Dict, ahora: datetime) ->
 
     a = ajustes.cluster(nombre)
     todas = {_clave(i): i for i in k8s_fleet.incidencias(foto, ahora, nombre)}
+    # Historia: lo que aparece se abre con la hora de la foto; lo que ya no está se cierra (ejecutar() lo anota).
+    momento = foto.get("collected_at")
+    for clave, i in todas.items():
+        estado["historia"].setdefault(clave, {k: i[k] for k in ("title", "severity", "category", "namespace", "resource")}
+                                      | {"desde": momento})
+    estado["cerradas"] = [estado["historia"].pop(c) | {"hasta": momento} for c in list(estado["historia"]) if c not in todas]
     vigentes = {c: i for c, i in todas.items()
                 if a["avisar"] and i["severity"] in a["avisar_severidades"] and not i["silenced_until"]}
     for clave, i in vigentes.items():
@@ -102,8 +149,10 @@ def ejecutar(credenciales, ahora: Optional[datetime] = None) -> int:
     ahora = ahora or k8s_fleet.ahora()
     estado = leer_estado()
     nuevo, por_cluster = {}, {}
+    cerradas: Dict[str, List[Dict]] = {}
     for nombre in k8s_fleet.configurados():
         nuevo[nombre], lineas = evaluar(nombre, k8s_fleet.leer(credenciales, nombre), estado.get(nombre, {}), ahora)
+        cerradas[nombre] = nuevo[nombre].pop("cerradas", [])
         if lineas:
             por_cluster[nombre] = lineas
     for nombre, lineas in por_cluster.items():
@@ -114,6 +163,8 @@ def ejecutar(credenciales, ahora: Optional[datetime] = None) -> int:
         avisos.publicar(url, m, dominio="activos", tipo="kubernetes", severidad="critica" if grave else "alta",
                         clave=f"k8s:{nombre}:{hashlib.sha1(chr(10).join(lineas).encode()).hexdigest()[:12]}", atributos={"cluster": nombre},
                         color=0x22C55E if resuelto else 0xEF4444 if grave else 0xF59E0B)
+    for nombre, filas in cerradas.items():
+        anotar_historial(nombre, filas)
     guardar_estado(nuevo)
     return sum(map(len, por_cluster.values()))
 

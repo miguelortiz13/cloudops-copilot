@@ -51,3 +51,14 @@ def explicacion(body: Pedido, usuario: Usuario = requiere("lector")):
         raise HTTPException(status_code=404, detail="Ese recurso no está en el inventario.")
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=f"El modelo no respondió: {str(exc)[:200]}")
+
+
+@router.get("/api/activos/kubernetes/{nombre}/historial")
+def historial_kubernetes(nombre: str, dias: int = Query(default=30, ge=1, le=365)):
+    """Incidencias del clúster con su inicio, fin y duración (las lleva k8s-watch cada 10 minutos)."""
+    from app.collectors import k8s_watch
+    from app.services import k8s_fleet
+
+    if nombre not in k8s_fleet.configurados():
+        raise HTTPException(status_code=404, detail=f"El clúster {nombre!r} no está configurado.")
+    return k8s_watch.historial(nombre, dias)
