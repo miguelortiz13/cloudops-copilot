@@ -61,12 +61,16 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     campos: [
       { k: 'max_consultas_hora', label: 'Consultas por hora', hint: '0 = sin tope.' },
       { k: 'max_consultas_dia', label: 'Consultas por día', hint: '0 = sin tope.' },
+      { k: 'precio_entrada_usd_1m', label: 'Precio de entrada (USD por millón de tokens)', hint: 'El de tu modelo y plan; con él Plataforma → IA estima el costo. 0 = sin precio.' },
+      { k: 'precio_salida_usd_1m', label: 'Precio de salida (USD por millón de tokens)', hint: 'Los tokens que genera el modelo.' },
     ],
   },
 ];
 
-function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[number]; data: SeccionApi; onGuardado: () => void }) {
+function SeccionGenerica({ def: completa, data, onGuardado }: { def: (typeof SECCIONES)[number]; data: SeccionApi; onGuardado: () => void }) {
   const { can, toast } = useApp();
+  // Solo los campos que el API conoce: con un API anterior, un campo nuevo no rompe la página.
+  const def = { ...completa, campos: completa.campos.filter((c) => data.schema[c.k]) };
   const texto = (v: Valor) => (Array.isArray(v) ? v.join(', ') : String(v));
   const [borrador, setBorrador] = useState<Record<string, string> | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);

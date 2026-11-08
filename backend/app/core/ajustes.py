@@ -44,6 +44,7 @@ ESQUEMA: Dict[str, Tuple] = {
     "tags_obligatorias": ("nombres", 20, False), "tags_showback": ("nombres", 10, False),
     "presupuesto_azure_usd": ("float", 0, 1_000_000), "presupuesto_aws_usd": ("float", 0, 1_000_000),
     "max_consultas_hora": ("int", 0, 10_000), "max_consultas_dia": ("int", 0, 100_000),
+    "precio_entrada_usd_1m": ("float", 0, 1000), "precio_salida_usd_1m": ("float", 0, 1000),
     "modo": ("opcion", "registro", "activo"), "deduplicar_min": ("int", 0, 1440),
     **{f"minimo_{d}": ("opcion", "info", "media", "alta", "critica")
        for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")},
@@ -71,7 +72,9 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     "incidentes": INCIDENTES,
     "gobierno": {"tags_obligatorias": list(config.MANDATORY_TAGS), "tags_showback": list(config.SHOWBACK_TAGS)},
     "costos": {},  # su valor inicial se lee al usarlo (_defecto): la variable puede cambiar después de importar
-    "ia": {"max_consultas_hora": config.LLM_MAX_REQUESTS_PER_HOUR, "max_consultas_dia": config.LLM_MAX_REQUESTS_PER_DAY},
+    # Precio del modelo por millón de tokens (Plataforma → IA estima el costo con él; 0 = sin precio configurado).
+    "ia": {"max_consultas_hora": config.LLM_MAX_REQUESTS_PER_HOUR, "max_consultas_dia": config.LLM_MAX_REQUESTS_PER_DAY,
+           "precio_entrada_usd_1m": 0.0, "precio_salida_usd_1m": 0.0},
     # Motor de avisos (app/core/avisos.py): en `registro` envía como antes y anota lo que habría silenciado o descartado.
     # minimo_<dominio>: la severidad más baja que llega al canal desde ese dominio (info = todo).
     "avisos": {"modo": "registro", "deduplicar_min": 10,

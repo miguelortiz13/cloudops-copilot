@@ -226,7 +226,7 @@ def diagnosticar(incidente_id: int, credenciales, actor: str = "agente") -> None
         i = s.get(Incident, incidente_id)
         hijos = list(s.scalars(select(Incident).where(Incident.parent_id == i.id)))
         sistema, mensaje, severidad = SISTEMA.format(org=config.ORG_NAME), _mensaje(i, hijos), i.severity
-    estado, texto, usadas = "listo", None, []
+    estado, texto, usadas, traza_id = "listo", None, [], None
     if severidad not in a["diagnosticar"]:
         estado = "omitido"
     elif not llm.con_herramientas():
@@ -236,7 +236,7 @@ def diagnosticar(incidente_id: int, credenciales, actor: str = "agente") -> None
             limits.consumir(CUPO, por_hora=a["max_diagnosticos_hora"] or None)
             r = agente.responder(sistema, mensaje, herramientas.para_asistente(credenciales), uso="incidente.diagnostico",
                                  usuario=CUPO)
-            texto, usadas = r["answer"], r["tools"]
+            texto, usadas, traza_id = r["answer"], r["tools"], r.get("trace_id")
         except limits.LimiteExcedido:
             estado = "limite"
         except llm.LLMError as exc:
@@ -245,7 +245,7 @@ def diagnosticar(incidente_id: int, credenciales, actor: str = "agente") -> None
         i = s.get(Incident, incidente_id)
         i.diagnosis_status, i.diagnosis, i.diagnosis_tools = estado, texto, usadas
         i.diagnosed_at = datetime.now(timezone.utc)
-        evento(s, i.id, actor, "diagnostico", {"listo": f"Diagnóstico con {len(usadas)} consulta(s).",
+        evento(s, i.id, actor, "diagnostico", {"listo": f"Diagnóstico con {len(usadas)} consulta(s) (traza {traza_id}).",
                                               "omitido": f"Sin diagnóstico: la severidad {severidad} no se diagnostica (ajustes)."}
                .get(estado, f"Sin diagnóstico ({estado})."))
     reportar(incidente_id)

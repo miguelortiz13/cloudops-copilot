@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Role } from '../lib/types';
 import {
   Activity, BellOff, BellRing, Boxes, GitCompareArrows, Layers, Megaphone, CircleDollarSign, ClipboardCheck, Container, FileCode2, FileSpreadsheet, History, LayoutGrid,
-  Plug, PiggyBank, Radar, ScrollText, Settings2, ShieldCheck, Siren, Tags,
+  Plug, PiggyBank, Sparkles, Radar, ScrollText, Settings2, ShieldCheck, Siren, Tags,
 } from 'lucide-react';
 
 /**
@@ -56,6 +56,7 @@ export const NAV: { group: string; id: string; items: { id: string; label: strin
     items: [
       { id: 'plataforma/reportes', label: 'Reportes', icon: <FileSpreadsheet size={16} /> },
       { id: 'plataforma/ajustes', label: 'Ajustes', icon: <Settings2 size={16} /> },
+      { id: 'plataforma/ia', label: 'IA', icon: <Sparkles size={16} />, role: 'operador' },
       { id: 'plataforma/cuentas', label: 'Cuentas', icon: <Plug size={16} />, role: 'administrador' },
       { id: 'plataforma/auditoria', label: 'Auditoría', icon: <ScrollText size={16} />, role: 'administrador' },
       { id: 'plataforma/estado', label: 'Estado', icon: <Activity size={16} />, role: 'administrador' },

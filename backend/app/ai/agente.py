@@ -11,9 +11,11 @@ final sin herramientas.
 import json
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from app import llm
+from app.core import trazas
 from app.llm.base import LLMError
 
 MAX_LLAMADAS = 8
@@ -51,7 +53,7 @@ def _ejecutar(h: Optional[Herramienta], argumentos: Dict[str, Any]) -> Dict[str,
 def responder(sistema: str, pregunta: str, herramientas: List[Herramienta], uso: str,
               usuario: Optional[str] = None, max_llamadas: int = MAX_LLAMADAS,
               presupuesto_segundos: float = PRESUPUESTO_SEGUNDOS) -> Dict[str, Any]:
-    """{answer, tools: [{nombre, argumentos, error?}], tokens}. LLMError si el modelo falla."""
+    """{answer, tools: [{nombre, argumentos, error?}], tokens, trace_id}. LLMError si el modelo falla."""
     p = llm.proveedor()
     if not llm.con_herramientas():
         raise LLMError("El modelo configurado no admite herramientas.")
@@ -61,26 +63,36 @@ def responder(sistema: str, pregunta: str, herramientas: List[Herramienta], uso:
     traza: List[Dict[str, Any]] = []
     tokens = {"entrada": 0, "salida": 0}
     inicio = time.monotonic()
+    traza_id, empezo, spans = trazas.nuevo_id(), datetime.now(timezone.utc), []
     try:
         while True:
             agotado = len(traza) >= max_llamadas or time.monotonic() - inicio > presupuesto_segundos
+            t0 = time.monotonic()
             paso = p.paso(sistema, historial, [] if agotado else declaraciones)
+            spans.append(trazas.span_modelo(p.modelo, len(spans), paso.tokens_entrada, paso.tokens_salida,
+                                            int((time.monotonic() - t0) * 1000), len(paso.llamadas or [])))
             tokens["entrada"] += paso.tokens_entrada or 0
             tokens["salida"] += paso.tokens_salida or 0
             if not paso.llamadas:
                 break
             resultados = []
             for llamada in paso.llamadas:
+                t0 = time.monotonic()
                 dato = _ejecutar(por_nombre.get(llamada.nombre), llamada.argumentos)
+                spans.append(trazas.span_herramienta(llamada.nombre, llamada.argumentos, dato, int((time.monotonic() - t0) * 1000)))
                 traza.append({"nombre": llamada.nombre, "argumentos": llamada.argumentos,
                               **({"error": dato["error"]} if "error" in dato else {})})
                 resultados.append((llamada, dato))
             p.agregar_resultados(historial, resultados)
     except LLMError as exc:
         _registrar(uso, p, usuario, traza, tokens, inicio, error=str(exc))
+        trazas.registrar(traza_id, "invoke_agent", uso, p.nombre, p.modelo, usuario, empezo, int((time.monotonic() - inicio) * 1000),
+                         tokens["entrada"], tokens["salida"], spans, error=str(exc))
         raise
     _registrar(uso, p, usuario, traza, tokens, inicio)
-    return {"answer": paso.texto, "tools": traza, "tokens": tokens}
+    trazas.registrar(traza_id, "invoke_agent", uso, p.nombre, p.modelo, usuario, empezo, int((time.monotonic() - inicio) * 1000),
+                     tokens["entrada"], tokens["salida"], spans, respuesta_chars=len(paso.texto or ""))
+    return {"answer": paso.texto, "tools": traza, "tokens": tokens, "trace_id": traza_id}
 
 
 def _registrar(uso, p, usuario, traza, tokens, inicio, error: Optional[str] = None) -> None:

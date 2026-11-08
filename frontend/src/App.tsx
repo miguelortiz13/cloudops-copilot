@@ -26,6 +26,7 @@ const NotificationsPage = lazy(() => import('./modules/notifications/Notificatio
 const ResourcesPage = lazy(() => import('./modules/assets/ResourcesPage').then((m) => ({ default: m.ResourcesPage })));
 const DriftPage = lazy(() => import('./modules/assets/DriftPage').then((m) => ({ default: m.DriftPage })));
 const CostAlertsPage = lazy(() => import('./modules/finops/CostAlertsPage').then((m) => ({ default: m.CostAlertsPage })));
+const AiPage = lazy(() => import('./modules/ai/AiPage').then((m) => ({ default: m.AiPage })));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
@@ -84,6 +85,7 @@ function Shell() {
             {seccion === 'operacion/avisos' && <NotificationsPage />}
             {seccion === 'plataforma/reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {seccion === 'plataforma/ajustes' && <SettingsPage onGo={navigate} />}
+            {seccion === 'plataforma/ia' && <AiPage />}
             {seccion === 'plataforma/cuentas' && <AdminPage view="cuentas" />}
             {seccion === 'plataforma/auditoria' && <AdminPage view="actividad" />}
             {seccion === 'plataforma/estado' && <AdminPage view="plataforma" />}
