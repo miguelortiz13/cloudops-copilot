@@ -174,6 +174,12 @@ def main() -> int:
 
     credenciales = DefaultAzureCredential(managed_identity_client_id=os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID") or None)
     try:
+        from app.collectors import chequeos
+        revisadas = chequeos.ejecutar()
+        print(f"[chequeos] {sum(1 for r in revisadas if r['ok'])} de {len(revisadas)} URL(s) responden")
+    except Exception as exc:  # los chequeos no frenan la vigilancia de Kubernetes
+        print(f"[chequeos] error: {type(exc).__name__}: {exc}", file=sys.stderr)
+    try:
         enviados = ejecutar(credenciales)
     except Exception as exc:  # el job queda en error y la siguiente ejecución reintenta
         print(f"[k8s_watch] error: {type(exc).__name__}: {exc}", file=sys.stderr)

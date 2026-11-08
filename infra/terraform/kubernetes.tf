@@ -61,10 +61,16 @@ module "k8s_watch" {
     DATA_DIR                         = local.data_mount_path
     APP_NAME                         = var.app_display_name
     FRONTEND_URL                     = module.web.url
+    # Chequeos HTTP (app/collectors/chequeos.py): una URL que falla dos veces seguidas se publica como alerta en el
+    # API, con el mismo token de Alertmanager, y entra como incidente.
+    API_URL = module.api.url
   }
 
-  secrets    = { "notify-webhook-url" = var.notify_webhook_url }
-  secret_env = { NOTIFY_WEBHOOK_URL = "notify-webhook-url" }
+  secrets = {
+    "notify-webhook-url"  = var.notify_webhook_url
+    "alerts-ingest-token" = random_password.alerts_ingest.result
+  }
+  secret_env = { NOTIFY_WEBHOOK_URL = "notify-webhook-url", ALERTS_INGEST_TOKEN = "alerts-ingest-token" }
 }
 
 # ---------------------------------------------------------------------------
