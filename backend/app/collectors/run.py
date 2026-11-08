@@ -22,6 +22,7 @@ import argparse
 import sys
 import time
 import traceback
+from datetime import timedelta
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -91,7 +92,11 @@ def costos_aws(ctx: Contexto, session) -> Resultado:
         # La primera entrega tarda hasta 24 h: sin dato todavia, no es un fallo del job.
         return Resultado(status="parcial", detail={"covered_accounts": [],
                                                    "reason": "El export de costos todavia no entrego datos."})
-    return costs.recolectar(aws, session, nombre="costs_aws", fuente="export")
+    # AWS reajusta el mes anterior hasta emitir la factura (primeros dias del mes): se relee entero, no solo 7 dias.
+    hoy = ctx.momento.date()
+    mes_anterior = (hoy.replace(day=1) - timedelta(days=1)).replace(day=1)
+    return costs.recolectar(aws, session, nombre="costs_aws", fuente="export",
+                            ventana_movil=max(costs.DIAS_MOVILES, (hoy - mes_anterior).days))
 
 
 def hallazgos_aws(ctx: Contexto, session) -> Resultado:

@@ -298,7 +298,7 @@ resource "aws_glue_catalog_table" "focus" {
     "projection.billing_period.range"         = "2026-01,NOW"
     "projection.billing_period.interval"      = "1"
     "projection.billing_period.interval.unit" = "MONTHS"
-    "storage.location.template"               = "${local.export_data}/BILLING_PERIOD=$${billing_period}"
+    "storage.location.template"               = "${local.export_data}/billing_period=$${billing_period}" # en minúsculas, como escribe el export (S3 distingue)
   }
 
   partition_keys {

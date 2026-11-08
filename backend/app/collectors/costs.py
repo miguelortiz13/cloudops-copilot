@@ -26,14 +26,18 @@ DIAS_MOVILES = 7
 FUENTE = "query"
 
 
-def recolectar(ctx: Contexto, session: Session, nombre: str = "costs", fuente: str = FUENTE) -> Resultado:
-    """`nombre`: la ejecucion de esta nube (costs, costs_aws); `fuente`: de donde salen las filas."""
+def recolectar(ctx: Contexto, session: Session, nombre: str = "costs", fuente: str = FUENTE,
+               ventana_movil: int = DIAS_MOVILES) -> Resultado:
+    """
+    `nombre`: la ejecucion de esta nube (costs, costs_aws); `fuente`: de donde salen las filas;
+    `ventana_movil`: los dias que se releen despues de la carga inicial.
+    """
     # Ventana movil si alguna recoleccion ya hizo la carga inicial completa;
     # las filas no sirven de señal porque una cuenta sin gasto nunca tiene filas.
     previas = session.scalars(select(CollectorRun.detail).where(
         CollectorRun.collector == nombre, CollectorRun.status.in_(("ok", "parcial"))))
     carga_hecha = any((d or {}).get("window_days", 0) >= DIAS_INICIALES for d in previas)
-    dias = DIAS_MOVILES if carga_hecha else DIAS_INICIALES
+    dias = ventana_movil if carga_hecha else DIAS_INICIALES
 
     resultado = ctx.proveedor.costos_diarios(ctx.cuentas_uid, dias)
     cobertura = resultado.cobertura

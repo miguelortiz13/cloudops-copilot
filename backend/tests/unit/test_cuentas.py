@@ -305,3 +305,22 @@ def test_filtro_por_nube_y_cuenta(monkeypatch, tmp_path):
     # Hallazgos y activos llevan su cuenta para filtrarlos en el navegador.
     assert all(h["account_uid"] for h in cliente.get("/api/findings").json()["items"])
     assert all(a["account_uid"] for a in cliente.get("/api/compliance/assets").json()["items"])
+
+
+def test_aws_relee_el_mes_anterior_entero_despues_de_la_carga_inicial(monkeypatch):
+    """AWS reajusta el mes anterior hasta emitir la factura: la ventana movil de AWS lo cubre entero."""
+    from app.collectors import costs
+    from app.providers.aws.provider import AwsProvider
+    from tests.contract.proveedores import FabricaAws
+
+    aws = FabricaAws().normal()
+    monkeypatch.setattr(AwsProvider, "desde_entorno", classmethod(lambda cls, **kw: aws))
+    pedidos = []
+    original = type(aws).costos_diarios
+    monkeypatch.setattr(type(aws), "costos_diarios", lambda self, cuentas, dias: pedidos.append(dias) or original(self, cuentas, dias))
+    for dia in (DIA, datetime(2026, 11, 7, 6, tzinfo=timezone.utc)):
+        ctx = Contexto(azure=None, inventory=None, cost=None, secops=None, momento=dia, subscription_ids=[])
+        assert run.ejecutar("inventory_aws", run.inventario_aws, ctx) == "ok"
+        assert run.ejecutar("costs_aws", run.costos_aws, ctx) == "ok"
+    # La primera vez, la carga inicial; despues, del 1-oct al 7-nov.
+    assert pedidos == [costs.DIAS_INICIALES, 37]
