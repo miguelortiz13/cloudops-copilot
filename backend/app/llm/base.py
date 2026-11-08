@@ -24,6 +24,7 @@ class Respuesta:
     tokens_entrada: Optional[int] = None
     tokens_salida: Optional[int] = None
     segundos: float = 0.0
+    traza_id: Optional[str] = None  # la traza de Plataforma → IA (app/core/trazas.py)
 
 
 @dataclass

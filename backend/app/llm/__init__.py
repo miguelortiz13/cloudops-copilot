@@ -60,15 +60,27 @@ def con_herramientas() -> bool:
 
 def generar(uso: str, sistema: str, mensaje: str, temperatura: float = 0.2, json_: bool = False,
             max_tokens: Optional[int] = None, usuario: Optional[str] = None) -> Respuesta:
+    import time
+    from datetime import datetime, timezone
+
+    from app.core import trazas
+
     p = proveedor()
     if p is None:
         raise LLMError("No hay un modelo de lenguaje configurado.")
+    traza_id, empezo, t0 = trazas.nuevo_id(), datetime.now(timezone.utc), time.monotonic()
     try:
         r = p.generar(sistema, mensaje, temperatura=temperatura, json=json_, max_tokens=max_tokens)
     except LLMError as exc:
         print("[llm] " + json.dumps({"uso": uso, "proveedor": p.nombre, "modelo": p.modelo, "usuario": usuario,
                                      "ok": False, "error": str(exc)[:300]}, ensure_ascii=False))
+        trazas.registrar(traza_id, "chat", uso, p.nombre, p.modelo, usuario, empezo, int((time.monotonic() - t0) * 1000),
+                         0, 0, [], error=str(exc))
         raise
+    ms = int((time.monotonic() - t0) * 1000)
+    trazas.registrar(traza_id, "chat", uso, p.nombre, r.modelo, usuario, empezo, ms, r.tokens_entrada or 0, r.tokens_salida or 0,
+                     [trazas.span_modelo(r.modelo, 0, r.tokens_entrada, r.tokens_salida, ms, 0)], respuesta_chars=len(r.texto or ""))
+    r.traza_id = traza_id
     print("[llm] " + json.dumps({"uso": uso, "proveedor": p.nombre, "modelo": r.modelo, "usuario": usuario, "ok": True,
                                  "tokens_entrada": r.tokens_entrada, "tokens_salida": r.tokens_salida,
                                  "segundos": r.segundos}, ensure_ascii=False))

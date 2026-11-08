@@ -103,6 +103,13 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
 | IA-3 · Abrir | Servidor MCP con rol Lector, auditoría y trazas | IA-1, IA-2 |
 | IA-4 · Recordar | RAG sobre incidentes, post-mortems, runbooks y docs, con su eval | IA-1; runbooks escritos |
 
+### Avance
+
+| Entrega | Estado |
+|---|---|
+| IA-1 · Trazas OpenTelemetry GenAI y *Plataforma → IA* (costo, latencia, herramientas, trazas) | Hecho |
+| IA-1 · Evals por dominio con chequeo de cifras y corrida semanal | Siguiente |
+
 ## Costo y límites
 
 | Concepto | Estimado |

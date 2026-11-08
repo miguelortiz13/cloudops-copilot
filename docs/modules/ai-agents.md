@@ -86,3 +86,10 @@ Los agentes no conocen el SDK del proveedor: piden texto a [`app/llm`](../../bac
 - **Fallas**: todo error del proveedor llega como `LLMError`, y cada agente responde con su respaldo. El chat usa el motor de reglas, IaC usa las plantillas y Kubernetes muestra el estado del clúster. La respuesta indica el modo: `llm_<proveedor>_...` o reglas.
 - **Consumo**: cada llamada deja una línea `[llm]` en el log con uso, proveedor, modelo, usuario, tokens de entrada y salida, y duración.
 - **Límite por usuario** ([`app/llm/limits.py`](../../backend/app/llm/limits.py)): el chat, el agente de Kubernetes, el generador de IaC y el bot de Teams cuentan contra una ventana por hora y otra por día. Al pasarlas responden **429** con `Retry-After`. Solo cuentan las respuestas del modelo: el motor de reglas no tiene límite. El conteo vive en memoria (una réplica); con varias réplicas debe pasar a un almacén compartido.
+
+
+## Trazas y Plataforma → IA
+
+Cada respuesta del agente (`invoke_agent`) y cada llamada directa al modelo (`chat`) deja una traza con la convención semántica de [OpenTelemetry GenAI](https://opentelemetry.io/docs/specs/semconv/gen-ai/) ([`core/trazas.py`](../../backend/app/core/trazas.py)): el span raíz con el uso, su dominio, el modelo, los tokens y la duración, y un span por turno del modelo y por herramienta (argumentos acotados, tamaño del resultado, error). **No se guarda el texto** de las preguntas ni de las respuestas, solo su tamaño. Van a `DATA_DIR/trazas/AAAA-MM.jsonl`, sin abrir la base ni usar un servicio externo.
+
+*Plataforma → IA* (rol Operador) muestra por dominio y por uso las llamadas, errores, tokens, costo estimado y latencia p50/p95, las herramientas más usadas y las trazas recientes con sus pasos. El costo usa el precio por millón de tokens de *Plataforma → Ajustes → Inteligencia artificial* (0 = sin precio: no se inventa). El evento de diagnóstico de cada incidente nombra su traza. API: `GET /api/ia/resumen?dias=`, `GET /api/ia/trazas?dias=&uso=` y `GET /api/ia/trazas/{id}`.

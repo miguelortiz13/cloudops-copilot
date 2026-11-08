@@ -22,6 +22,7 @@ const SECCIONES: [ruta: string, titulo: string, migas: string][] = [
   ['operacion/avisos', 'Avisos', 'Operación'],
   ['plataforma/reportes', 'Reportes y automatización', 'Plataforma'],
   ['plataforma/ajustes', 'Ajustes', 'Plataforma'],
+  ['plataforma/ia', 'IA', 'Plataforma'],
   ['plataforma/cuentas', 'Cuentas', 'Plataforma'],
   ['plataforma/auditoria', 'Auditoría', 'Plataforma'],
   ['plataforma/estado', 'Estado de la plataforma', 'Plataforma'],
