@@ -86,4 +86,15 @@ def test_ruta_del_registro(canal):
     finally:
         app.dependency_overrides.clear()
     assert r["mode"] == "registro" and r["items"][0]["tipo"] == "kubernetes"
-    assert r["stats"] == {"total": 1, "enviados": 1, "silenciados": 0, "duplicados": 0, "fallidos": 0}
+    assert r["stats"] == {"total": 1, "enviados": 1, "silenciados": 0, "duplicados": 0, "filtrados": 0, "fallidos": 0}
+
+
+def test_severidad_minima_por_dominio_y_silencio_por_tipo_de_aviso(canal):
+    ajustes.guardar("avisos", {"modo": "activo", "minimo_activos": "critica"})
+    assert avisos.publicar(DISCORD, MENSAJE, dominio="activos", tipo="kubernetes", severidad="alta", clave="a1") == "filtrado"
+    assert publicar(clave="a2") == "enviado"  # crítica: pasa
+    # Silenciar un tipo de aviso entero (el resumen semanal) desde Operación → Silencios.
+    ajustes.silenciar("ana@x", 24, "vacaciones del equipo", alerta="resumen_semanal")
+    assert avisos.publicar(DISCORD, MENSAJE, dominio="inicio", tipo="resumen_semanal", severidad="info", clave="s1") == "silenciado"
+    assert avisos.publicar(DISCORD, MENSAJE, dominio="inicio", tipo="otro", severidad="info", clave="s2") == "enviado"
+    assert len(canal) == 2
