@@ -17,9 +17,8 @@ from typing import Dict, Optional
 from sqlalchemy import false, func, or_, select
 
 from app import llm
-from app.collectors import notify
 from app.collectors.common import Contexto, Resultado
-from app.core import config
+from app.core import avisos, config
 from app.db.models import CollectorRun, CostDaily, Finding, FindingEvent, Incident, Resource
 
 TOP = 3
@@ -146,5 +145,5 @@ def recolectar(ctx: Contexto, session) -> Resultado:
     lineas = [texto] if texto else cifras(d)
     m = {"titulo": f"{config.APP_NAME}: resumen de la semana del {date.fromisoformat(d['desde']):%d-%m} al {date.fromisoformat(d['hasta']):%d-%m}",
          "lineas": lineas, "enlace": f"{config.FRONTEND_URL}/#/inicio/resumen"}
-    notify.enviar(url, json=notify.payload(url, m, color=0x8B5CF6))
+    avisos.publicar(url, m, dominio="inicio", tipo="resumen_semanal", severidad="info", clave=f"semanal:{clave}", color=0x8B5CF6)
     return Resultado(items=1, detail={"sent": clave, "llm": bool(texto)})

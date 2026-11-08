@@ -18,6 +18,17 @@ Para `resource.unmanaged_created`, un recurso sin estados de Terraform conectado
 
 Un día sin filas de costo cuenta como 0: pasar de nada a gastar también es anomalía. El presupuesto se configura en Terraform (`monthly_budgets_usd`, por ejemplo `{ azure = 5, aws = 5 }`).
 
+## Motor de avisos
+
+Todo lo que la plataforma publica en el canal pasa por un solo motor ([`core/avisos.py`](../../backend/app/core/avisos.py)): los avisos diarios, `k8s-watch`, los incidentes, el reporte mensual y el resumen semanal. Cada emisor arma su mensaje y lo publica con su dominio, tipo, severidad y una clave. El motor:
+
+1. aplica los [silencios](incidents.md#silencios) cuando el aviso dice a qué clúster, namespace, alerta u objeto se refiere;
+2. descarta un duplicado (la misma clave enviada hace menos de `deduplicar_min`, 10 por defecto);
+3. arma el mensaje del canal (el PDF adjunto solo en Discord) y lo envía;
+4. deja cada aviso en el registro (`DATA_DIR/avisos/AAAA-MM.jsonl`, sin abrir la base), visible en *Operación → Avisos* con su resultado: enviado, silenciado, duplicado o fallido.
+
+**Modo registro.** Arranca en `registro`: envía todo exactamente como antes y solo anota lo que habría silenciado o descartado. Después de una semana revisando *Operación → Avisos*, se pasa a `activo` en *Plataforma → Ajustes → Avisos* (puerta de la fase 2 del [plan 10](../plan/10-reestructuracion-por-dominios.md)).
+
 ## Destino según el webhook
 
 | Host | Formato |

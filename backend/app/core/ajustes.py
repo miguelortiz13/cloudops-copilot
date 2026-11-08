@@ -44,6 +44,7 @@ ESQUEMA: Dict[str, Tuple] = {
     "tags_obligatorias": ("nombres", 20, False), "tags_showback": ("nombres", 10, False),
     "presupuesto_azure_usd": ("float", 0, 1_000_000), "presupuesto_aws_usd": ("float", 0, 1_000_000),
     "max_consultas_hora": ("int", 0, 10_000), "max_consultas_dia": ("int", 0, 100_000),
+    "modo": ("opcion", "registro", "activo"), "deduplicar_min": ("int", 0, 1440),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
 ESQUEMA_CLUSTER = {**ESQUEMA, "avisar": ("bool",)}
@@ -67,6 +68,8 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     "gobierno": {"tags_obligatorias": list(config.MANDATORY_TAGS), "tags_showback": list(config.SHOWBACK_TAGS)},
     "costos": {},  # su valor inicial se lee al usarlo (_defecto): la variable puede cambiar después de importar
     "ia": {"max_consultas_hora": config.LLM_MAX_REQUESTS_PER_HOUR, "max_consultas_dia": config.LLM_MAX_REQUESTS_PER_DAY},
+    # Motor de avisos (app/core/avisos.py): en `registro` envía como antes y anota lo que habría silenciado o descartado.
+    "avisos": {"modo": "registro", "deduplicar_min": 10},
 }
 # Las que vienen de variables de entorno: el panel muestra "variable" como origen hasta que se guarden.
 DESDE_ENTORNO = {"gobierno", "costos", "ia"}
@@ -105,6 +108,10 @@ def _valor(k: str, v: Any, esquema: Dict[str, Tuple]) -> Any:
         if not (entero_ok or (tipo[0] == "float" and isinstance(v, float))) or not minimo <= v <= maximo:
             raise ValueError(f"{k} debe ser un {'entero' if tipo[0] == 'int' else 'número'} entre {minimo} y {maximo}.")
         return float(v) if tipo[0] == "float" else v
+    if tipo[0] == "opcion":
+        if v not in tipo[1:]:
+            raise ValueError(f"{k} debe ser uno de: {', '.join(tipo[1:])}.")
+        return v
     if tipo[0] == "severidades":
         if not isinstance(v, list) or not set(v) <= set(SEVERIDADES):
             raise ValueError(f"{k} debe ser una lista de severidades ({', '.join(SEVERIDADES)}).")

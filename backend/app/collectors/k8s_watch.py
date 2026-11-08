@@ -19,6 +19,7 @@ El estado (qué está abierto y qué ya se avisó) vive en DATA_DIR/k8s_watch.js
 Si el envío falla, el estado no se guarda y la siguiente ejecución lo repite.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -26,8 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from app.collectors import notify
-from app.core import ajustes, config
+from app.core import ajustes, avisos, config
 from app.services import k8s_fleet
 
 
@@ -101,19 +101,21 @@ def ejecutar(credenciales, ahora: Optional[datetime] = None) -> int:
         return 0
     ahora = ahora or k8s_fleet.ahora()
     estado = leer_estado()
-    nuevo, avisos = {}, {}
+    nuevo, por_cluster = {}, {}
     for nombre in k8s_fleet.configurados():
         nuevo[nombre], lineas = evaluar(nombre, k8s_fleet.leer(credenciales, nombre), estado.get(nombre, {}), ahora)
         if lineas:
-            avisos[nombre] = lineas
-    for nombre, lineas in avisos.items():
+            por_cluster[nombre] = lineas
+    for nombre, lineas in por_cluster.items():
         m = {"titulo": f"{config.APP_NAME}: Kubernetes · {nombre}", "lineas": lineas,
              "enlace": f"{config.FRONTEND_URL}/#/activos/kubernetes/{nombre}"}
         grave = any(x.startswith(("- [critica]", "- El agente dejó")) for x in lineas)
         resuelto = all(x.startswith(("- Resuelta", "- El agente volvió")) for x in lineas)
-        notify.enviar(url, json=notify.payload(url, m, color=0x22C55E if resuelto else 0xEF4444 if grave else 0xF59E0B))
+        avisos.publicar(url, m, dominio="activos", tipo="kubernetes", severidad="critica" if grave else "alta",
+                        clave=f"k8s:{nombre}:{hashlib.sha1(chr(10).join(lineas).encode()).hexdigest()[:12]}", atributos={"cluster": nombre},
+                        color=0x22C55E if resuelto else 0xEF4444 if grave else 0xF59E0B)
     guardar_estado(nuevo)
-    return sum(map(len, avisos.values()))
+    return sum(map(len, por_cluster.values()))
 
 
 def main() -> int:
