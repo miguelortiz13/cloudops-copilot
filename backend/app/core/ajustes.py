@@ -45,6 +45,8 @@ ESQUEMA: Dict[str, Tuple] = {
     "presupuesto_azure_usd": ("float", 0, 1_000_000), "presupuesto_aws_usd": ("float", 0, 1_000_000),
     "max_consultas_hora": ("int", 0, 10_000), "max_consultas_dia": ("int", 0, 100_000),
     "modo": ("opcion", "registro", "activo"), "deduplicar_min": ("int", 0, 1440),
+    **{f"minimo_{d}": ("opcion", "info", "media", "alta", "critica")
+       for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")},
     "reglas_desactivadas": ("nombres", 100, True),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
@@ -70,7 +72,9 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     "costos": {},  # su valor inicial se lee al usarlo (_defecto): la variable puede cambiar después de importar
     "ia": {"max_consultas_hora": config.LLM_MAX_REQUESTS_PER_HOUR, "max_consultas_dia": config.LLM_MAX_REQUESTS_PER_DAY},
     # Motor de avisos (app/core/avisos.py): en `registro` envía como antes y anota lo que habría silenciado o descartado.
-    "avisos": {"modo": "registro", "deduplicar_min": 10},
+    # minimo_<dominio>: la severidad más baja que llega al canal desde ese dominio (info = todo).
+    "avisos": {"modo": "registro", "deduplicar_min": 10,
+               **{f"minimo_{d}": "info" for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")}},
     # Riesgo: reglas del catálogo que no se evalúan (sus hallazgos se cierran con una nota y no cuentan en los controles).
     "riesgo": {"reglas_desactivadas": []},
 }

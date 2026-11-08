@@ -4,8 +4,9 @@ Motor de avisos (fase 2 del plan 10): el único camino por el que la plataforma 
 Cada emisor (avisos diarios, k8s-watch, incidentes, reporte mensual, resumen semanal) arma su
 mensaje y lo publica aquí con su dominio, tipo, severidad y clave. El motor:
 
-1. aplica los silencios (los mismos de Operación → Silencios) si el aviso dice a qué clúster,
-   namespace, alerta u objeto se refiere;
+1. filtra por la severidad mínima de su dominio (Plataforma → Ajustes → Avisos) y aplica los
+   silencios (los mismos de Operación → Silencios): el campo *alerta* de un silencio también calla un
+   tipo de aviso entero (por ejemplo `resumen_semanal` o `atencion_diaria`);
 2. descarta un duplicado: la misma clave enviada hace menos de `deduplicar_min`;
 3. arma el mensaje del canal (Discord, Slack o Teams; el PDF adjunto solo en Discord) y lo envía;
 4. deja cada aviso en el registro (`DATA_DIR/avisos/AAAA-MM.jsonl`), que se ve en Operación → Avisos.
@@ -23,6 +24,7 @@ from urllib.parse import urlparse
 from app.core import ajustes, config
 
 DOMINIOS = ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")
+ORDEN = {"info": 0, "media": 1, "alta": 2, "critica": 3}
 
 
 def _carpeta():
@@ -72,11 +74,19 @@ def publicar(url: str, mensaje: Dict[str, Any], *, dominio: str, tipo: str, seve
     a = ajustes.seccion("avisos")
     activo = a["modo"] == "activo"
     atributos = atributos or {}
-    silencio = None
-    if atributos:
-        silencio = ajustes.silenciado(ajustes.silencios(ahora), atributos.get("cluster"), atributos.get("namespace"),
-                                      atributos.get("alerta"), list(atributos.get("objetos") or []))
-    decision = "silenciado" if silencio else "duplicado" if _duplicado(clave, a["deduplicar_min"], ahora) else "enviado"
+    vigentes = ajustes.silencios(ahora)
+    silencio = ajustes.silenciado(vigentes, atributos.get("cluster"), atributos.get("namespace"),
+                                  atributos.get("alerta"), list(atributos.get("objetos") or [])) if atributos else None
+    # Un silencio por tipo de aviso (solo el campo alerta, sin clúster ni objeto) calla ese tipo en todos lados.
+    silencio = silencio or ajustes.silenciado([s for s in vigentes if s["alerta"] == tipo and not s["cluster"]
+                                               and not s["namespace"] and not s["objeto"]], None, None, tipo, [])
+    minimo = a.get(f"minimo_{dominio}", "info")
+    if silencio:
+        decision = "silenciado"
+    elif ORDEN.get(severidad, 0) < ORDEN.get(minimo, 0):
+        decision = "filtrado"
+    else:
+        decision = "duplicado" if _duplicado(clave, a["deduplicar_min"], ahora) else "enviado"
     entrada = {"at": ahora.isoformat(timespec="seconds"), "dominio": dominio, "tipo": tipo, "severidad": severidad,
                "clave": clave[:300], "titulo": str(mensaje.get("titulo", ""))[:250], "enlace": mensaje.get("enlace"),
                "canal": urlparse(url).hostname, "modo": a["modo"], "decision": decision,
