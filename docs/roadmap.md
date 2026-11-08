@@ -66,6 +66,7 @@ Salió de lo que mostró el laboratorio en la primera semana de incidentes reale
 | 1. Incidentes fiables | Tormentas, foto vieja, post-mortem, precisión medida; más control: ciclo de vida, silencios y ajustes; en Kubernetes, incidencias accionables y ajustes por clúster | Hecho (#118, #119). Falta repetirlo en el laboratorio ([ejercicio 5](labs/incidentes.md)) |
 | 2. Fiabilidad y mantenimiento | Roadmap al día y ejercicio de tormenta (hechos), runbooks en `docs/runbooks/`, cola y job para el diagnóstico solo si se pierde alguno | En curso |
 | 3. Valor diario | Resumen semanal con IA (hecho), "Qué cambió" y "Mis pendientes", seguimiento del ahorro, correo y enrutamiento | En curso |
+| 4. Plataforma de IA | Evals continuos, trazas, guardas contra injection, servidor MCP y RAG ([plan 11](plan/11-plataforma-ia.md)) | Planificado (fase 5) |
 
 ## Integraciones futuras
 

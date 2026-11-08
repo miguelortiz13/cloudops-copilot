@@ -16,6 +16,7 @@ Está escrito para leerse por partes. Cada documento se sostiene solo y enlaza c
 | 8 | [Kubernetes](08-kubernetes.md) | Reconstrucción del módulo con un agente de solo lectura en el clúster, por partes |
 | 9 | [Agentes de IA y diagnóstico de incidentes](09-agentes-ia.md) | Motor único con herramientas, flujo de alertas a diagnóstico y reporte en Discord o Teams, y otros usos de IA |
 | 10 | [Reestructuración por dominios](10-reestructuracion-por-dominios.md) | Los 6 dominios, qué es un módulo completo, los servicios comunes, la IA en cada dominio y las 6 fases (noviembre de 2026) |
+| 11 | [Plataforma de IA](11-plataforma-ia.md) | Evals continuos, trazas, guardas contra prompt injection, servidor MCP y RAG: la capa común debajo de los agentes |
 
 Decisiones propuestas, registradas como ADR: [0006 Abstracción de proveedores](../adr/0006-abstraccion-de-proveedores.md) · [0007 Almacén de datos y recolectores](../adr/0007-almacen-de-datos-y-recolectores.md) · [0008 FOCUS como modelo de costos](../adr/0008-focus-como-modelo-de-costos.md).
 
