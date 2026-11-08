@@ -56,3 +56,16 @@ def deshacer(indice: int, usuario: Usuario = requiere("administrador")):
         raise HTTPException(status_code=404, detail=str(exc))
     auditar(usuario, "ajustes.deshacer", objetivo=e["seccion"] if e else None, detalle={"volvio_a": e["antes"] if e else None})
     return {"section": e["seccion"] if e else None, "values": valores}
+
+
+@router.get("/api/notifications")
+def avisos_enviados(dias: int = 7):
+    """Operación → Avisos: lo que publicó el motor de avisos en los últimos `dias` (máx. 90) y qué decidió."""
+    from app.core import avisos
+
+    items = avisos.registro(max(1, min(dias, 90)))
+    return {"mode": ajustes.seccion("avisos")["modo"], "items": items[:500],
+            "stats": {"total": len(items), "enviados": sum(e["enviado"] for e in items),
+                      "silenciados": sum(e["decision"] == "silenciado" for e in items),
+                      "duplicados": sum(e["decision"] == "duplicado" for e in items),
+                      "fallidos": sum(bool(e["error"]) for e in items)}}

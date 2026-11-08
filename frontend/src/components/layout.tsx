@@ -18,7 +18,7 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
   mobileOpen: boolean;
   onNavigate: () => void;
 }) {
-  const { setDockOpen, can } = useApp();
+  const { can } = useApp();
   return (
     <aside className={`sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
       <div className="brand">
@@ -46,10 +46,6 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
             ))}
           </div>
         ))}
-        <button className="nav-item" onClick={() => { setDockOpen(true); onNavigate(); }}>
-          <MessageSquare size={16} />
-          Agentes de IA
-        </button>
       </nav>
       <UserCard />
     </aside>

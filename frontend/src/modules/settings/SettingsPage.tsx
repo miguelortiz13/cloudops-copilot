@@ -33,6 +33,13 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     ],
   },
   {
+    id: 'avisos', titulo: 'Avisos', descripcion: 'El motor de avisos común. En modo registro envía todo como antes y anota lo que habría silenciado o descartado; en modo activo aplica los silencios y descarta duplicados.',
+    campos: [
+      { k: 'modo', label: 'Modo', hint: 'Revisa Operación → Avisos una semana en modo registro antes de activarlo.' },
+      { k: 'deduplicar_min', label: 'Descartar duplicados (minutos)', hint: 'Un aviso con la misma clave dentro de esta ventana no se repite. 0 = nunca.' },
+    ],
+  },
+  {
     id: 'ia', titulo: 'Inteligencia artificial', descripcion: 'Tope de consultas al modelo de cada persona y de cada uso automático (diagnósticos, resúmenes). Sin modelo, todo sigue funcionando con las reglas.',
     campos: [
       { k: 'max_consultas_hora', label: 'Consultas por hora', hint: '0 = sin tope.' },
@@ -53,9 +60,10 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
   const guardar = async () => {
     setGuardando(true);
     setFallo(null);
-    const cuerpo = Object.fromEntries(def.campos.map((c) => [c.k, data.schema[c.k][0] === 'nombres'
+    const tipo = (k: string) => data.schema[k][0];
+    const cuerpo = Object.fromEntries(def.campos.map((c) => [c.k, tipo(c.k) === 'nombres'
       ? v[c.k].split(',').map((x) => x.trim()).filter(Boolean)
-      : Number(v[c.k])]));
+      : tipo(c.k) === 'opcion' ? v[c.k] : Number(v[c.k])]));
     try {
       await put(`/api/settings/${def.id}`, cuerpo);
       toast(`${def.titulo}: ajustes guardados`);
@@ -81,7 +89,19 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
       ) : undefined}>
         <div className="grid grid-2" style={{ gap: 12 }}>
           {def.campos.map((c) => {
-            const numero = data.schema[c.k][0] !== 'nombres';
+            const esquema = data.schema[c.k];
+            if (esquema[0] === 'opcion') {
+              return (
+                <label className="field" key={c.k}>
+                  {c.label}
+                  <select className="select" disabled={!editar} value={v[c.k]} onChange={(e) => setBorrador({ ...v, [c.k]: e.target.value })}>
+                    {esquema.slice(1).map((o) => <option key={String(o)} value={String(o)}>{String(o)}</option>)}
+                  </select>
+                  <span className="hint">{c.hint}</span>
+                </label>
+              );
+            }
+            const numero = esquema[0] !== 'nombres';
             return (
               <label className="field" key={c.k}>
                 {c.label}
@@ -99,7 +119,7 @@ function SeccionGenerica({ def, data, onGuardado }: { def: (typeof SECCIONES)[nu
   );
 }
 
-const NOMBRE_SECCION: Record<string, string> = { incidentes: 'Incidentes', gobierno: 'Gobierno', costos: 'Costos', ia: 'Inteligencia artificial' };
+const NOMBRE_SECCION: Record<string, string> = { incidentes: 'Incidentes', gobierno: 'Gobierno', costos: 'Costos', avisos: 'Avisos', ia: 'Inteligencia artificial' };
 
 function resumen(c: Cambio): string {
   const claves = Object.keys(c.despues).filter((k) => JSON.stringify(c.antes[k]) !== JSON.stringify(c.despues[k]));

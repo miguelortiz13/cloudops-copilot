@@ -150,7 +150,9 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Tags obligatorias y de showback, presupuestos y topes del modelo pasan a ajustes; la variable es el valor inicial | Hecho |
 | *Plataforma → Ajustes* con una sección por dominio y el historial de cambios | Hecho |
 | CORS con `PUT` y `DELETE`: guardar ajustes y quitar silencios desde el panel publicado fallaba en el navegador | Hecho |
-| Motor de avisos común, una semana en modo registro, y *Operación → Avisos* | Siguiente |
+| Motor de avisos común: los cinco emisores publican por él, con silencios, duplicados y registro | Hecho |
+| *Operación → Avisos* con el registro y *Plataforma → Ajustes → Avisos* con el modo | Hecho |
+| Una semana en modo registro sin diferencias y paso a `activo` (puerta de la fase) | Desde el despliegue |
 
 ## Riesgos y compatibilidad
 

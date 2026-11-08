@@ -251,5 +251,8 @@ def recolectar(ctx: Contexto, session) -> Resultado:
         detalle["sent"] = sorted(enviadas)
         return Resultado(status="parcial", detail={**detalle, "reason": "NOTIFY_WEBHOOK_URL sin configurar"})
     # Sin `until` registrado (error), la siguiente ejecucion vuelve a avisar lo mismo.
-    enviar(url, json=payload(url, mensaje(hallazgos, caidos, costos, a_mano)))
+    from app.core import avisos
+    m = mensaje(hallazgos, caidos, costos, a_mano)
+    avisos.publicar(url, m, dominio="riesgo" if hallazgos else "plataforma" if caidos else "activos" if a_mano else "costos",
+                    tipo="atencion_diaria", severidad="alta", clave=f"diario:{hasta.isoformat()}")
     return Resultado(items=len(hallazgos) + len(caidos) + len(a_mano) + detalle["cost_alerts"], detail=detalle)

@@ -22,6 +22,7 @@ const IncidentsPage = lazy(() => import('./modules/incidents/IncidentsPage').the
 const ReportsPage = lazy(() => import('./modules/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const AdminPage = lazy(() => import('./modules/admin/AdminPage').then((m) => ({ default: m.AdminPage })));
 const SilencesPage = lazy(() => import('./modules/incidents/SilencesView').then((m) => ({ default: m.SilencesPage })));
+const NotificationsPage = lazy(() => import('./modules/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function Shell() {
@@ -74,6 +75,7 @@ function Shell() {
             {seccion === 'riesgo/clasificacion' && <CompliancePage view="activos" onView={(v) => navigate(`riesgo/cumplimiento/${v}`)} onGo={navigate} />}
             {seccion === 'operacion/incidentes' && <IncidentsPage incidente={sub} onIncidente={(i) => navigate(`operacion/incidentes/${i}`)} />}
             {seccion === 'operacion/silencios' && <SilencesPage />}
+            {seccion === 'operacion/avisos' && <NotificationsPage />}
             {seccion === 'plataforma/reportes' && <ReportsPage onSync={() => setSyncOpen(true)} />}
             {seccion === 'plataforma/ajustes' && <SettingsPage onGo={navigate} />}
             {seccion === 'plataforma/cuentas' && <AdminPage view="cuentas" />}

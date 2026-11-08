@@ -7,16 +7,14 @@ webhook y reciben el resumen con el enlace a Reportes, donde se descarga.
 El mes enviado queda en `detail.sent` y pasa de una ejecucion a la siguiente.
 """
 
-import json
 import os
 from typing import Optional
 from urllib.parse import urlparse
 
 from sqlalchemy import func, select
 
-from app.collectors import notify
 from app.collectors.common import Contexto, Resultado
-from app.core import config
+from app.core import avisos, config
 from app.db.models import CollectorRun
 from app.reports import mensual
 
@@ -57,11 +55,8 @@ def recolectar(ctx: Contexto, session) -> Resultado:
 
     d = mensual.datos(session, mes)
     m = resumen(d)
-    cuerpo = notify.payload(url, m, color=0x3B82F6)
-    if (urlparse(url).hostname or "") in ("discord.com", "discordapp.com"):
-        archivo = mensual.pdf(d, hoy)
-        notify.enviar(url, data={"payload_json": json.dumps(cuerpo)},
-                      files={"files[0]": (f"reporte-{clave}.pdf", archivo, "application/pdf")})
-    else:
-        notify.enviar(url, json=cuerpo)
+    discord = (urlparse(url).hostname or "") in ("discord.com", "discordapp.com")
+    adjunto = (f"reporte-{clave}.pdf", mensual.pdf(d, hoy), "application/pdf") if discord else None
+    avisos.publicar(url, m, dominio="plataforma", tipo="reporte_mensual", severidad="info", clave=f"reporte:{clave}",
+                    color=0x3B82F6, adjunto=adjunto)
     return Resultado(items=1, detail={"sent": clave})

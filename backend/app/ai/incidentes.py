@@ -26,8 +26,7 @@ from sqlalchemy import func, select
 
 from app import llm
 from app.ai import agente, herramientas
-from app.collectors import notify
-from app.core import ajustes, config
+from app.core import ajustes, avisos, config
 from app.db import engine as db
 from app.db.models import Incident, IncidentEvent
 from app.llm import limits
@@ -316,7 +315,9 @@ def reportar(incidente_id: int) -> None:
         if i.parent_id is not None or i.severity not in ajustes.incidentes()["avisar"]:
             return  # lo cubre el aviso de su tormenta, o su severidad no se avisa
         enlace = f"{config.FRONTEND_URL}/#/operacion/incidentes/{i.id}"
-        if i.status == "resuelto":
+        # Volver a diagnosticar publica de nuevo: la clave lleva la hora del diagnóstico para no tomarlo por duplicado.
+        resuelto, severidad, momento = i.status == "resuelto", i.severity, i.diagnosed_at.isoformat() if i.diagnosed_at else ""
+        if resuelto:
             minutos = int(((i.resolved_at - i.opened_at).total_seconds()) // 60)
             titulo, color = f"Resuelto · incidente #{i.id}: {i.title}", 0x22C55E
             lineas = [f"Duró {minutos} min. ¿El diagnóstico fue correcto? Márcalo en el panel."]
@@ -333,6 +334,8 @@ def reportar(incidente_id: int) -> None:
                           "error": i.diagnosis or "el modelo falló"}.get(i.diagnosis_status, "")
                 lineas = [f"Sin diagnóstico automático: {motivo}.", "**Alertas**", *alertas]
     try:
-        notify.enviar(url, json=notify.payload(url, {"titulo": titulo[:250], "lineas": lineas, "enlace": enlace}, color=color))
+        avisos.publicar(url, {"titulo": titulo[:250], "lineas": lineas, "enlace": enlace}, dominio="operacion",
+                        tipo="incidente_resuelto" if resuelto else "incidente", severidad=severidad,
+                        clave=f"incidente:{incidente_id}:{'resuelto' if resuelto else 'abierto'}:{momento}", color=color)
     except RuntimeError as exc:
         print(f"[incidentes] No se pudo publicar el incidente {incidente_id}: {exc}")
