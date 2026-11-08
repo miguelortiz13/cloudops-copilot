@@ -19,6 +19,7 @@ describe('Operación → Avisos', () => {
       items: [
         { ...base, at: '2026-11-08T03:00:00Z', titulo: 'Kubernetes · lab', decision: 'silenciado', enviado: true, error: null },
         { ...base, at: '2026-11-08T02:00:00Z', titulo: 'Incidente #31', tipo: 'incidente', dominio: 'operacion', decision: 'enviado', enviado: true, error: null },
+        { ...base, at: '2026-11-08T01:30:00Z', titulo: 'Gasto anómalo', tipo: 'atencion_diaria', dominio: 'costos', modo: 'activo', decision: 'filtrado', enviado: false, error: null },
         { ...base, at: '2026-11-08T01:00:00Z', titulo: 'Resumen semanal', tipo: 'resumen_semanal', dominio: 'inicio', decision: 'enviado', enviado: false, error: 'El webhook (discord.com) respondio 500' },
       ],
     });
@@ -29,6 +30,7 @@ describe('Operación → Avisos', () => {
     expect(await screen.findByText(/modo registro/)).toBeInTheDocument();
     expect(screen.getByText('Enviado; en modo activo habría sido silenciado')).toBeInTheDocument();
     expect(screen.getByText('Falló: El webhook (discord.com) respondio 500')).toBeInTheDocument();
+    expect(screen.getByText('Filtrado por severidad')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Kubernetes · lab' })).toHaveAttribute('href', '#/activos/kubernetes/lab');
     expect(api.get).toHaveBeenCalledWith('/api/notifications?dias=7');
   });

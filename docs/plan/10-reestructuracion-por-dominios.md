@@ -168,8 +168,8 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Entregable | Estado |
 |---|---|
 | Alertas de costo gestionables (anomalías, presupuestos, export vacío) con explicación de la IA; dominio `app/dominios/costos` | Hecho |
-| Seguimiento del ahorro realizado | Siguiente |
-| Enrutamiento de avisos por severidad y dominio, y silencios para todo aviso | Pendiente |
+| Seguimiento del ahorro realizado (aplicado, verificado y bajas) | Hecho |
+| Severidad mínima por dominio y silencios por tipo de aviso (varios canales: cuando haya un segundo webhook) | Hecho |
 | Chequeo HTTP como fuente de incidentes | Pendiente |
 
 ## Riesgos y compatibilidad

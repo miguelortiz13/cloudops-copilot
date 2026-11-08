@@ -68,6 +68,7 @@ def avisos_enviados(dias: int = 7):
             "stats": {"total": len(items), "enviados": sum(e["enviado"] for e in items),
                       "silenciados": sum(e["decision"] == "silenciado" for e in items),
                       "duplicados": sum(e["decision"] == "duplicado" for e in items),
+                      "filtrados": sum(e["decision"] == "filtrado" for e in items),
                       "fallidos": sum(bool(e["error"]) for e in items)}}
 
 

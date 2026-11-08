@@ -27,6 +27,8 @@ Todo lo que la plataforma publica en el canal pasa por un solo motor ([`core/avi
 3. arma el mensaje del canal (el PDF adjunto solo en Discord) y lo envía;
 4. deja cada aviso en el registro (`DATA_DIR/avisos/AAAA-MM.jsonl`, sin abrir la base), visible en *Operación → Avisos* con su resultado: enviado, silenciado, duplicado o fallido.
 
+**Qué llega al canal.** En *Plataforma → Ajustes → Avisos*, cada dominio tiene su **severidad mínima** (por defecto `info`, todo): lo de menor severidad no se envía y queda en el registro como *filtrado*. Un **silencio** con solo el campo *alerta* calla un tipo de aviso entero, en todos los clústeres: `resumen_semanal`, `atencion_diaria`, `reporte_mensual`, `kubernetes`, `incidente`. Varios canales (por severidad o dominio a distintos webhooks) quedan para cuando haya un segundo canal: cada URL es un secreto más en Azure.
+
 **Modo registro.** Arranca en `registro`: envía todo exactamente como antes y solo anota lo que habría silenciado o descartado. Después de una semana revisando *Operación → Avisos*, se pasa a `activo` en *Plataforma → Ajustes → Avisos* (puerta de la fase 2 del [plan 10](../plan/10-reestructuracion-por-dominios.md)).
 
 ## Destino según el webhook

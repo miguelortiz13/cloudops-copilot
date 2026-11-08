@@ -6,10 +6,10 @@ import { Card, Empty, ErrorState, Loading, Notice, PageHeader, Segmented, StatTi
 
 interface Aviso {
   at: string; dominio: string; tipo: string; severidad: string; clave: string; titulo: string; enlace: string | null;
-  canal: string | null; modo: 'registro' | 'activo'; decision: 'enviado' | 'silenciado' | 'duplicado';
+  canal: string | null; modo: 'registro' | 'activo'; decision: 'enviado' | 'silenciado' | 'duplicado' | 'filtrado';
   silencio: string | null; enviado: boolean; error: string | null;
 }
-interface Registro { mode: 'registro' | 'activo'; items: Aviso[]; stats: { total: number; enviados: number; silenciados: number; duplicados: number; fallidos: number } }
+interface Registro { mode: 'registro' | 'activo'; items: Aviso[]; stats: { total: number; enviados: number; silenciados: number; duplicados: number; filtrados?: number; fallidos: number } }
 
 const DOMINIO: Record<string, string> = {
   inicio: 'Inicio', activos: 'Activos', costos: 'Costos', riesgo: 'Riesgo', operacion: 'Operación', plataforma: 'Plataforma',
@@ -22,10 +22,11 @@ const TIPO: Record<string, string> = {
 function Decision({ a }: { a: Aviso }) {
   if (a.error) return <span className="badge"><span className="dot dot-critical" aria-hidden="true" />Falló: {a.error}</span>;
   if (a.decision === 'enviado') return <span className="badge"><span className="dot dot-good" aria-hidden="true" />Enviado</span>;
-  const que = a.decision === 'silenciado' ? 'silenciado' : 'descartado por duplicado';
+  const que = { silenciado: 'silenciado', duplicado: 'descartado por duplicado', filtrado: 'filtrado por severidad' }[a.decision];
+  const no = { silenciado: 'Silenciado', duplicado: 'Duplicado, no enviado', filtrado: 'Filtrado por severidad' }[a.decision];
   return (
     <span className="badge"><span className="dot dot-warning" aria-hidden="true" />
-      {a.enviado ? `Enviado; en modo activo habría sido ${que}` : a.decision === 'silenciado' ? 'Silenciado' : 'Duplicado, no enviado'}
+      {a.enviado ? `Enviado; en modo activo habría sido ${que}` : no}
     </span>
   );
 }
@@ -52,7 +53,7 @@ export function NotificationsPage() {
         <div className="grid grid-4">
           <StatTile refreshing={refreshing} label="Avisos" value={number(s.total)} meta={`En ${dias === '1' ? 'el último día' : `${dias} días`}`} />
           <StatTile refreshing={refreshing} label="Enviados" value={number(s.enviados)} />
-          <StatTile refreshing={refreshing} label="Silenciados o duplicados" value={number(s.silenciados + s.duplicados)}
+          <StatTile refreshing={refreshing} label="Silenciados, duplicados o filtrados" value={number(s.silenciados + s.duplicados + (s.filtrados ?? 0))}
             meta={data.mode === 'registro' ? 'Habrían sido, en modo activo' : undefined} />
           <StatTile refreshing={refreshing} label="Fallidos" value={number(s.fallidos)} meta="El canal no respondió" />
         </div>

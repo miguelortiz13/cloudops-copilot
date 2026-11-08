@@ -57,7 +57,7 @@ export function SilenceForm({ inicial, onCreado, onCancelar }: { inicial?: Silen
       <div className="grid grid-2" style={{ gap: 12 }}>
         {campo('cluster', 'Clúster')}
         {campo('namespace', 'Namespace')}
-        {campo('alertname', 'Alerta', 'Nombre de la regla de Alertmanager, por ejemplo PodCrashLooping')}
+        {campo('alertname', 'Alerta', 'Regla de Alertmanager (PodCrashLooping) o tipo de aviso: resumen_semanal, atencion_diaria, reporte_mensual, kubernetes')}
         {campo('target', 'Objeto', 'Parte del nombre del pod, deployment, servicio o nodo')}
       </div>
       <div className="grid grid-2" style={{ gap: 12 }}>

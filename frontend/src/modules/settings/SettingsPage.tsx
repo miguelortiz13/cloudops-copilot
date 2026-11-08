@@ -50,6 +50,10 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     campos: [
       { k: 'modo', label: 'Modo', hint: 'Revisa Operación → Avisos una semana en modo registro antes de activarlo.' },
       { k: 'deduplicar_min', label: 'Descartar duplicados (minutos)', hint: 'Un aviso con la misma clave dentro de esta ventana no se repite. 0 = nunca.' },
+      ...(['inicio', 'activos', 'costos', 'riesgo', 'operacion', 'plataforma'] as const).map((d) => ({
+        k: `minimo_${d}`, label: `Severidad mínima · ${{ inicio: 'Inicio', activos: 'Activos', costos: 'Costos', riesgo: 'Riesgo', operacion: 'Operación', plataforma: 'Plataforma' }[d]}`,
+        hint: 'Lo de menor severidad de este dominio no llega al canal (queda en Operación → Avisos). info = todo.',
+      })),
     ],
   },
   {
