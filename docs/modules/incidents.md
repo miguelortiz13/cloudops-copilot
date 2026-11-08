@@ -66,6 +66,10 @@ Los cambia un administrador en *Plataforma → Ajustes* y se aplican a la siguie
 
 Los ajustes y los silencios viven en `DATA_DIR/ajustes.json` (el File Share que comparten el API y los jobs), no en la base: el job `k8s-watch` corre cada 10 minutos y abrir la base serverless la mantendría siempre despierta.
 
+## Chequeos HTTP
+
+Para lo que no tiene Alertmanager: en *Plataforma → Ajustes → Chequeos HTTP* un administrador pone hasta 20 URLs `https`. El job `k8s-watch` las revisa cada 10 minutos ([`collectors/chequeos.py`](../../backend/app/collectors/chequeos.py)); una que falla **dos veces seguidas** (sin respuesta o con 5xx) se publica en `/api/alerts/alertmanager` con el formato de Alertmanager (`HttpCheckFailed`, severidad crítica) y el mismo token, así que entra como cualquier incidente: diagnóstico, tormentas, avisos. Cuando vuelve a responder, se publica resuelta. El estado vive en `DATA_DIR/chequeos.json` y el panel muestra la última respuesta de cada URL (`GET /api/checks`). No se revisan direcciones privadas, locales ni de metadatos aunque estén en la lista. El job necesita `API_URL` y `ALERTS_INGEST_TOKEN` (Terraform, `kubernetes.tf`).
+
 ## Cómo se agrupa
 
 - Un **grupo de Alertmanager** (`groupKey`, según el `group_by` de su ruta) es un incidente. Alertmanager reenvía cada `repeat_interval` y suma alertas al mismo grupo: eso actualiza el incidente, no abre otro ni repite el diagnóstico.
