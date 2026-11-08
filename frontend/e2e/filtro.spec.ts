@@ -9,7 +9,7 @@ test('el filtro por nube deja solo AWS en las vistas de la base y avisa en las d
   await expect(page.getByRole('radio', { name: /Activos \(0\)/ })).toBeVisible();
 
   // Navegar dentro del panel conserva el filtro (recargar lo reinicia).
-  await page.getByRole('link', { name: 'Inventario', exact: true }).click();
+  await page.getByRole('link', { name: 'Inventario Azure', exact: true }).click();
   await expect(page.getByText('no incluye ninguna suscripción de Azure')).toBeVisible();
 
   await page.getByRole('link', { name: 'Reportes', exact: true }).click();

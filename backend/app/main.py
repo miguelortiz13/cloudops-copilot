@@ -22,6 +22,7 @@ from app.routers import (
     admin, chat, compliance, finops, history, iac, incidents, inventory, k8s, legacy, me, recommendations, secops, settings,
     sync, teams,
 )
+from app.dominios.activos import api as activos
 from app.services.auth import auth_middleware, startup_banner
 from app.services.bot_auth import startup_banner as bot_startup_banner
 
@@ -63,5 +64,5 @@ app.add_middleware(
 )
 
 for modulo in (k8s, finops, secops, inventory, iac, sync, teams, recommendations, chat, admin, history, compliance, me,
-               incidents, settings, legacy):
+               incidents, settings, activos, legacy):
     app.include_router(modulo.router)

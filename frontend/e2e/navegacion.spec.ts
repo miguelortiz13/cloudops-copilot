@@ -3,6 +3,7 @@ import { abrir, expect, test } from './mock-api';
 /** Cada sección y subvista del panel, con el título que debe mostrar. */
 const SECCIONES: [ruta: string, titulo: string, migas: string][] = [
   ['inicio/resumen', 'Resumen', 'Inicio'],
+  ['activos/recursos', 'Recursos', 'Activos'],
   ['activos/inventario', 'Inventario', 'Activos'],
   ['activos/iac', 'Infraestructura como código', 'IaC y Terraform'],
   ['activos/kubernetes', 'Kubernetes', 'Activos'],
