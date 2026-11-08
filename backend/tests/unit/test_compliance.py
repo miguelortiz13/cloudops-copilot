@@ -290,3 +290,91 @@ def test_el_excel_ya_no_alimenta_el_cumplimiento():
     from app.main import app
 
     assert TestClient(app).get("/api/governance/iso").status_code == 404
+
+
+# ---------------------------------------------------------------- excepciones y reglas desactivadas (fase 3)
+
+def test_una_excepcion_vigente_exceptua_el_control_hasta_que_vence_o_se_revoca(monkeypatch):
+    from datetime import date, timedelta
+
+    from app import llm
+    from app.core import deps
+    from app.dominios.riesgo import servicio as riesgo
+    from app.llm.base import Respuesta
+    from app.main import app
+
+    correr("findings")
+    hallazgo("secrets.vault-public-network", KV)
+    hoy = datetime.now(timezone.utc).date()
+    with pytest.raises(riesgo.ExcepcionInvalida):
+        riesgo.crear(catalog.CIS, "8.7", "corto", hoy + timedelta(days=30), "ana@x")
+    with pytest.raises(riesgo.ExcepcionInvalida):
+        riesgo.crear(catalog.CIS, "8.7", "Red privada en migración; firewall de IP mientras tanto.", hoy + timedelta(days=400), "ana@x")
+    with pytest.raises(riesgo.ExcepcionInvalida):
+        riesgo.crear(catalog.CIS, "99.9", "Red privada en migración; firewall de IP mientras tanto.", hoy + timedelta(days=30), "ana@x")
+
+    e = riesgo.crear(catalog.CIS, "8.7", "Red privada en migración; firewall de IP mientras tanto.", hoy + timedelta(days=30), "ana@x")
+    with pytest.raises(riesgo.ExcepcionInvalida):  # una vigente por control
+        riesgo.crear(catalog.CIS, "8.7", "Otra justificación suficientemente larga.", hoy + timedelta(days=5), "ana@x")
+    with db.session_scope() as s:
+        c = control(cumplimiento.cumplimiento(s), catalog.CIS, "8.7")
+    assert c["status"] == "exceptuado" and c["exception"]["created_by"] == "ana@x" and c["active"] == 1
+
+    riesgo.revocar(e["id"], "bob@x")
+    with db.session_scope() as s:
+        assert control(cumplimiento.cumplimiento(s), catalog.CIS, "8.7")["status"] == "no_cumple"
+    assert riesgo.listar()[0]["status"] == "revocada"
+    # Vencida: tampoco exceptúa.
+    assert riesgo.listar(hoy + timedelta(days=60))[0]["status"] == "revocada"
+
+    # API y borrador de la IA con la evidencia del control.
+    class Modelo:
+        nombre, modelo = "f", "f"
+
+        def generar(self, sistema, mensaje, **k):
+            self.mensaje = mensaje
+            return Respuesta(texto="Hoy no se cumple porque kv-prod … [completar: mitigación]", modelo="f")
+
+    modelo = Modelo()
+    llm.reiniciar(modelo)
+    app.dependency_overrides[deps.services] = lambda: __import__("types").SimpleNamespace(azure=None)
+    try:
+        cliente = TestClient(app)
+        r = cliente.post("/api/riesgo/excepciones", json={"framework": catalog.CIS, "control": "8.7",
+                                                          "justification": "x", "until": (hoy + timedelta(days=9)).isoformat()})
+        assert r.status_code == 400
+        assert cliente.post("/api/riesgo/excepciones/borrador", json={"framework": catalog.CIS, "control": "8.7"}).json()[
+            "justification"].startswith("Hoy no se cumple")
+        assert '"control": "8.7"' in modelo.mensaje
+        assert cliente.get("/api/riesgo/excepciones").json()["items"][0]["control"] == "8.7"
+        assert cliente.delete("/api/riesgo/excepciones/999").status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+        llm.reiniciar(None)
+    del date
+
+
+def test_una_regla_desactivada_cierra_sus_hallazgos_y_no_cuenta_en_los_controles():
+    from app.core import ajustes
+    from app.db.models import FindingEvent
+
+    hallazgo("secrets.vault-public-network", KV)
+    ajustes.guardar("riesgo", {"reglas_desactivadas": ["secrets.vault-public-network"]}, "ana@x")
+    with pytest.raises(ValueError):
+        ajustes.guardar("riesgo", {"reglas_desactivadas": ["no.existe"]})
+
+    class SecOps:
+        def build_report(self, subs, strict=False):
+            return {"findings": [], "failed_queries": []}
+
+    with db.session_scope() as s:
+        r = findings.recolectar(ctx(secops=SecOps()), s)
+    assert r.detail["desactivados"] == 1
+    with db.session_scope() as s:
+        f = s.scalars(__import__("sqlalchemy").select(Finding)).one()
+        nota = s.scalars(__import__("sqlalchemy").select(FindingEvent.note).where(FindingEvent.finding_id == f.id)).all()
+        assert f.status == "resuelto" and any("desactivó" in (n or "") for n in nota)
+        correr("findings")
+        vista = cumplimiento.cumplimiento(s)
+    regla = next(x for x in vista["rules"] if x["id"] == "secrets.vault-public-network")
+    assert regla["status"] == "desactivada" and regla["disabled"] is True

@@ -9,6 +9,7 @@ import {
 } from '../../components/ui';
 import { AssetsView } from './AssetsView';
 import { ControlRefs, ControlStatusBadge } from './controls';
+import { ExceptionPanel } from './ExceptionPanel';
 import { CONTROL_STATUS, SHORT, frameworkLabel } from './status';
 
 type View = 'controles' | 'reglas' | 'activos';
@@ -68,7 +69,7 @@ function StatusViews({ view, onGo }: { view: 'controles' | 'reglas'; onGo: (path
 
   return (
     <div className="stack" style={{ gap: 24 }}>
-      {view === 'controles' ? <ControlsView data={data} refreshing={refreshing} onGo={onGo} /> : <RulesView data={data} refreshing={refreshing} onGo={onGo} />}
+      {view === 'controles' ? <ControlsView data={data} refreshing={refreshing} onGo={onGo} onCambio={reload} /> : <RulesView data={data} refreshing={refreshing} onGo={onGo} />}
       <div className="muted" style={{ fontSize: 12.5 }}>
         {data.evaluated_at ? <>Evaluado con la recolección del {dateTime(data.evaluated_at)}</> : 'El recolector todavía no evaluó las reglas'}
         {' '}· * evidencia parcial: la regla comprueba una parte de lo que pide el control.
@@ -79,7 +80,7 @@ function StatusViews({ view, onGo }: { view: 'controles' | 'reglas'; onGo: (path
 
 // ---------------------------------------------------------------- controles
 
-function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refreshing: boolean; onGo: (path: string) => void }) {
+function ControlsView({ data, refreshing, onGo, onCambio }: { data: ComplianceStatus; refreshing: boolean; onGo: (path: string) => void; onCambio: () => void }) {
   const [frameworkId, setFrameworkId] = useState(data.frameworks[0]?.id ?? '');
   const [filter, setFilter] = useState<'todos' | ControlStatus>('todos');
   const [selected, setSelected] = useState<ComplianceControl | null>(null);
@@ -118,6 +119,7 @@ function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refr
             { id: 'todos', label: 'Todos' },
             { id: 'no_cumple', label: `No cumple (${fw.summary.no_cumple ?? 0})` },
             { id: 'sin_evidencia', label: 'Sin evidencia' },
+            ...(fw.summary.exceptuado ? [{ id: 'exceptuado' as const, label: `Exceptuados (${fw.summary.exceptuado})` }] : []),
             { id: 'cumple', label: 'Cumple' },
           ]} />
         }
@@ -162,6 +164,9 @@ function ControlsView({ data, refreshing, onGo }: { data: ComplianceStatus; refr
         >
           <p style={{ margin: 0, fontSize: 13.5 }}><strong>{selected.title}</strong></p>
           <p className="secondary" style={{ margin: 0, fontSize: 13 }}>{CONTROL_STATUS[selected.status].hint}. El estado es el peor de su evidencia.</p>
+          <ExceptionPanel framework={fw.id} control={selected.id} exception={selected.exception}
+            puedeExceptuar={selected.status === 'no_cumple' || selected.status === 'sin_evidencia'}
+            onCambio={() => { setSelected(null); onCambio(); }} />
           <div className="subhead">Evidencia</div>
           <div className="stack" style={{ gap: 12 }}>
             {selected.evidence.map((e, i) => {

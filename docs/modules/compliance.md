@@ -68,6 +68,13 @@ Las evalúa el paso `findings_kubernetes` del job diario sobre la foto que enví
 
 No hace falta migración: el recolector inserta la regla en la siguiente ejecución.
 
+
+## Excepciones por control y reglas desactivadas
+
+**Excepción**: un control que hoy no se puede cumplir (no cumple o sin evidencia) se exceptúa desde su detalle (*Riesgo → Cumplimiento → Detalle → Exceptuar este control*, rol Operador) con una justificación de al menos 20 caracteres y un vencimiento de hasta un año. Mientras rige, el control figura como **Exceptuado** (con quién la aprobó, hasta cuándo y por qué); al vencer o al revocarla vuelve a su estado real. Una vigente por control, auditada. *Borrador con IA* redacta la justificación con la evidencia del control (por qué no se cumple, qué riesgo queda, qué lo mitiga, qué se hará) y marca `[completar: …]` lo que no sabe: una persona la revisa antes de aprobar. Viven en la tabla `control_exceptions` (migración 0006). API: `GET/POST /api/riesgo/excepciones`, `DELETE /api/riesgo/excepciones/{id}`, `POST /api/riesgo/excepciones/borrador`.
+
+**Regla desactivada** (*Plataforma → Ajustes → Riesgo*, Administrador): no se evalúa; en la próxima recolección sus hallazgos activos pasan a resueltos con la nota "Su regla se desactivó", y deja de contar como evidencia de los controles. En el catálogo figura como *Regla desactivada*.
+
 ## Estado de un control
 
 El estado es el peor de su evidencia:

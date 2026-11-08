@@ -3,6 +3,8 @@ import type { ControlStatus } from '../../lib/types';
 export const CONTROL_STATUS: Record<ControlStatus, { label: string; dot?: string; hint: string }> = {
   no_cumple: { label: 'No cumple', dot: 'dot-critical', hint: 'Hay hallazgos abiertos o asumidos' },
   sin_evidencia: { label: 'Sin evidencia', hint: 'La regla no se pudo evaluar en la última recolección' },
+  exceptuado: { label: 'Exceptuado', dot: 'dot-warning', hint: 'Tiene una excepción aprobada vigente' },
+  desactivada: { label: 'Regla desactivada', hint: 'Desactivada en Plataforma → Ajustes → Riesgo' },
   riesgo_aceptado: { label: 'Riesgo aceptado', dot: 'dot-warning', hint: 'Solo quedan riesgos aceptados con vencimiento' },
   cumple: { label: 'Cumple', dot: 'dot-good', hint: 'Evaluado y sin hallazgos activos' },
 };

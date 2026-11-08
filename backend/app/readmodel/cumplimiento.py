@@ -10,7 +10,12 @@ Estado de un control, de peor a mejor:
 * `sin_evidencia`   — alguna regla no se pudo evaluar en la ultima ejecucion
   (su consulta fallo) o el recolector todavia no corrio. No se presume que
   cumple.
+* `exceptuado`      — no cumple (o sin evidencia), pero tiene una excepción aprobada
+  vigente (Riesgo → Cumplimiento): justificación, quién y hasta cuándo. Al vencer
+  vuelve a su estado real.
 * `riesgo_aceptado` — solo quedan hallazgos aceptados con vencimiento vigente.
+
+Las reglas desactivadas en Plataforma → Ajustes → Riesgo no cuentan como evidencia.
 * `cumple`          — todas sus reglas se evaluaron y no hay hallazgos activos.
 """
 
@@ -22,9 +27,10 @@ from sqlalchemy.orm import Session
 
 from app.compliance import catalog
 from app.compliance.classification import ambiente
-from app.db.models import Account, AssetClassification, CollectorRun, Finding, Resource
+from app.core import ajustes
+from app.db.models import Account, AssetClassification, CollectorRun, ControlException, Finding, Resource
 
-ESTADOS = ("no_cumple", "sin_evidencia", "riesgo_aceptado", "cumple")
+ESTADOS = ("no_cumple", "sin_evidencia", "exceptuado", "riesgo_aceptado", "cumple")
 ACTIVOS = ("abierto", "asumido")
 
 
@@ -110,6 +116,10 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
         if ultima is None and proveedor != "azure":
             no_aplican |= propias
         sin_evidencia |= _reglas_sin_evidencia(ultima) & propias
+    desactivadas = set(ajustes.seccion("riesgo")["reglas_desactivadas"])
+    hoy = datetime.now(timezone.utc).date()
+    excepciones = {(e.framework, e.control): e for e in s.scalars(select(ControlException).where(
+        ControlException.revoked_at.is_(None), ControlException.until >= hoy).order_by(ControlException.until))}
     conteo = _conteo_por_regla(s)
     clasificacion = _evidencia_de_clasificacion(s)
     vacio = {"active": 0, "accepted": 0, "resolved": 0, "by_severity": {}}
@@ -128,7 +138,8 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
         reglas.append({
             "id": r.id, "title": r.title, "severity_default": r.severity_default, "description": r.description,
             "detection": r.detection, "remediation": r.remediation, "references": list(r.references),
-            "frameworks": catalog.frameworks_json(r), "status": estado_de_regla(r.id), "provider": r.proveedor,
+            "frameworks": catalog.frameworks_json(r), "provider": r.proveedor,
+            "status": "desactivada" if r.id in desactivadas else estado_de_regla(r.id), "disabled": r.id in desactivadas,
             "evaluated": r.id not in sin_evidencia, **c,
         })
 
@@ -143,7 +154,7 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
                 continue
             evidencias, estados = [], []
             for r in catalog.REGLAS.values():
-                if r.id in no_aplican:
+                if r.id in no_aplican or r.id in desactivadas:
                     continue
                 for control_id, alcance in r.frameworks.get(m, ()):
                     if control_id != cid:
@@ -157,8 +168,15 @@ def cumplimiento(s: Session) -> Dict[str, Any]:
                 estados.append(e["status"])
                 evidencias.append({"kind": "classification", "title": e["detail"], "match": e["match"],
                                    "status": e["status"], "active": e["failing"], "accepted": 0})
+            estado = _peor(estados)
+            excepcion = excepciones.get((m, cid))
+            if excepcion is not None and estado in ("no_cumple", "sin_evidencia"):
+                estado = "exceptuado"
             controles.append({
-                "id": cid, "title": control.titulo, "status": _peor(estados), "evidence": evidencias,
+                "id": cid, "title": control.titulo, "status": estado, "evidence": evidencias,
+                "exception": None if excepcion is None else {
+                    "id": excepcion.id, "justification": excepcion.justification, "created_by": excepcion.created_by,
+                    "until": excepcion.until.isoformat(), "created_at": _iso(excepcion.created_at)},
                 "direct": any(e["match"] == "directa" for e in evidencias),
                 "active": sum(e["active"] for e in evidencias), "accepted": sum(e["accepted"] for e in evidencias),
             })

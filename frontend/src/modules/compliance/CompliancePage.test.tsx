@@ -55,6 +55,23 @@ describe('Cumplimiento', () => {
     expect(onGo).toHaveBeenCalledWith('riesgo/hallazgos');
   });
 
+  it('un operador exceptúa un control con el borrador de la IA', async () => {
+    api.post.mockReset().mockImplementation(async (path: string) => (path.endsWith('/borrador')
+      ? { justification: 'Hoy no se cumple porque kv-pagos-prod expone red pública; [completar: mitigación].' } : {}));
+    const { user } = renderWithApp(<CompliancePage view="controles" onView={vi.fn()} onGo={vi.fn()} />, { role: 'operador' });
+    await screen.findByText('8.7');
+    await user.click(within(screen.getByText('8.7').closest('tr')!).getByRole('button', { name: 'Detalle' }));
+    const panel = screen.getByRole('dialog', { name: 'CIS 8.7' });
+    await user.click(within(panel).getByRole('button', { name: 'Exceptuar este control…' }));
+    const aprobar = within(panel).getByRole('button', { name: 'Aprobar la excepción' });
+    expect(aprobar).toBeDisabled();
+    await user.click(within(panel).getByRole('button', { name: /Borrador con IA/ }));
+    expect(await within(panel).findByDisplayValue(/kv-pagos-prod expone red pública/)).toBeInTheDocument();
+    await user.click(aprobar);
+    expect(api.post).toHaveBeenCalledWith('/api/riesgo/excepciones', expect.objectContaining({
+      framework: 'cis-azure-2.0.0', control: '8.7', justification: expect.stringContaining('kv-pagos-prod') }));
+  });
+
   it('el catálogo muestra el mapeo y marca la evidencia parcial', async () => {
     const { user } = renderWithApp(<CompliancePage view="reglas" onView={vi.fn()} onGo={vi.fn()} />);
     await screen.findByText('network.admin-port-open');
