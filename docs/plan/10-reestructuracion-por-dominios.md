@@ -184,7 +184,8 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | *Mis pendientes* en el Resumen: incidentes, hallazgos y alertas de costo asignados a mí; críticos y altos sin responsable; riesgos aceptados, excepciones y silencios por vencer; ordenado por urgencia con el porqué (`GET /api/inicio/pendientes`, dominio `app/dominios/inicio`) | Hecho |
 | *Qué cambió* desde la última visita (la recuerda el navegador; si no hay, 24 horas): incidentes, hallazgos, recursos y alertas de costo (`GET /api/inicio/cambios`) | Hecho |
 | Barra lateral con grupos plegables; el grupo de la sección abierta nunca se pliega | Hecho |
-| *Mis pendientes* priorizado por la IA y reportes por bloques narrados | Pendiente |
+| *Mis pendientes* priorizado por la IA: *Por dónde empiezo* propone 1 a 3 acciones con el enlace de cada pendiente y agrupa los de la misma causa (`POST /api/inicio/pendientes/priorizar`, se recuerda 30 min; caso en `eval.dominios`) | Hecho |
+| Reportes por bloques narrados | Pendiente |
 
 ## Riesgos y compatibilidad
 

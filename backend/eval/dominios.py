@@ -24,6 +24,7 @@ from app.collectors import semanal  # noqa: E402
 from app.core import config  # noqa: E402
 from app.dominios.activos import servicio as activos  # noqa: E402
 from app.dominios.costos import servicio as costos  # noqa: E402
+from app.dominios.inicio import servicio as inicio  # noqa: E402
 from app.dominios.riesgo import servicio as riesgo  # noqa: E402
 from eval import cifras, resultado  # noqa: E402
 
@@ -60,6 +61,19 @@ SEMANA = {"semana": "2026-W45", "desde": "2026-11-02", "hasta": "2026-11-08",
                          "diagnosticos_marcados": 3, "diagnosticos_correctos": 3, "cerrados_como_ruido": 1},
           "recursos": {"nuevos": 12, "nuevos_fuera_de_terraform": 4, "borrados": 2}, "job": {"ok": 98, "con_error": 1}}
 
+PENDIENTES = {"total": 5, "pendientes": [
+    {"type": "incidente", "title": "#40 PodCrashLooping · boutique · paymentservice-67c8986f6-gc", "why": "Severidad critica y sin responsable",
+     "urgency": 3, "link": "#/operacion/incidentes/40", "when": "2026-11-08T22:10:00+00:00",
+     "detail": "Causa probable (confianza alta): la imagen paymentservice:v9.9.9 no existe en el registro, desplegada en la revisión 9."},
+    {"type": "incidente", "title": "#26 PodCrashLooping · boutique · adservice-69b695b896-rplqk", "why": "Severidad critica y sin responsable",
+     "urgency": 3, "link": "#/operacion/incidentes/26", "when": "2026-11-05T04:18:00+00:00", "detail": "Pod is crash looping."},
+    {"type": "incidente", "title": "#29 PodCrashLooping · boutique · loadgenerator-7d7c7bd9-sjkc", "why": "Severidad critica y sin responsable",
+     "urgency": 3, "link": "#/operacion/incidentes/29", "when": "2026-11-05T04:19:00+00:00", "detail": "Pod is crash looping."},
+    {"type": "hallazgo", "title": "Key Vault alcanzable desde red pública · kv-lab", "why": "Asignado a ti · vencido el 2026-11-01",
+     "urgency": 3, "link": "#/riesgo/hallazgos", "detail": "Desactivar el acceso de red pública o usar un endpoint privado."},
+    {"type": "costo", "title": "Presupuesto de Azure al 80 %", "why": "Alerta de costo sin responsable", "urgency": 2,
+     "link": "#/costos/alertas", "when": "2026-11-07T06:00:00+00:00"}]}
+
 # (nombre, uso, prompt de sistema, datos, patrones que debe contener)
 CASOS = [
     ("Activos: explicar la ficha del recurso", "activos.explicar", activos.SISTEMA.format(org="Contoso"), FICHA,
@@ -70,6 +84,8 @@ CASOS = [
      [r"key ?vault|red p[uú]blica|private endpoint", r"\[completar|mitig"]),
     ("Operación: post-mortem", "incidente.postmortem", incidentes.POSTMORTEM.format(org="Contoso"), POSTMORTEM,
      [r"Resumen", r"L[ií]nea de tiempo", r"Causa", r"Acciones", r"v9\.9\.9"]),
+    ("Inicio: por dónde empezar con mis pendientes", "inicio.prioridades", inicio.SISTEMA.format(org="Contoso"), PENDIENTES,
+     [r"Por d[oó]nde empezar", r"\(#/operacion/incidentes/40\)", r"Puede esperar", r"#26|#29|adservice|loadgenerator"]),
     ("Inicio: resumen semanal", "resumen.semanal", semanal.SISTEMA.format(org="Contoso"), SEMANA,
      [r"7[.,]0|7 USD|\$ ?7", r"Para esta semana"]),
 ]

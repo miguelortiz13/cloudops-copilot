@@ -91,3 +91,39 @@ def test_rutas_con_el_usuario_que_consulta():
         assert c.get("/api/inicio/cambios", params={"desde": (AHORA + timedelta(days=1)).isoformat()}).status_code == 400
     finally:
         app.dependency_overrides.clear()
+
+
+def test_la_ia_prioriza_con_el_detalle_y_recuerda_la_respuesta(monkeypatch):
+    from app import llm
+    from app.llm import limits
+    from app.llm.base import Respuesta
+
+    class Modelo:
+        nombre, modelo, mensajes = "falso", "falso-1", []
+
+        def generar(self, sistema, mensaje, **k):
+            self.mensajes.append((sistema, mensaje))
+            return Respuesta(texto="**Por dónde empezar:**\n- Reconoce [#2](#/operacion/incidentes/2)", modelo="falso-1")
+
+    with db.session_scope() as s:
+        s.get(Incident, 2).diagnosis = "Causa probable: imagen v9.9.9 inexistente"
+    m = Modelo()
+    llm.reiniciar(m)
+    servicio._CACHE.clear()
+    limits.reiniciar()
+    try:
+        from app.main import app
+        app.dependency_overrides[deps.services] = lambda: SimpleNamespace(azure=SimpleNamespace(azure_credentials=None))
+        c = TestClient(app)
+        r = c.post("/api/inicio/pendientes/priorizar").json()
+        assert r["text"].startswith("**Por dónde empezar:**") and r["cached"] is False
+        sistema, mensaje = m.mensajes[0]
+        assert "Por dónde empezar" in sistema and "<<<DATOS_NO_CONFIABLES>>>" in mensaje
+        assert "#/operacion/incidentes/2" in mensaje and "imagen v9.9.9 inexistente" in mensaje  # el porqué y el detalle llegan al modelo
+        assert c.post("/api/inicio/pendientes/priorizar").json()["cached"] is True and len(m.mensajes) == 1
+        llm.reiniciar(None)
+        assert c.post("/api/inicio/pendientes/priorizar").status_code == 503
+    finally:
+        app.dependency_overrides.clear()
+        llm.reiniciar(None)
+        limits.reiniciar()

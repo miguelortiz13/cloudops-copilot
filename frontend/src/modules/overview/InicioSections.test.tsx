@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearApiCache } from '../../lib/useApi';
 import { renderWithApp } from '../../test/render';
 
-const api = vi.hoisted(() => ({ get: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('../../lib/api', () => api);
 
 const { MisPendientes, QueCambio } = await import('./InicioSections');
@@ -21,6 +21,15 @@ describe('Inicio', () => {
     expect(screen.getAllByText('Asignado a ti · abierto')).toHaveLength(6);
     await user.click(screen.getByRole('button', { name: 'Ver los 8' }));
     expect(screen.getAllByText('Asignado a ti · abierto')).toHaveLength(8);
+  });
+
+  it('la IA propone por dónde empezar, con enlaces a cada pendiente', async () => {
+    api.get.mockResolvedValue({ configured: true, items: [pendiente(40, 3), pendiente(26, 3)] });
+    api.post.mockResolvedValue({ text: '**Por dónde empezar:**\n- Reconoce [#40](#/operacion/incidentes/40): imagen inexistente.' });
+    const { user } = renderWithApp(<MisPendientes />);
+    await user.click(await screen.findByRole('button', { name: 'Por dónde empiezo' }));
+    expect(api.post).toHaveBeenCalledWith('/api/inicio/pendientes/priorizar', {});
+    expect(await screen.findByRole('link', { name: '#40' })).toHaveAttribute('href', '#/operacion/incidentes/40');
   });
 
   it('Qué cambió usa la última visita y solo lista lo que cambió', async () => {
