@@ -18,7 +18,8 @@ from app.core import config
 
 # Dominio de cada uso del modelo (el prefijo de `uso`), para agrupar en Plataforma → IA.
 DOMINIO = {"asistente": "inicio", "resumen": "inicio", "agente": "inicio", "chat": "inicio", "activos": "activos",
-           "k8s": "activos", "iac": "activos", "costos": "costos", "riesgo": "riesgo", "incidente": "operacion"}
+           "k8s": "activos", "iac": "activos", "costos": "costos", "riesgo": "riesgo", "incidente": "operacion",
+           "inicio": "inicio"}
 MAX_ARGUMENTO = 200
 
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { get } from '../../lib/api';
+import { get, post } from '../../lib/api';
+import { Markdown } from '../../lib/markdown';
 import { useApi } from '../../lib/useApi';
 import { dateTime, number } from '../../lib/format';
-import { Card, Empty, Loading } from '../../components/ui';
+import { Card, Empty, Loading, Notice } from '../../components/ui';
 
 interface Pendiente { type: string; title: string; why: string; urgency: number; link: string; when: string | null }
 interface Cambios {
@@ -36,11 +37,27 @@ function ultimaVisita(): string | null {
 export function MisPendientes() {
   const { data, loading } = useApi<{ configured: boolean; items: Pendiente[] }>('inicio-pendientes', () => get('/api/inicio/pendientes'));
   const [todos, setTodos] = useState(false);
+  const [ia, setIa] = useState<{ text?: string; error?: string; cargando?: boolean } | null>(null);
   const items = data?.items ?? [];
+  const priorizar = async () => {
+    setIa({ cargando: true });
+    try {
+      setIa({ text: (await post<{ text: string }>('/api/inicio/pendientes/priorizar', {})).text });
+    } catch (e) {
+      setIa({ error: e instanceof Error ? e.message : String(e) });
+    }
+  };
   const visibles = todos ? items : items.slice(0, 6);
   return (
     <Card title="Mis pendientes" subtitle="Lo asignado a ti, lo crítico sin responsable y lo que vence pronto" flush
-      actions={items.length > 6 ? <button className="btn btn-ghost btn-sm" onClick={() => setTodos(!todos)}>{todos ? 'Ver menos' : `Ver los ${items.length}`}</button> : undefined}>
+      actions={items.length ? (
+        <div className="row-actions">
+          <button className="btn btn-sm" disabled={ia?.cargando} onClick={priorizar}>{ia?.cargando ? 'Pensando…' : 'Por dónde empiezo'}</button>
+          {items.length > 6 && <button className="btn btn-ghost btn-sm" onClick={() => setTodos(!todos)}>{todos ? 'Ver menos' : `Ver los ${items.length}`}</button>}
+        </div>
+      ) : undefined}>
+      {ia?.text && <div className="msg-body" style={{ padding: '4px 20px 12px' }}><Markdown text={ia.text} /></div>}
+      {ia?.error && <div style={{ padding: '4px 20px 12px' }}><Notice tone="critical">{ia.error}</Notice></div>}
       {loading && !data ? <Loading /> : !data?.configured ? <Empty>Sin base de datos no hay pendientes.</Empty> : items.length === 0 ? <Empty title="Nada pendiente">No tienes nada asignado ni por vencer.</Empty> : (
         <div className="table-wrap">
           <table className="table">
