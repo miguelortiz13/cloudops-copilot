@@ -159,7 +159,7 @@ module "cae" {
 }
 
 module "api" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app?ref=v0.4.0"
 
   name                         = "ca-${local.base}-api"
   resource_group_name          = module.rg.name
