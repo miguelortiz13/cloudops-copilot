@@ -51,14 +51,21 @@ El enlace lleva a la vista que corresponde: gestión de hallazgos, Administraci�
 
 ## Reporte ejecutivo mensual
 
-Desde el día 4 de cada mes, el paso `report` envía el reporte del mes anterior una sola vez. Contenido:
+Desde el día 4 de cada mes, el paso `report` envía el reporte del mes anterior una sola vez, con todos los bloques y narrado si hay modelo. Bloques (`BLOQUES` en [`app/reports/mensual.py`](../../backend/app/reports/mensual.py)):
 
-- gasto del mes contra el mes anterior y contra el presupuesto de cada nube, con las cuentas y servicios de más gasto;
-- hallazgos abiertos por severidad, detectados y resueltos en el mes, y la lista de críticos y altos;
-- recursos activos por nube, cobertura de Terraform, nuevos y eliminados en el mes;
-- ejecuciones del job en el mes y su resultado.
+| Bloque | Contenido |
+|---|---|
+| `costos` | Gasto del mes contra el mes anterior y contra el presupuesto de cada nube, con las cuentas y servicios de más gasto |
+| `seguridad` | Hallazgos abiertos por severidad, detectados y resueltos en el mes, y la lista de críticos y altos |
+| `inventario` | Recursos activos por nube, cobertura de Terraform, nuevos y eliminados en el mes |
+| `incidentes` | Incidentes del mes por severidad, resueltos y su mediana en minutos, cerrados como ruido, diagnósticos marcados y correctos, y los principales |
+| `plataforma` | Ejecuciones del job en el mes y su resultado |
 
-El PDF se genera sin dependencias externas ([`app/reports/pdf.py`](../../backend/app/reports/pdf.py)): una librería de PDF traería Pillow y sus avisos de Trivy a la imagen. En el panel, Reportes → *Reporte ejecutivo mensual* descarga el de cualquier mes.
+**Narrado**: con `narrar=true` (o en el envío del job, si hay modelo) la IA escribe dos o tres frases ejecutivas por bloque con las mismas cifras del reporte (`reportes.narrar`, JSON por bloque, datos delimitados como no confiables). Van en gris bajo el título de cada bloque, con una nota al pie de que las redactó la IA. Si el modelo falla, el reporte sale igual sin narración. El caso *reporte mensual narrado* de `eval.dominios` vigila que no invente cifras.
+
+`GET /api/reports/monthly?month=AAAA-MM&bloques=costos,incidentes&narrar=true` (rol Lector; narrar descuenta el cupo del modelo). En el panel, *Plataforma → Reportes → Reporte ejecutivo mensual* elige el mes, los bloques y la narración.
+
+El PDF se genera sin dependencias externas ([`app/reports/pdf.py`](../../backend/app/reports/pdf.py)): una librería de PDF traería Pillow y sus avisos de Trivy a la imagen.
 
 ## Resumen semanal
 
