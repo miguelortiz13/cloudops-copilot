@@ -106,7 +106,8 @@ ESCENARIOS = [
           servicios=[{"namespace": "boutique", "name": "redis-cart", "type": "ClusterIP", "selector": True,
                       "headless": False, "endpoints": 0}]),
      alerta("KubePodCrashLooping", "cartservice-7d9f-x1", "Pod is crash looping."),
-     [r"redis", r"6379|conex|connection"]),
+     # IA-4: el incidente #900 (sembrado, resuelto y marcado correcto) es el mismo problema: el diagnóstico debe citarlo.
+     [r"redis", r"6379|conex|connection"], [r"#\s?900"]),
     ("Imagen inexistente después de un despliegue",
      foto([pod("paymentservice-5c4b-q2", fase="Pending", motivo="ImagePullBackOff", creado=(AHORA - timedelta(minutes=30)).isoformat())],
           [carga("paymentservice", 1, 0)],
@@ -148,9 +149,18 @@ def main() -> int:
         return 2
     db.reset_engine()
     Base.metadata.create_all(db.get_engine())
+    from app.db.models import Incident, IncidentEvent
+    with db.session_scope() as s:
+        s.add(Incident(id=900, key="k900", source="alertmanager", cluster="lab", title="KubePodCrashLooping · boutique · cartservice",
+                       severity="alta", status="resuelto", alerts=[{"name": "KubePodCrashLooping", "summary": "Pod is crash looping."}],
+                       opened_at=AHORA - timedelta(days=12), last_alert_at=AHORA - timedelta(days=12), resolved_at=AHORA - timedelta(days=12),
+                       diagnosis="Causa probable: cartservice no conecta a redis-cart:6379 (Connection refused) porque redis-cart no tenía endpoints.",
+                       feedback="correcto", closed_reason="solucionado"))
+        s.add(IncidentEvent(incident_id=900, at=AHORA - timedelta(days=12), actor="ana@contoso.example", kind="nota",
+                            text="Se reinició redis-cart y cartservice se recuperó solo."))
     k8s_fleet.configurados = lambda: ["lab"]
     aciertos, casos = 0, []
-    for nombre, f, alertas, esperado in ESCENARIOS:
+    for nombre, f, alertas, esperado, *en_texto in ESCENARIOS:
         k8s_fleet.leer = lambda credenciales, cluster, f=f: f if cluster == "lab" else None
         i = SimpleNamespace(source="alertmanager", cluster="lab", title=f"{alertas[0]['name']} · boutique",
                             severity=alertas[0]["severity"], opened_at=AHORA, alerts=alertas)
@@ -162,7 +172,8 @@ def main() -> int:
             texto, usadas = f"(error: {exc})", []
         causa = re.search(r"Causa probable.*?(?=\*\*Evidencia|$)", texto, re.S | re.I)
         causa = causa.group(0) if causa else texto
-        ok = all(re.search(p, causa, re.I) for p in esperado)
+        # `en_texto`: lo que debe aparecer en cualquier parte, como la cita a un incidente previo (IA-4).
+        ok = all(re.search(p, causa, re.I) for p in esperado) and all(re.search(p, texto, re.I) for p in (en_texto or [[]])[0])
         aciertos += ok
         casos.append({"name": nombre, "ok": ok, "reason": None if ok else causa.strip()[:200]})
         print(f"[{'OK' if ok else 'FALLA'}] {nombre}\n    herramientas: {usadas}\n    {causa.strip()[:280]!r}\n")

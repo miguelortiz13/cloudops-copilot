@@ -152,6 +152,11 @@ def _drift(ctx: Contexto, session) -> Resultado:
     return drift.recolectar(ctx, session)
 
 
+def _conocimiento(ctx: Contexto, session) -> Resultado:
+    from app.ai import conocimiento
+    return conocimiento.recolectar(ctx, session)
+
+
 RECOLECTORES: Dict[str, Callable] = {
     "inventory": inventory.recolectar,
     "inventory_aws": inventario_aws,
@@ -171,6 +176,8 @@ RECOLECTORES: Dict[str, Callable] = {
     "report": report.recolectar,
     # Resumen de la semana anterior, en la primera corrida de cada semana (app/collectors/semanal.py).
     "weekly": semanal.recolectar,
+    # Base de conocimiento de la IA (app/ai/conocimiento.py): reindexa lo que cambió (incidentes resueltos, excepciones).
+    "knowledge": _conocimiento,
     # Al final: avisa de lo que dejaron los pasos anteriores de esta misma corrida.
     "notify": notify.recolectar,
 }

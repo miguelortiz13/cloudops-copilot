@@ -97,7 +97,7 @@ Cada respuesta del agente (`invoke_agent`) y cada llamada directa al modelo (`ch
 
 ## Evals continuos
 
-Cuatro suites con el modelo real, cada una con `--json` para publicar su resultado:
+Cinco suites con el modelo real, cada una con `--json` para publicar su resultado:
 
 | Suite | Qué mide | Casos |
 |---|---|---|
@@ -105,6 +105,7 @@ Cuatro suites con el modelo real, cada una con `--json` para publicar su resulta
 | `eval.incidentes` | Que el diagnóstico nombre la causa sembrada, con ruido de un clúster real | 6 incidentes |
 | `eval.dominios` | La IA de cada dominio con su prompt de producción: ficha del recurso, alerta de costo, borrador de excepción, post-mortem, resumen semanal | 5 casos |
 | `eval.inyeccion` | Que no obedezca instrucciones escondidas en logs, tags, nombres, alertas y eventos, ni revele sus instrucciones (objetivo 100 %) | 7 casos |
+| `eval.recuperacion` | Que la base de conocimiento encuentre la fuente correcta entre las 5 primeras, con preguntas dichas como en una guardia (objetivo 80 % de recall@5) | 18 preguntas |
 
 `eval.dominios` aplica además el **chequeo determinista de cifras** ([`eval/cifras.py`](../../backend/eval/cifras.py)): toda cifra de la respuesta tiene que estar en los datos o en el prompt, o ser la suma o diferencia de dos de ellas (04:30 − 04:18 = "12 minutos"); se ignoran los enteros menores que 10 y los porcentajes. Una cifra inventada hace fallar el caso aunque el texto sea correcto.
 
@@ -127,6 +128,23 @@ Conectar Claude Code (el panel muestra el comando con el token al emitirlo):
 claude mcp add --transport http cloudops https://<api>/mcp --header "Authorization: Bearer <token>"
 ```
 
+## Base de conocimiento (RAG)
+
+[`app/ai/conocimiento.py`](../../backend/app/ai/conocimiento.py) indexa lo que no son datos estructurados (los costos, el inventario y los hallazgos se consultan siempre con sus herramientas, que son exactas):
+
+| Tipo | Origen | Enlace citado |
+|---|---|---|
+| `runbook` | [`backend/conocimiento/runbooks/`](../runbooks/README.md), un fragmento por sección `##` | La fuente (archivo y sección) |
+| `guia` | `backend/conocimiento/guia/uso-del-panel.md`: cómo se hace cada cosa en el panel | La fuente |
+| `control` | Cada regla del catálogo con su riesgo, detección, remediación y controles | `#/riesgo/hallazgos` |
+| `incidente` | Incidentes resueltos con el diagnóstico marcado como correcto o cerrados como solucionados (nunca los marcados incorrectos), con sus notas y su post-mortem | `#/operacion/incidentes/N` |
+| `excepcion` | Excepciones de control vigentes con su justificación | `#/riesgo/cumplimiento` |
+
+- **Índice** en `DATA_DIR/conocimiento/indice.json`: vectores de `gemini-embedding-001` (768 dimensiones, `GEMINI_EMBEDDING_MODEL`) y un hash por fragmento. El paso `knowledge` del job diario y el botón *Reindexar* de *Plataforma → IA* solo generan vectores para lo que cambió; si cambia el modelo, se rehacen todos.
+- **Búsqueda híbrida**: BM25 sobre las palabras (nombres exactos como `ImagePullBackOff` o `redis-cart`, también por partes) y coseno sobre los vectores, combinados por *reciprocal rank fusion*. Sin modelo, sin vectores o si falla el embedding de la consulta, queda la parte léxica.
+- **Usos**: la herramienta `buscar_conocimiento` (chat, diagnóstico y MCP); el diagnóstico la consulta con la alerta y el error y, si hay un incidente resuelto parecido, lo nombra como «Visto antes: incidente #N» y sigue el runbook en *Siguientes pasos*; el borrador de excepción recibe las justificaciones aprobadas para controles parecidos.
+- **Medición**: `eval.recuperacion` (18 preguntas, recall@5 de 100 % con la búsqueda híbrida y 94 % solo con palabras en la primera corrida) y, en `eval.incidentes`, un incidente previo sembrado que el diagnóstico de redis debe citar.
+
 ## Seguridad de agentes (OWASP Top 10 para aplicaciones LLM)
 
 Guardas en [`app/ai/guardas.py`](../../backend/app/ai/guardas.py), aplicadas en un solo lugar para todo uso de la IA (el motor con herramientas y `llm.generar`):
@@ -140,11 +158,11 @@ Guardas en [`app/ai/guardas.py`](../../backend/app/ai/guardas.py), aplicadas en 
 | LLM01 Prompt injection | Datos delimitados y regla en el sistema; herramientas de solo lectura | `eval.inyeccion` (semanal, 100 %) |
 | LLM02 Divulgación de información sensible | Las trazas no guardan texto; credenciales evidentes enmascaradas antes de publicar; el chat y el MCP con rol | `test_incidentes` (enmascarado), `test_trazas` |
 | LLM03 Cadena de suministro | Dependencias fijadas, Dependabot, Trivy en la imagen; modelo de un proveedor gestionado | CI |
-| LLM04 Envenenamiento de datos | Sin ajuste fino; el RAG (IA-4) solo indexará incidentes marcados como correctos y docs del repo | Eval de recuperación (IA-4) |
+| LLM04 Envenenamiento de datos | Sin ajuste fino; el RAG solo indexa runbooks del repositorio, el catálogo e incidentes marcados como correctos o solucionados (nunca los incorrectos) | `test_conocimiento`, `eval.recuperacion` |
 | LLM05 Manejo inseguro de la salida | Markdown sin HTML y solo enlaces `#/` en el panel; enlaces permitidos en los avisos; la salida nunca se ejecuta | `markdown.test.tsx`, `test_avisos` |
 | LLM06 Agencia excesiva | Herramientas de solo lectura con argumentos validados; los cambios salen como propuesta con aprobación humana; MCP solo con rol Lector | `test_ai_agente`, `test_mcp` |
 | LLM07 Filtración del prompt de sistema | Regla de no revelar; el prompt no contiene secretos | `eval.inyeccion` (frases del prompt) |
-| LLM08 Debilidades de vectores y embeddings | No aplica hasta IA-4 (índice propio, sin datos de otros tenants) | — |
+| LLM08 Debilidades de vectores y embeddings | Índice propio en el File Share, sin datos de terceros; solo entran incidentes marcados como correctos o solucionados; lo recuperado llega al modelo como dato no confiable | `test_conocimiento`, `eval.recuperacion` |
 | LLM09 Desinformación | Toda cifra sale de herramientas o datos, con cita al panel | `eval.dominios` (chequeo de cifras) |
 | LLM10 Consumo sin límite | Topes por ejecución (8 herramientas, 90 s, 30.000 caracteres por resultado), cupos por usuario y por dominio, 300 llamadas MCP por hora por token, costo visible en *Plataforma → IA* | `test_ai_agente`, `test_llm`, `test_mcp` |
 
