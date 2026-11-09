@@ -176,7 +176,7 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Severidad mínima por dominio y silencios por tipo de aviso (varios canales: cuando haya un segundo webhook) | Hecho |
 | Chequeo HTTP como fuente de incidentes | Hecho |
 
-### Fase 5 · Inicio y plataforma de IA (hecha; falta su puerta: 90 % por dominio en los evals)
+### Fase 5 · Inicio y plataforma de IA (hecha)
 
 | Entregable | Estado |
 |---|---|
@@ -186,6 +186,7 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Barra lateral con grupos plegables; el grupo de la sección abierta nunca se pliega | Hecho |
 | *Mis pendientes* priorizado por la IA: *Por dónde empiezo* propone 1 a 3 acciones con el enlace de cada pendiente y agrupa los de la misma causa (`POST /api/inicio/pendientes/priorizar`, se recuerda 30 min; caso en `eval.dominios`) | Hecho |
 | Reporte mensual por bloques (costos, seguridad, inventario, incidentes nuevo, plataforma) y narrado por la IA, a pedido y en el envío del día 4 ([reportes](../modules/notifications-reports.md#reporte-ejecutivo-mensual)) | Hecho |
+| Puerta: evals de 90 % o más por dominio. Corrida del 9-nov: asistente 9/9, incidentes 6/6, dominios 7/7 sin cifras inventadas, inyección 7/7, recuperación 18/18 | Hecho |
 
 ## Riesgos y compatibilidad
 
