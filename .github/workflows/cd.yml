@@ -129,7 +129,8 @@ jobs:
 
           # El primer arranque tras escalar a cero puede tardar.
           for _ in $(seq 1 20); do
-            codigo=$(curl -s -m 30 -o /dev/null -w "%{http_code}" "$API/api/inventory/health")
+            # `|| true`: un curl que vence (código 28) mientras el API arranca debe reintentar, no cortar el script (bash -e).
+            codigo=$(curl -s -m 30 -o /dev/null -w "%{http_code}" "$API/api/inventory/health" || true)
             [ "$codigo" = "200" ] && break; sleep 10
           done
           comprobar "health del API" "$codigo" 200
