@@ -61,3 +61,39 @@ try:
         config.LLM_MAX_REQUESTS_PER_HOUR, config.LLM_MAX_REQUESTS_PER_DAY = topes
 except ImportError:  # las pruebas de integracion se ejecutan sin pytest
     pass
+
+
+# Producción usa SQL Server y las pruebas, SQLite: lo que SQLite acepta y SQL Server no (por ejemplo
+# `columna IS 0`, que tumbó /api/inicio/cambios) pasaba las pruebas y fallaba al desplegar. Cada consulta
+# que corre la suite se compila también con el dialecto de SQL Server y falla aquí si no es válida allí.
+import re as _re
+
+from sqlalchemy import event as _event
+from sqlalchemy.dialects import mssql as _mssql
+from sqlalchemy.engine import Engine as _Engine
+from sqlalchemy.exc import CompileError as _CompileError
+from sqlalchemy.sql import ClauseElement as _ClauseElement
+
+_SQL_SERVER = _mssql.dialect()
+_NO_VALIDO_EN_SQL_SERVER = _re.compile(r"\bIS\s+(NOT\s+)?(0|1|true|false)\b", _re.I)
+
+
+class SqlNoValidoEnSqlServer(AssertionError):
+    pass
+
+
+def verificar_en_sql_server(sentencia) -> None:
+    if not isinstance(sentencia, _ClauseElement) or not (getattr(sentencia, "is_select", False) or getattr(sentencia, "is_dml", False)):
+        return  # texto crudo y DDL: los cubren las migraciones de Alembic, no esta red
+    try:
+        sql = str(sentencia.compile(dialect=_SQL_SERVER))
+    except _CompileError as exc:
+        raise SqlNoValidoEnSqlServer(f"La consulta no compila para SQL Server: {exc}") from exc
+    malo = _NO_VALIDO_EN_SQL_SERVER.search(sql)
+    if malo:
+        raise SqlNoValidoEnSqlServer(f"SQL Server rechaza «{malo.group(0)}» (usa == true()/false()):\n{sql}")
+
+
+@_event.listens_for(_Engine, "before_execute")
+def _tambien_en_sql_server(conn, sentencia, *args, **kwargs):
+    verificar_en_sql_server(sentencia)
