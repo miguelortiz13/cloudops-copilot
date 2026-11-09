@@ -157,16 +157,34 @@ def inventory_report_export(accounts: Optional[str] = None):
 
 
 @router.get("/api/reports/monthly")
-def monthly_report(month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")):
-    """Reporte ejecutivo del mes `month` (AAAA-MM) en PDF; el job envía el del mes anterior solo."""
+def monthly_report(month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+                   bloques: Optional[str] = Query(default=None, max_length=100, description="costos,seguridad,…; vacío = todos"),
+                   narrar: bool = False, usuario: Usuario = requiere("lector")):
+    """
+    Reporte ejecutivo del mes `month` (AAAA-MM) en PDF, con los bloques pedidos; con `narrar`, la IA escribe dos o
+    tres frases por bloque con las cifras del reporte. El job envía el del mes anterior solo, completo.
+    """
+    from app import llm
+    from app.llm.limits import exigir_cupo
     from app.reports import mensual
 
     _guardia()
+    try:
+        elegidos = mensual.bloques_de(bloques)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if narrar and not llm.disponible():
+        raise HTTPException(status_code=503, detail="No hay un modelo de lenguaje configurado para narrar el reporte.")
     mes = date.fromisoformat(f"{month}-01")
     try:
         with db.session_scope() as s:
-            contenido = mensual.pdf(mensual.datos(s, mes), date.today())
+            d = mensual.datos(s, mes)
     except db.DatabaseUnavailable as exc:
         raise _no_disponible(exc)
+    narracion = None
+    if narrar:
+        exigir_cupo(usuario.actor)
+        narracion = mensual.narrar(d, elegidos, usuario.actor)
+    contenido = mensual.pdf(d, date.today(), elegidos, narracion)
     return Response(contenido, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="reporte-{month}.pdf"'})

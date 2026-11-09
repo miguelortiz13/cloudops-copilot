@@ -56,7 +56,10 @@ def recolectar(ctx: Contexto, session) -> Resultado:
     d = mensual.datos(session, mes)
     m = resumen(d)
     discord = (urlparse(url).hostname or "") in ("discord.com", "discordapp.com")
-    adjunto = (f"reporte-{clave}.pdf", mensual.pdf(d, hoy), "application/pdf") if discord else None
+    from app import llm
+    # Narrado si hay modelo (sin él, o si falla, sale igual con las cifras): todos los bloques.
+    narracion = mensual.narrar(d, mensual.BLOQUES, "reporte-mensual") if discord and llm.disponible() else None
+    adjunto = (f"reporte-{clave}.pdf", mensual.pdf(d, hoy, mensual.BLOQUES, narracion), "application/pdf") if discord else None
     avisos.publicar(url, m, dominio="plataforma", tipo="reporte_mensual", severidad="info", clave=f"reporte:{clave}",
                     color=0x3B82F6, adjunto=adjunto)
     return Resultado(items=1, detail={"sent": clave})

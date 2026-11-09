@@ -6,6 +6,7 @@ import type { Snapshot } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import { Card, Empty, Notice, PageHeader, Section, Segmented } from '../../components/ui';
 import { InventoryReport } from './InventoryReport';
+import { BLOQUES, monthlyUrl } from './monthly';
 
 function readWebhook(): string {
   try {
@@ -25,11 +26,14 @@ function MonthlyReport() {
   const { toast } = useApp();
   const [month, setMonth] = useState(previousMonth);
   const [busy, setBusy] = useState(false);
+  const [bloques, setBloques] = useState(BLOQUES.map((b) => b.id));
+  const [narrar, setNarrar] = useState(false);
+  const alternar = (id: string) => setBloques(bloques.includes(id) ? bloques.filter((b) => b !== id) : BLOQUES.map((b) => b.id).filter((b) => b === id || bloques.includes(b)));
 
   const descargar = async () => {
     setBusy(true);
     try {
-      await download(`/api/reports/monthly?month=${month}`, undefined, `reporte-${month}.pdf`);
+      await download(monthlyUrl(month, bloques, narrar), undefined, `reporte-${month}.pdf`);
     } catch (e) {
       toast(`No se pudo generar el reporte: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -38,15 +42,21 @@ function MonthlyReport() {
   };
 
   return (
-    <Card footer={<span>El job lo envía solo al canal de avisos el día 4 de cada mes.</span>}>
+    <Card footer={<span>El job lo envía solo al canal de avisos el día 4 de cada mes, con todos los bloques y narrado si hay modelo.</span>}>
       <div className="spread">
         <div>
           <div className="card-title">Reporte ejecutivo mensual</div>
-          <div className="card-subtitle">Costos contra presupuesto, hallazgos, inventario y salud del job, en PDF</div>
+          <div className="card-subtitle">Elige los bloques; la IA puede escribir dos o tres frases por bloque con las cifras del reporte</div>
+          <div className="row-actions" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+            {BLOQUES.map((b) => (
+              <label className="check" key={b.id}><input type="checkbox" checked={bloques.includes(b.id)} onChange={() => alternar(b.id)} /> {b.label}</label>
+            ))}
+            <label className="check"><input type="checkbox" checked={narrar} onChange={() => setNarrar(!narrar)} /> Narrado por la IA</label>
+          </div>
         </div>
         <div className="row-actions">
           <input className="input" type="month" aria-label="Mes del reporte" value={month} onChange={(e) => setMonth(e.target.value)} />
-          <button className="btn btn-primary" onClick={descargar} disabled={!month || busy}>
+          <button className="btn btn-primary" onClick={descargar} disabled={!month || busy || !bloques.length}>
             <FileText size={14} /> {busy ? 'Generando…' : 'Descargar PDF'}
           </button>
         </div>

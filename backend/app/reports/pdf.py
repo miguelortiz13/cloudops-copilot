@@ -46,6 +46,18 @@ class Pdf:
             self.paginas[-1].append(f"BT {_rgb(color)} rg {fuente} {tam} Tf {MARGEN + x:.1f} {self.y:.1f} Td ".encode()
                                     + _cadena(texto) + b" Tj ET")
 
+    def parrafo(self, texto: str, tam: float = 9.5, color: Color = NEGRO, caracteres: int = 105):
+        """Texto corrido partido en lineas por palabras (Helvetica a 9,5 pt: ~105 caracteres por linea)."""
+        linea = ""
+        for palabra in texto.split():
+            if linea and len(linea) + 1 + len(palabra) > caracteres:
+                self.fila([(0, linea)], tam=tam, color=color)
+                linea = palabra
+            else:
+                linea = f"{linea} {palabra}".strip()
+        if linea:
+            self.fila([(0, linea)], tam=tam, color=color)
+
     def regla(self):
         self.espacio(6)
         self.paginas[-1].append(f"{_rgb(GRIS)} RG 0.5 w {MARGEN} {self.y:.1f} m {ANCHO - MARGEN} {self.y:.1f} l S".encode())

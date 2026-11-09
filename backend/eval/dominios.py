@@ -25,6 +25,7 @@ from app.core import config  # noqa: E402
 from app.dominios.activos import servicio as activos  # noqa: E402
 from app.dominios.costos import servicio as costos  # noqa: E402
 from app.dominios.inicio import servicio as inicio  # noqa: E402
+from app.reports import mensual  # noqa: E402
 from app.dominios.riesgo import servicio as riesgo  # noqa: E402
 from eval import cifras, resultado  # noqa: E402
 
@@ -74,6 +75,18 @@ PENDIENTES = {"total": 5, "pendientes": [
     {"type": "costo", "title": "Presupuesto de Azure al 80 %", "why": "Alerta de costo sin responsable", "urgency": 2,
      "link": "#/costos/alertas", "when": "2026-11-07T06:00:00+00:00"}]}
 
+from datetime import date  # noqa: E402
+
+MES = {"mes": date(2026, 10, 1), "fin": date(2026, 10, 31), "datos_desde": None, "total": 104.2, "anterior": 92.6,
+       "nubes": [{"nube": "azure", "gasto": 98.4, "limite": 120.0}, {"nube": "aws", "gasto": 5.8, "limite": 5.0}],
+       "cuentas": [("sub-lab", 61.3), ("sub-datos", 37.1)], "servicios": [("Azure App Service", 38.2), ("SQL Database", 27.5)],
+       "abiertos": {"critica": 1, "alta": 5, "media": 9, "baja": 0}, "detectados": 4, "resueltos": 6,
+       "graves": [{"severidad": "critica", "regla": "Puerto de administración abierto a internet", "recurso": "nsg-pagos-prod", "estado": "abierto"}],
+       "recursos": {"azure": 48, "aws": 12}, "en_iac": 31, "nuevos": 7, "borrados": 2, "corridas": {"ok": 29, "parcial": 2},
+       "incidentes": {"total": 36, "por_severidad": {"critica": 9, "alta": 14, "media": 13}, "resueltos": 33, "mediana_min": 23,
+                      "ruido": 7, "diagnosticos_marcados": 6, "diagnosticos_correctos": 5,
+                      "principales": ["#26 PodCrashLooping · boutique · adservice (critica)"]}}
+
 # (nombre, uso, prompt de sistema, datos, patrones que debe contener)
 CASOS = [
     ("Activos: explicar la ficha del recurso", "activos.explicar", activos.SISTEMA.format(org="Contoso"), FICHA,
@@ -86,6 +99,8 @@ CASOS = [
      [r"Resumen", r"L[ií]nea de tiempo", r"Causa", r"Acciones", r"v9\.9\.9"]),
     ("Inicio: por dónde empezar con mis pendientes", "inicio.prioridades", inicio.SISTEMA.format(org="Contoso"), PENDIENTES,
      [r"Por d[oó]nde empezar", r"\(#/operacion/incidentes/40\)", r"Puede esperar", r"#26|#29|adservice|loadgenerator"]),
+    ("Plataforma: reporte mensual narrado por bloques", "reportes.narrar", mensual.SISTEMA.format(org="Contoso"),
+     mensual._para_ia(MES, ("costos", "incidentes")), [r'"costos"\s*:', r'"incidentes"\s*:', r"AWS|aws", r"36"]),
     ("Inicio: resumen semanal", "resumen.semanal", semanal.SISTEMA.format(org="Contoso"), SEMANA,
      [r"7[.,]0|7 USD|\$ ?7", r"Para esta semana"]),
 ]

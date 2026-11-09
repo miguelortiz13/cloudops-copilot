@@ -70,8 +70,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
+      # Providers en caché (clave: el archivo de lock): con la caché, un PR no depende de que GitHub Releases responda.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: terraform-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
+      - run: mkdir -p ~/.terraform.d/plugin-cache && echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
       - run: terraform fmt -check -recursive
-      - run: terraform init -backend=false -input=false
+      # Los providers se bajan de GitHub Releases, que a veces responde con error a los runners: hasta 3 intentos.
+      - run: for i in 1 2 3; do terraform init -backend=false -input=false && exit 0; sleep 30; done; exit 1
       - run: terraform validate
 
   secrets:
