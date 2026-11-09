@@ -4,11 +4,11 @@ openpyxl==3.1.5
 # Modelos de lenguaje (app/llm); reemplaza a google-generativeai, sin soporte
 google-genai==2.34.0
 python-dotenv==1.2.4
-pydantic==2.14.2
+pydantic==2.14.3
 # Base de datos (app/db): Azure SQL con Entra ID, migraciones con Alembic
-sqlalchemy==2.1.6
+sqlalchemy==2.1.8
 alembic==1.20.1
-mssql-python==1.16.0
+mssql-python==1.17.0
 azure-identity>=1.27.0
 # AWS (app/providers/aws): inventario con credenciales federadas, sin llaves
 boto3>=1.43.123,<2
