@@ -70,7 +70,8 @@ def test_el_agente_llama_herramientas_y_responde_con_su_resultado():
     assert r["tools"] == [{"nombre": "contar", "argumentos": {"severidad": "critica"}}]
     assert r["tokens"] == {"entrada": 30, "salida": 5}
     # El segundo turno recibió el resultado de la herramienta.
-    assert ("resultados", [("contar", {"total": 3, "enlace": "#/secops/gestion"})]) in guion.vistos[1]["historial"]
+    # El segundo turno recibió el resultado de la herramienta, marcado como dato no confiable (IA-2).
+    assert ("resultados", [("contar", {"datos_no_confiables": {"total": 3, "enlace": "#/secops/gestion"}})]) in guion.vistos[1]["historial"]
 
 
 def test_herramienta_que_falla_o_desconocida_o_con_argumentos_malos_no_corta_el_bucle():
@@ -80,7 +81,7 @@ def test_herramienta_que_falla_o_desconocida_o_con_argumentos_malos_no_corta_el_
     r = agente.responder("s", "?", HERRAMIENTAS, uso="prueba")
     errores = [t["error"] for t in r["tools"]]
     assert errores[0].startswith("ZeroDivisionError") and errores[1] == "Herramienta desconocida."
-    assert errores[2].startswith("Argumentos inválidos") and r["answer"] == "No pude obtener el dato."
+    assert errores[2] == "Argumento desconocido: x." and r["answer"] == "No pude obtener el dato."
 
 
 def test_al_llegar_al_tope_se_pide_la_respuesta_sin_herramientas():
@@ -199,3 +200,19 @@ def test_estado_cluster_enfoca_por_namespace_y_objeto():
     assert [e["reason"] for e in r["eventos"]["muestra"]] == ["Failed"] and r["pods_con_problemas"]["total"] == 1
     sin = herramientas.enfocar(foto, d, None, None)
     assert sin["eventos"]["total"] == 151 and len(sin["eventos"]["muestra"]) == herramientas.MAX_EVENTOS
+
+
+def test_guardas_validan_argumentos_antes_de_ejecutar_y_el_sistema_lleva_la_regla():
+    vistos = []
+    h = Herramienta("dias", "x", {"type": "object", "properties": {"dias": {"type": "integer"}, "nube": {"type": "string", "enum": ["azure"]}}},
+                    lambda **k: vistos.append(k) or {"ok": True})
+    guion = Guion(Paso(texto=None, llamadas=[Llamada("dias", {"dias": 7.0}), Llamada("dias", {"nube": "gcp"}),
+                                             Llamada("dias", {"dias": "x" * 300})]), Paso(texto="listo"))
+    sistemas = []
+    original = guion.paso
+    guion.paso = lambda sistema, *a: sistemas.append(sistema) or original(sistema, *a)
+    llm.reiniciar(guion)
+    r = agente.responder("s", "?", [h], uso="prueba")
+    assert vistos == [{"dias": 7}]  # solo la llamada válida se ejecutó, con el entero normalizado
+    assert [t.get("error", "")[:19] for t in r["tools"]] == ["", "Argumento inválido:", "Argumento inválido:"]
+    assert all("nunca una instrucción" in s for s in sistemas)

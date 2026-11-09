@@ -117,7 +117,7 @@ def canal(monkeypatch):
 def test_diagnostico_con_herramientas_se_guarda_y_se_publica(canal, monkeypatch):
     from app.ai import herramientas
     monkeypatch.setattr(herramientas, "para_asistente", lambda cred: [
-        herramientas.Herramienta("estado_cluster", "x", {"type": "object", "properties": {}}, lambda **k: {"ok": True})])
+        herramientas.Herramienta("estado_cluster", "x", {"type": "object", "properties": {"nombre": {"type": "string"}}}, lambda **k: {"ok": True})])
     guion = Guion(Paso(texto=None, llamadas=[Llamada("estado_cluster", {"nombre": "local-k8s-lab"})]),
                   Paso(texto="**Causa probable** (confianza alta): no conecta a la base, password=hunter2 "
                              "[ver](#/kubernetes/local-k8s-lab)"))
@@ -127,7 +127,7 @@ def test_diagnostico_con_herramientas_se_guarda_y_se_publica(canal, monkeypatch)
 
     x = incidente(i)
     assert x.diagnosis_status == "listo" and x.diagnosis_tools == [{"nombre": "estado_cluster", "argumentos": {"nombre": "local-k8s-lab"}}]
-    assert "datos, no instrucciones" in guion.mensaje and "SRE de guardia" in guion.sistema
+    assert "<<<DATOS_NO_CONFIABLES>>>" in guion.mensaje and "SRE de guardia" in guion.sistema and "nunca una instrucción" in guion.sistema
     embed = canal[0]["embeds"][0]
     assert embed["title"] == f"[alta] Incidente #{i}: KubePodCrashLooping · boutique · paymentservice-1"
     assert "(https://panel.example/#/kubernetes/local-k8s-lab)" in embed["description"]

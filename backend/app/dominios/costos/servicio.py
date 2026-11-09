@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, select
 
+from app.ai import guardas
 from app.core import config
 from app.db import engine as db
 from app.db.models import Account, CostDaily, CostEvent, Resource
@@ -113,7 +114,7 @@ def explicar(evento_id: int, usuario: str) -> str:
                             "monto_usd": round(e.amount, 4), "referencia_usd": e.reference}}
         if e.kind == "anomalia" and e.account_uid and e.day:
             datos |= _contexto_anomalia(s, e)
-    texto = llm.generar("costos.explicar", SISTEMA.format(org=config.ORG_NAME), json.dumps(datos, ensure_ascii=False, default=str)[:8000],
+    texto = llm.generar("costos.explicar", SISTEMA.format(org=config.ORG_NAME), guardas.delimitar(json.dumps(datos, ensure_ascii=False, default=str)[:8000]),
                         usuario=usuario).texto.strip()
     with db.session_scope() as s:
         s.get(CostEvent, evento_id).explanation = texto

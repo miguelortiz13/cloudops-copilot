@@ -6,7 +6,7 @@ import { Card, Empty, Section } from '../../components/ui';
 interface Suite { suite: string; cases: number; passed: number; accuracy: number | null; target: number; invented_numbers: number }
 interface Corrida { at: string; model: string; run: string; suites: Suite[] }
 
-const NOMBRE: Record<string, string> = { asistente: 'Asistente (chat)', incidentes: 'Diagnóstico de incidentes', dominios: 'IA de los dominios' };
+const NOMBRE: Record<string, string> = { asistente: 'Asistente (chat)', incidentes: 'Diagnóstico de incidentes', dominios: 'IA de los dominios', inyeccion: 'Resistencia a prompt injection' };
 
 /** Evals semanales (plan 11, hito IA-1): la última corrida por suite contra el objetivo y la tendencia. */
 export function EvalsSection() {

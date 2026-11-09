@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 from sqlalchemy import select
 
 from app.compliance import catalog
+from app.ai import guardas
 from app.core import config
 from app.db import engine as db
 from app.db.models import ControlException
@@ -94,5 +95,5 @@ def borrador(marco: str, control: str, usuario: str) -> str:
                   for c in f["controls"] if c["id"] == control), None)
     contexto = {"marco": marco, "control": control, "titulo": catalog.CONTROLES[(marco, control)].titulo,
                 "estado": datos["status"] if datos else "sin_dato", "evidencia": (datos or {}).get("evidence", [])[:10]}
-    return llm.generar("riesgo.excepcion", SISTEMA.format(org=config.ORG_NAME), json.dumps(contexto, ensure_ascii=False)[:6000],
+    return llm.generar("riesgo.excepcion", SISTEMA.format(org=config.ORG_NAME), guardas.delimitar(json.dumps(contexto, ensure_ascii=False)[:6000]),
                        usuario=usuario).texto.strip()

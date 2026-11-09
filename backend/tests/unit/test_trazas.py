@@ -53,7 +53,7 @@ def datos(tmp_path, monkeypatch):
     llm.reiniciar(None)
 
 
-HERRAMIENTAS = [Herramienta("contar", "x", {"type": "object", "properties": {}}, lambda severidad: {"total": 3}),
+HERRAMIENTAS = [Herramienta("contar", "x", {"type": "object", "properties": {"severidad": {"type": "string"}}}, lambda severidad: {"total": 3}),
                 Herramienta("rota", "x", {"type": "object", "properties": {}}, lambda: 1 / 0)]
 
 

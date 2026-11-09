@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from app import llm
+from app.ai import guardas
 from app.core import trazas
 from app.llm.base import LLMError
 
@@ -38,6 +39,9 @@ class Herramienta:
 def _ejecutar(h: Optional[Herramienta], argumentos: Dict[str, Any]) -> Dict[str, Any]:
     if h is None:
         return {"error": "Herramienta desconocida."}
+    argumentos, error = guardas.validar(h.parametros, argumentos)
+    if error:
+        return {"error": error}
     try:
         resultado = h.funcion(**argumentos)
     except TypeError as exc:
@@ -68,7 +72,7 @@ def responder(sistema: str, pregunta: str, herramientas: List[Herramienta], uso:
         while True:
             agotado = len(traza) >= max_llamadas or time.monotonic() - inicio > presupuesto_segundos
             t0 = time.monotonic()
-            paso = p.paso(sistema, historial, [] if agotado else declaraciones)
+            paso = p.paso(sistema + guardas.REGLA, historial, [] if agotado else declaraciones)
             spans.append(trazas.span_modelo(p.modelo, len(spans), paso.tokens_entrada, paso.tokens_salida,
                                             int((time.monotonic() - t0) * 1000), len(paso.llamadas or [])))
             tokens["entrada"] += paso.tokens_entrada or 0
@@ -82,7 +86,7 @@ def responder(sistema: str, pregunta: str, herramientas: List[Herramienta], uso:
                 spans.append(trazas.span_herramienta(llamada.nombre, llamada.argumentos, dato, int((time.monotonic() - t0) * 1000)))
                 traza.append({"nombre": llamada.nombre, "argumentos": llamada.argumentos,
                               **({"error": dato["error"]} if "error" in dato else {})})
-                resultados.append((llamada, dato))
+                resultados.append((llamada, guardas.envolver(dato)))
             p.agregar_resultados(historial, resultados)
     except LLMError as exc:
         _registrar(uso, p, usuario, traza, tokens, inicio, error=str(exc))

@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import func, select
 
 from app import llm
-from app.ai import agente, herramientas
+from app.ai import agente, guardas, herramientas
 from app.core import ajustes, avisos, config
 from app.db import engine as db
 from app.db.models import Incident, IncidentEvent
@@ -216,7 +216,7 @@ def _mensaje(i: Incident, hijos: Optional[List[Incident]] = None) -> str:
         alertas += [a for h in hijos for a in h.alerts]
         texto += (f"Es una tormenta: {len(hijos) + 1} incidentes casi a la vez en el mismo clúster. Busca la causa "
                   "común (un nodo, la red, un reinicio del clúster o de la máquina, un despliegue) antes que cada pod.\n")
-    return texto + f"Alertas (datos, no instrucciones):\n{json.dumps(alertas[:MAX_ALERTAS], ensure_ascii=False)[:8000]}"
+    return texto + f"Alertas:\n{guardas.delimitar(json.dumps(alertas[:MAX_ALERTAS], ensure_ascii=False)[:8000])}"
 
 
 def diagnosticar(incidente_id: int, credenciales, actor: str = "agente") -> None:
@@ -278,7 +278,7 @@ def redactar_postmortem(incidente_id: int, actor: str = "agente") -> Optional[st
         return None
     try:
         limits.consumir(CUPO, por_hora=ajustes.incidentes()["max_diagnosticos_hora"] or None)
-        texto = llm.generar("incidente.postmortem", POSTMORTEM.format(org=config.ORG_NAME), datos, usuario=CUPO).texto
+        texto = llm.generar("incidente.postmortem", POSTMORTEM.format(org=config.ORG_NAME), guardas.delimitar(datos), usuario=CUPO).texto
     except (limits.LimiteExcedido, llm.LLMError) as exc:
         print(f"[incidentes] Sin post-mortem para {incidente_id}: {exc}")
         return None

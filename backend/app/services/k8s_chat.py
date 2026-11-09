@@ -7,10 +7,10 @@ nada en el clúster: sugiere comandos `kubectl` para que una persona los corra.
 Sin modelo, responde con las incidencias y su siguiente paso.
 """
 
-import json
 from typing import Dict, List, Optional
 
 from app import llm
+from app.ai import guardas
 from app.core import config
 
 MAX_EVENTOS = 15
@@ -71,7 +71,7 @@ def responder(pregunta: str, d: Dict, usuario: Optional[str] = None) -> Dict:
         "corregirlo. Si la foto está vieja, adviértelo. Si el contexto no alcanza para responder, dilo.")
     try:
         r = llm.generar("k8s.chat", sistema,
-                        f"Contexto:\n{json.dumps(contexto(d), ensure_ascii=False)}\n\nPregunta: {pregunta}", usuario=usuario)
+                        f"Contexto:\n{guardas.delimitar(contexto(d))}\n\nPregunta: {pregunta}", usuario=usuario)
         return {"answer": r.texto, "mode": f"llm_{llm.proveedor().nombre}", "context_summary": resumen}
     except llm.LLMError:
         return {"answer": _sin_modelo(d, "El modelo de lenguaje no respondió; se muestra el estado del clúster."),

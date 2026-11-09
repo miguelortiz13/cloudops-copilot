@@ -109,6 +109,9 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
 |---|---|
 | IA-1 · Trazas OpenTelemetry GenAI y *Plataforma → IA* (costo, latencia, herramientas, trazas) | Hecho |
 | IA-1 · Evals por dominio con chequeo de cifras y corrida semanal | Hecho: corre los lunes; primera corrida el 9-nov con las 3 suites sobre el objetivo y 0 cifras inventadas |
+| IA-2 · Suite de prompt injection (7 casos, 7/7 con el modelo real) en la corrida semanal | Hecho |
+| IA-2 · Contenido no confiable delimitado, argumentos validados con su esquema, enlaces permitidos en los avisos | Hecho |
+| IA-2 · Mapeo al OWASP Top 10 para aplicaciones LLM ([ai-agents](../modules/ai-agents.md#seguridad-de-agentes-owasp-top-10-para-aplicaciones-llm)) | Hecho |
 
 ## Costo y límites
 

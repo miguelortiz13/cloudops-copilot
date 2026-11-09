@@ -98,3 +98,16 @@ def test_severidad_minima_por_dominio_y_silencio_por_tipo_de_aviso(canal):
     assert avisos.publicar(DISCORD, MENSAJE, dominio="inicio", tipo="resumen_semanal", severidad="info", clave="s1") == "silenciado"
     assert avisos.publicar(DISCORD, MENSAJE, dominio="inicio", tipo="otro", severidad="info", clave="s2") == "enviado"
     assert len(canal) == 2
+
+
+def test_al_canal_solo_salen_enlaces_del_panel(canal, monkeypatch):
+    """IA-2: aunque el texto venga del modelo (diagnóstico, resumen), no se publica un enlace ajeno."""
+    monkeypatch.setattr(config, "FRONTEND_URL", "https://panel.example")
+    m = {"titulo": "Incidente", "enlace": "https://evil.example/login",
+         "lineas": ["Ver [la causa](https://panel.example/#/operacion/incidentes/1) y [entra aquí](https://evil.example/x)",
+                    "o https://evil.example/y"]}
+    avisos.publicar(DISCORD, m, dominio="operacion", tipo="incidente", severidad="alta", clave="i1")
+    embed = canal[0]["json"]["embeds"][0]
+    assert embed["url"] == "https://panel.example"
+    assert embed["description"] == ("Ver [la causa](https://panel.example/#/operacion/incidentes/1) y entra aquí\n"
+                                    "o [enlace quitado]")
