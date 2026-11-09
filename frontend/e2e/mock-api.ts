@@ -89,6 +89,13 @@ function rutas(role: Role): Record<string, Handler> {
         'asistente.chat': { calls: 8, errors: 1, input_tokens: 16000, output_tokens: 1400, cost_usd: 0.0108, p50_ms: 1900, p95_ms: 3100 } },
       tools: [{ name: 'estado_cluster', calls: 6, errors: 0 }, { name: 'cambios_recientes', calls: 4, errors: 0 }] }),
     'GET /api/ia/mcp/tokens': () => ({ items: [] }),
+    'GET /api/inicio/pendientes': () => ({ configured: true, actor: 'ana@contoso.example', items: [
+      { type: 'incidente', title: '#31 PodCrashLooping · boutique', why: 'Severidad critica y sin responsable', urgency: 3, link: '#/operacion/incidentes/31', when: '2026-10-10T08:40:00Z' },
+      { type: 'hallazgo', title: 'Acceso público a blobs · stdatosprod', why: 'Asignado a ti · vence el 2026-10-15', urgency: 2, link: '#/riesgo/hallazgos', when: null },
+      { type: 'costo', title: 'Presupuesto de Azure al 80 %', why: 'Alerta de costo sin responsable', urgency: 2, link: '#/costos/alertas', when: '2026-10-09T06:00:00Z' }] }),
+    'GET /api/inicio/cambios': () => ({ configured: true, since: '2026-10-09T15:00:00+00:00',
+      incidents: { new: 2, resolved: 1, latest: [{ id: 31, title: 'PodCrashLooping · boutique', severity: 'critica', status: 'abierto' }] },
+      findings: { new: 3, new_critical: 1, resolved: 2 }, resources: { new: 4, new_outside_iac: 1, deleted: 0 }, cost_alerts: { new: 1 } }),
     'GET /api/ia/evals': () => ({ runs: [{ at: '2026-10-05T07:12:00Z', model: 'gemini-3.5-flash', run: '42', suites: [
       { suite: 'asistente', cases: 9, passed: 9, accuracy: 1, target: 0.9, invented_numbers: 0 },
       { suite: 'incidentes', cases: 6, passed: 6, accuracy: 1, target: 0.9, invented_numbers: 0 },

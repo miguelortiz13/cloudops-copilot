@@ -6,6 +6,7 @@ import type { CostOverview, InventorySummary, RiskExposure, SecOpsReport, TagCom
 import { useApp } from '../../state/hooks';
 import { BarList, DailyCostChart } from '../../components/charts';
 import { Card, Delta, Empty, Loading, Meter, PageHeader, SeverityBadge, StatTile } from '../../components/ui';
+import { MisPendientes, QueCambio } from './InicioSections';
 
 function Go({ to, label }: { to: string; label: string }) {
   return <a className="btn btn-ghost btn-sm" href={`#/${to}`}>{label} <ArrowRight size={13} /></a>;
@@ -34,8 +35,13 @@ export function OverviewPage() {
     <>
       <PageHeader
         title="Resumen"
-        description="Gasto, gobernanza, seguridad y cobertura de IaC de las suscripciones del alcance, en una sola vista."
+        description="Lo que te espera, qué cambió desde tu última visita y cómo está la nube: gasto, gobernanza, seguridad y cobertura de IaC del alcance."
       />
+
+      <div className="grid grid-main-side">
+        <MisPendientes />
+        <QueCambio />
+      </div>
 
       <div className="grid kpi-grid">
         <StatTile

@@ -176,6 +176,17 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | Severidad mínima por dominio y silencios por tipo de aviso (varios canales: cuando haya un segundo webhook) | Hecho |
 | Chequeo HTTP como fuente de incidentes | Hecho |
 
+### Fase 5 · Inicio y plataforma de IA (en curso)
+
+| Entregable | Estado |
+|---|---|
+| Plataforma de IA: IA-1 Medir, IA-2 Proteger e IA-3 Abrir ([plan 11](11-plataforma-ia.md#avance)) | Hecho |
+| *Mis pendientes* en el Resumen: incidentes, hallazgos y alertas de costo asignados a mí; críticos y altos sin responsable; riesgos aceptados, excepciones y silencios por vencer; ordenado por urgencia con el porqué (`GET /api/inicio/pendientes`, dominio `app/dominios/inicio`) | Hecho |
+| *Qué cambió* desde la última visita (la recuerda el navegador; si no hay, 24 horas): incidentes, hallazgos, recursos y alertas de costo (`GET /api/inicio/cambios`) | Hecho |
+| Barra lateral con grupos plegables; el grupo de la sección abierta nunca se pliega | Hecho |
+| *Mis pendientes* priorizado por la IA y reportes por bloques narrados | Pendiente |
+| IA-4 · RAG sobre incidentes, post-mortems, runbooks y docs | Pendiente (antes, los runbooks) |
+
 ## Riesgos y compatibilidad
 
 | Riesgo | Mitigación |
