@@ -75,7 +75,7 @@ locals {
 # Grupo de recursos
 # ---------------------------------------------------------------------------
 module "rg" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/resource-group?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/resource-group?ref=v0.4.0"
 
   name     = "rg-${local.base}"
   location = var.location
