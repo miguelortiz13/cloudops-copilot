@@ -12,6 +12,8 @@ import { Modal } from './ui';
 
 // ------------------------------------------------------------------ Sidebar
 
+const PLEGADOS = 'cloudops.navPlegados';
+
 
 export function Sidebar({ active, mobileOpen, onNavigate }: {
   active: string;
@@ -19,6 +21,14 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
   onNavigate: () => void;
 }) {
   const { can } = useApp();
+  const [plegados, setPlegados] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(PLEGADOS) || '[]'); } catch { return []; }
+  });
+  const alternar = (id: string) => {
+    const nuevos = plegados.includes(id) ? plegados.filter((x) => x !== id) : [...plegados, id];
+    setPlegados(nuevos);
+    try { localStorage.setItem(PLEGADOS, JSON.stringify(nuevos)); } catch { /* sin almacenamiento: solo esta visita */ }
+  };
   return (
     <aside className={`sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
       <div className="brand">
@@ -29,10 +39,15 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
         </div>
       </div>
       <nav className="nav" aria-label="Secciones">
-        {NAV.map((g) => (
+        {NAV.map((g) => {
+          // El grupo de la sección abierta nunca se pliega: siempre se ve dónde estás.
+          const abierto = !plegados.includes(g.id) || active.startsWith(`${g.id}/`);
+          return (
           <div key={g.group}>
-            <div className="nav-group-label">{g.group}</div>
-            {g.items.filter((it) => !it.role || can(it.role)).map((it) => (
+            <button type="button" className="nav-group-label" aria-expanded={abierto} onClick={() => alternar(g.id)}>
+              {g.group}<ChevronDown size={12} aria-hidden="true" />
+            </button>
+            {abierto && g.items.filter((it) => !it.role || can(it.role)).map((it) => (
               <a
                 key={it.id}
                 href={`#/${it.id}`}
@@ -45,7 +60,8 @@ export function Sidebar({ active, mobileOpen, onNavigate }: {
               </a>
             ))}
           </div>
-        ))}
+          );
+        })}
       </nav>
       <UserCard />
     </aside>
