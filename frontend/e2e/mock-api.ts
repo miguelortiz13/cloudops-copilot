@@ -89,6 +89,8 @@ function rutas(role: Role): Record<string, Handler> {
         'asistente.chat': { calls: 8, errors: 1, input_tokens: 16000, output_tokens: 1400, cost_usd: 0.0108, p50_ms: 1900, p95_ms: 3100 } },
       tools: [{ name: 'estado_cluster', calls: 6, errors: 0 }, { name: 'cambios_recientes', calls: 4, errors: 0 }] }),
     'GET /api/ia/mcp/tokens': () => ({ items: [] }),
+    'GET /api/ia/conocimiento': () => ({ indexado: true, modelo: 'gemini-embedding-001', actualizado: '2026-10-10T06:20:00Z', fragmentos: 81, con_vector: 81,
+      por_tipo: { runbook: 40, guia: 10, control: 22, incidente: 8, excepcion: 1 } }),
     'GET /api/inicio/pendientes': () => ({ configured: true, actor: 'ana@contoso.example', items: [
       { type: 'incidente', title: '#31 PodCrashLooping · boutique', why: 'Severidad critica y sin responsable', urgency: 3, link: '#/operacion/incidentes/31', when: '2026-10-10T08:40:00Z' },
       { type: 'hallazgo', title: 'Acceso público a blobs · stdatosprod', why: 'Asignado a ti · vence el 2026-10-15', urgency: 2, link: '#/riesgo/hallazgos', when: null },

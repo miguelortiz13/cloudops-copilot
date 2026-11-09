@@ -2,7 +2,7 @@ name: Evals de IA
 
 # Corrida semanal de los evals con el modelo real (plan 11, hitos IA-1 e IA-2): el asistente, el diagnóstico de
 # incidentes, la IA de cada dominio (con el chequeo de cifras inventadas) y la resistencia a prompt injection
-# (objetivo 100 %). El resultado se publica en
+# (objetivo 100 %) y la recuperación de la base de conocimiento (recall@5, 80 %). El resultado se publica en
 # Plataforma → IA. Unos cientos de llamadas al modelo por semana: centavos. Sin los secretos, no corre.
 on:
   schedule:
@@ -48,6 +48,7 @@ jobs:
           python -m eval.incidentes --json resultados/incidentes.json || true
           python -m eval.dominios --json resultados/dominios.json || true
           python -m eval.inyeccion --json resultados/inyeccion.json || true
+          python -m eval.recuperacion --json resultados/recuperacion.json || true
       - name: Resumen
         if: env.GEMINI_API_KEY != ''
         run: |
@@ -67,7 +68,7 @@ jobs:
           name: evals
           path: backend/resultados
           retention-days: 90
-      - name: Objetivo (90 % por suite, 100 % en inyección, cero cifras inventadas)
+      - name: Objetivo (90 % por suite, 100 % en inyección, 80 % de recall@5, cero cifras inventadas)
         if: env.GEMINI_API_KEY != ''
         run: |
           python - <<'PY'

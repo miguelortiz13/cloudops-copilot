@@ -207,6 +207,12 @@ def para_asistente(credenciales) -> List[Herramienta]:
         return {**{k: v for k, v in d.items() if k != "alert_list"}, "alertas": d["alert_list"][:10],
                 "events": d["events"][-40:], "enlace": f"#/operacion/incidentes/{d['id']}"}
 
+    def buscar_conocimiento(consulta: str, tipo: Optional[str] = None, limite: int = 5) -> Dict[str, Any]:
+        from app.ai import conocimiento
+
+        r = conocimiento.buscar(consulta, tipo, max(1, min(int(limite), 8)))
+        return {**r, "nota": "Cita cada dato con su fuente: el enlace del panel si lo trae, o la fuente (runbook o guía)."}
+
     texto = {"type": "string"}
     return [
         Herramienta("buscar_recursos",
@@ -270,4 +276,14 @@ def para_asistente(credenciales) -> List[Herramienta]:
                     "Detalle de un incidente por su número: alertas, diagnóstico del agente, post-mortem, incidentes de su "
                     "tormenta y línea de tiempo (quién hizo qué y cuándo).",
                     {"type": "object", "properties": {"id": {"type": "integer"}}, "required": ["id"]}, incidente),
+        Herramienta("buscar_conocimiento",
+                    "Busca en la base de conocimiento: runbooks (cómo diagnosticar y resolver un tipo de problema), la guía "
+                    "de uso del panel (cómo se hace algo aquí), el catálogo de controles (riesgo y remediación de cada regla), "
+                    "incidentes ya resueltos con su diagnóstico y lo que se hizo, y excepciones de control aprobadas. Usa la "
+                    "consulta con los términos del problema (alerta, motivo, mensaje de error, servicio).",
+                    {"type": "object", "properties": {
+                        "consulta": {**texto, "description": "Qué buscar, por ejemplo 'CrashLoopBackOff connection refused redis'"},
+                        "tipo": {"type": "string", "enum": ["runbook", "guia", "control", "incidente", "excepcion"]},
+                        "limite": {"type": "integer"}}, "required": ["consulta"]},
+                    buscar_conocimiento),
     ]

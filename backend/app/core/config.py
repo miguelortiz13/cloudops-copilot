@@ -128,6 +128,8 @@ AZURE_MANAGED_IDENTITY_CLIENT_ID = os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID",
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+# Embeddings de la base de conocimiento (app/ai/conocimiento.py). gemini-embedding-2 junta una lista en un solo vector.
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "60"))
 # Consultas al modelo por usuario (0 = sin limite). Ver app/llm/limits.py.
 LLM_MAX_REQUESTS_PER_HOUR = int(os.getenv("LLM_MAX_REQUESTS_PER_HOUR", "30"))

@@ -86,7 +86,7 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
   - post-mortems;
   - runbooks (`docs/runbooks/`, pendientes del plan);
   - documentación de módulos y del catálogo de controles CIS/ISO.
-- **Embeddings** de Gemini e índice vectorial en Azure SQL (tipo `VECTOR`) o, mientras el corpus sea chico, en el File Share. Se reindexa en el job diario solo lo que cambió.
+- **Embeddings** de Gemini e índice vectorial en Azure SQL (tipo `VECTOR`) o, mientras el corpus sea chico, en el File Share. Se reindexa en el job diario solo lo que cambió. *Construido*: en el File Share, con búsqueda híbrida; los runbooks quedaron en `backend/conocimiento/` porque la imagen del API se construye desde `backend/`.
 - **Usos**:
   - el diagnóstico cita el incidente parecido y cómo se resolvió;
   - el chat responde cómo se hace algo en la plataforma citando la documentación;
@@ -115,6 +115,10 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
 | IA-3 · Servidor MCP (Streamable HTTP en `/mcp`) con las herramientas del registro, más `incidentes` e `incidente` | Hecho |
 | IA-3 · Tokens MCP de Lector emitidos y revocados en *Plataforma → IA*, con auditoría, trazas y cupo por token | Hecho |
 | IA-3 · Recursos MCP (ficha, incidente, post-mortem) y MCP como cliente (GitHub) | Pendiente: el detalle del incidente ya sale como herramienta |
+| IA-4 · Runbooks (9) y guía del panel en `backend/conocimiento/` ([índice](../runbooks/README.md)) | Hecho |
+| IA-4 · Índice incremental con embeddings de Gemini y búsqueda híbrida (BM25 + vectores, RRF); herramienta `buscar_conocimiento` en chat, diagnóstico y MCP | Hecho |
+| IA-4 · El diagnóstico cita el incidente resuelto parecido; el borrador de excepción usa justificaciones aprobadas | Hecho |
+| IA-4 · `eval.recuperacion`: recall@5 de 100 % (18/18; 94 % solo con palabras), en la corrida semanal | Hecho |
 
 ## Costo y límites
 

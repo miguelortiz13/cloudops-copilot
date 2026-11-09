@@ -1,7 +1,7 @@
 """Gemini con el SDK `google-genai` (reemplaza a `google-generativeai`, sin soporte)."""
 
 import time
-from typing import Optional
+from typing import List, Optional
 
 from app.llm.base import Llamada, LLMError, Paso, Respuesta
 
@@ -41,6 +41,24 @@ class Gemini:
             tokens_salida=getattr(uso, "candidates_token_count", None),
             segundos=round(time.monotonic() - inicio, 2),
         )
+
+    # ------------------------------------------------------------ embeddings (app/ai/conocimiento.py)
+
+    def embeber(self, textos: List[str], consulta: bool = False, modelo: str = "gemini-embedding-001",
+                dimension: int = 768) -> List[List[float]]:
+        """Un vector por texto, en lotes de 100 (el máximo por llamada)."""
+        config = self._types.EmbedContentConfig(task_type="RETRIEVAL_QUERY" if consulta else "RETRIEVAL_DOCUMENT",
+                                                output_dimensionality=dimension)
+        vectores: List[List[float]] = []
+        for i in range(0, len(textos), 100):
+            try:
+                r = self._cliente.models.embed_content(model=modelo, contents=textos[i:i + 100], config=config)
+            except Exception as exc:
+                raise LLMError(f"Gemini no generó embeddings: {type(exc).__name__}: {str(exc)[:300]}") from exc
+            if len(r.embeddings) != len(textos[i:i + 100]):
+                raise LLMError(f"El modelo {modelo} devolvió {len(r.embeddings)} vectores para {len(textos[i:i + 100])} textos.")
+            vectores += [list(e.values) for e in r.embeddings]
+        return vectores
 
     # ------------------------------------------------------------ herramientas (app/ai)
 

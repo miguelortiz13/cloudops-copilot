@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Request
 
 from app.core import ajustes, trazas
 from app.core.authz import Usuario, requiere
@@ -83,3 +83,33 @@ def evals(limite: int = Query(default=12, ge=1, le=100), usuario: Usuario = requ
     except FileNotFoundError:
         corridas = []
     return {"runs": corridas[::-1][:limite]}
+
+
+# ---------------------------------------------------------------- base de conocimiento (plan 11, hito IA-4)
+
+@router.get("/api/ia/conocimiento")
+def conocimiento_estado(usuario: Usuario = requiere("operador")):
+    """Fragmentos indexados por tipo, cuántos con vector, modelo y última actualización."""
+    from app.ai import conocimiento
+
+    return conocimiento.estado()
+
+
+@router.post("/api/ia/conocimiento/reindexar", status_code=202)
+def conocimiento_reindexar(tareas: BackgroundTasks, usuario: Usuario = requiere("operador")):
+    """Reindexa en segundo plano (el job diario lo hace solo); solo genera vectores para lo que cambió."""
+    from app.ai import conocimiento
+    from app.core.audit import auditar
+
+    tareas.add_task(conocimiento.reindexar)
+    auditar(usuario, "ia.conocimiento.reindexar")
+    return {"started": True}
+
+
+@router.get("/api/ia/conocimiento/buscar")
+def conocimiento_buscar(q: str = Query(min_length=2, max_length=300), tipo: Optional[str] = Query(default=None, max_length=20),
+                        usuario: Usuario = requiere("operador")):
+    """La misma búsqueda que usa el agente, para probarla desde el panel."""
+    from app.ai import conocimiento
+
+    return conocimiento.buscar(q, tipo, 5)

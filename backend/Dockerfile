@@ -21,6 +21,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt && pip uninstall -y pip
 
 COPY app ./app
+COPY conocimiento ./conocimiento
 COPY pipelines ./pipelines
 COPY migrations ./migrations
 COPY alembic.ini .
