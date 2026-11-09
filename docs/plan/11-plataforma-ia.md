@@ -108,7 +108,7 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
 | Entrega | Estado |
 |---|---|
 | IA-1 · Trazas OpenTelemetry GenAI y *Plataforma → IA* (costo, latencia, herramientas, trazas) | Hecho |
-| IA-1 · Evals por dominio con chequeo de cifras y corrida semanal | Hecho (falta configurar los secretos del workflow) |
+| IA-1 · Evals por dominio con chequeo de cifras y corrida semanal | Hecho: corre los lunes; primera corrida el 9-nov con las 3 suites sobre el objetivo y 0 cifras inventadas |
 
 ## Costo y límites
 
