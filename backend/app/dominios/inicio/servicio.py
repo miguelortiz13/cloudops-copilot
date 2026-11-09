@@ -10,7 +10,7 @@ Dominio Inicio (fase 5 del plan 10): *Mis pendientes* y *Qué cambió*.
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import false, func, or_, select
 
 from app.ai.incidentes import ABIERTOS
 from app.core import ajustes
@@ -92,7 +92,8 @@ def cambios(desde: datetime) -> Dict[str, Any]:
                          "new_critical": contar(s, Finding, Finding.first_seen >= desde, Finding.severity == "critica"),
                          "resolved": contar(s, Finding, Finding.resolved_at >= desde)},
             "resources": {"new": contar(s, Resource, Resource.first_seen >= desde),
-                          "new_outside_iac": contar(s, Resource, Resource.first_seen >= desde, Resource.in_iac_state.is_(False)),
+                          "new_outside_iac": contar(s, Resource, Resource.first_seen >= desde,
+                                                   or_(Resource.in_iac_state == false(), Resource.in_iac_state.is_(None))),
                           "deleted": contar(s, Resource, Resource.deleted_at >= desde)},
             "cost_alerts": {"new": contar(s, CostEvent, CostEvent.opened_at >= desde)},
         }
