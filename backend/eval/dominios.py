@@ -9,7 +9,6 @@ eval/cifras.py, que **ninguna cifra sea inventada**. Usa el modelo real (gasta t
     cd backend && GEMINI_API_KEY=... python -m eval.dominios [--json resultado.json]
 """
 
-import json
 import os
 import re
 import sys
@@ -20,7 +19,7 @@ os.environ.setdefault("LLM_PROVIDER", "gemini")
 os.environ["DATA_DIR"] = TMP
 
 from app import llm  # noqa: E402
-from app.ai import incidentes  # noqa: E402
+from app.ai import guardas, incidentes  # noqa: E402
 from app.collectors import semanal  # noqa: E402
 from app.core import config  # noqa: E402
 from app.dominios.activos import servicio as activos  # noqa: E402
@@ -82,7 +81,7 @@ def main() -> int:
         return 2
     casos = []
     for nombre, uso, sistema, datos, esperado in CASOS:
-        mensaje = datos if isinstance(datos, str) else json.dumps(datos, ensure_ascii=False)
+        mensaje = guardas.delimitar(datos)  # como en producción
         try:
             texto = llm.generar(f"eval.{uso}", sistema, mensaje, usuario="eval").texto or ""
         except llm.LLMError as exc:

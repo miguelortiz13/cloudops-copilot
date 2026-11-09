@@ -9,7 +9,6 @@ resumen ejecutivo con una o dos recomendaciones; sin modelo, salen las cifras.
 La semana enviada queda en `detail.sent`, como el reporte mensual.
 """
 
-import json
 import os
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, Optional
@@ -17,6 +16,7 @@ from typing import Dict, Optional
 from sqlalchemy import false, func, or_, select
 
 from app import llm
+from app.ai import guardas
 from app.collectors.common import Contexto, Resultado
 from app.core import avisos, config
 from app.db.models import CollectorRun, CostDaily, Finding, FindingEvent, Incident, Resource
@@ -121,7 +121,7 @@ def redactar(d: Dict) -> Optional[str]:
         return None
     try:
         return llm.generar("resumen.semanal", SISTEMA.format(org=config.ORG_NAME),
-                           json.dumps(d, ensure_ascii=False), usuario="resumen-semanal").texto.strip()
+                           guardas.delimitar(d), usuario="resumen-semanal").texto.strip()
     except llm.LLMError as exc:
         print(f"[semanal] El modelo no respondió: {exc}")
         return None

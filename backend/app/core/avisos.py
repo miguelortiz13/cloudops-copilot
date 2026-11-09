@@ -94,6 +94,13 @@ def publicar(url: str, mensaje: Dict[str, Any], *, dominio: str, tipo: str, seve
     if decision != "enviado" and activo:
         _anotar(entrada)
         return decision
+    # Enlaces permitidos (plan 11, IA-2): al canal solo salen enlaces del panel, aunque el texto venga del modelo.
+    from app.ai.guardas import solo_enlaces_del_panel
+
+    panel = config.FRONTEND_URL
+    mensaje = {**mensaje, "titulo": solo_enlaces_del_panel(str(mensaje.get("titulo", "")), panel),
+               "lineas": [solo_enlaces_del_panel(str(x), panel) for x in mensaje.get("lineas", [])],
+               "enlace": mensaje.get("enlace") if str(mensaje.get("enlace")).startswith(panel + "/") else panel}
     cuerpo = notify.payload(url, mensaje, color=color)
     try:
         if adjunto and (urlparse(url).hostname or "") in ("discord.com", "discordapp.com"):

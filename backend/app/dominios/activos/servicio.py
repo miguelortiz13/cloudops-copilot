@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, select
 
+from app.ai import guardas
 from app.core import config
 from app.db import engine as db
 from app.db.models import Account, AssetClassification, CostDaily, Finding, FindingEvent, Incident, Resource, Rule
@@ -140,5 +141,5 @@ def explicar(uid: str, usuario: str) -> str:
     resumen["cost"] = {k: f["cost"][k] for k in ("total_30d", "currency", "by_service")}
     resumen["findings"] = [{k: h[k] for k in ("title", "severity", "status", "remediation")} for h in f["findings"][:15]]
     resumen["incidents"] = f["incidents"][:5]
-    return llm.generar("activos.explicar", SISTEMA.format(org=config.ORG_NAME), json.dumps(resumen, ensure_ascii=False)[:8000],
+    return llm.generar("activos.explicar", SISTEMA.format(org=config.ORG_NAME), guardas.delimitar(json.dumps(resumen, ensure_ascii=False)[:8000]),
                        usuario=usuario).texto.strip()

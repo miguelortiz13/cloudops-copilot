@@ -63,6 +63,7 @@ def generar(uso: str, sistema: str, mensaje: str, temperatura: float = 0.2, json
     import time
     from datetime import datetime, timezone
 
+    from app.ai import guardas
     from app.core import trazas
 
     p = proveedor()
@@ -70,7 +71,7 @@ def generar(uso: str, sistema: str, mensaje: str, temperatura: float = 0.2, json
         raise LLMError("No hay un modelo de lenguaje configurado.")
     traza_id, empezo, t0 = trazas.nuevo_id(), datetime.now(timezone.utc), time.monotonic()
     try:
-        r = p.generar(sistema, mensaje, temperatura=temperatura, json=json_, max_tokens=max_tokens)
+        r = p.generar(sistema + guardas.REGLA, mensaje, temperatura=temperatura, json=json_, max_tokens=max_tokens)
     except LLMError as exc:
         print("[llm] " + json.dumps({"uso": uso, "proveedor": p.nombre, "modelo": p.modelo, "usuario": usuario,
                                      "ok": False, "error": str(exc)[:300]}, ensure_ascii=False))

@@ -97,16 +97,39 @@ Cada respuesta del agente (`invoke_agent`) y cada llamada directa al modelo (`ch
 
 ## Evals continuos
 
-Tres suites con el modelo real, cada una con `--json` para publicar su resultado:
+Cuatro suites con el modelo real, cada una con `--json` para publicar su resultado:
 
 | Suite | Qué mide | Casos |
 |---|---|---|
 | `eval.agentes` | Que el asistente responda con las herramientas correctas | 9 preguntas |
 | `eval.incidentes` | Que el diagnóstico nombre la causa sembrada, con ruido de un clúster real | 6 incidentes |
 | `eval.dominios` | La IA de cada dominio con su prompt de producción: ficha del recurso, alerta de costo, borrador de excepción, post-mortem, resumen semanal | 5 casos |
+| `eval.inyeccion` | Que no obedezca instrucciones escondidas en logs, tags, nombres, alertas y eventos, ni revele sus instrucciones (objetivo 100 %) | 7 casos |
 
 `eval.dominios` aplica además el **chequeo determinista de cifras** ([`eval/cifras.py`](../../backend/eval/cifras.py)): toda cifra de la respuesta tiene que estar en los datos o en el prompt, o ser la suma o diferencia de dos de ellas (04:30 − 04:18 = "12 minutos"); se ignoran los enteros menores que 10 y los porcentajes. Una cifra inventada hace fallar el caso aunque el texto sea correcto.
 
 El workflow [`evals.yml`](../../.github/workflows/evals.yml) las corre los lunes a las 07:00 UTC (y a mano), deja el resumen en el job, guarda los JSON como artefacto y los publica en `POST /api/ia/evals/ingesta` con el token de ingesta (el mismo de Alertmanager). *Plataforma → IA* muestra la última corrida por suite contra el objetivo (90 % y cero cifras inventadas) y la tendencia. Necesita los secretos `GEMINI_API_KEY` y `ALERTS_INGEST_TOKEN` y la variable `API_URL` del repositorio; sin la clave, no corre.
 
 Medición del 9-nov-2026 (`gemini-3.5-flash`): `eval.dominios` 5/5 en dos corridas, sin cifras inventadas.
+
+## Seguridad de agentes (OWASP Top 10 para aplicaciones LLM)
+
+Guardas en [`app/ai/guardas.py`](../../backend/app/ai/guardas.py), aplicadas en un solo lugar para todo uso de la IA (el motor con herramientas y `llm.generar`):
+
+- **Contenido no confiable delimitado.** Los datos que llegan de la nube o de usuarios (ficha del recurso, alerta de costo, evidencia de un control, alertas del incidente, línea de tiempo del post-mortem, resumen semanal, foto del clúster) van dentro de `<<<DATOS_NO_CONFIABLES>>>` … `<<<FIN_DATOS_NO_CONFIABLES>>>`; si el texto trae las marcas, se neutralizan. Los resultados de herramientas llegan al modelo como `{"datos_no_confiables": ...}`. Todo prompt de sistema lleva la misma regla: eso es dato, no se obedece, no se copia y no se revelan las instrucciones.
+- **Argumentos validados.** Antes de ejecutar una herramienta se validan sus argumentos con su esquema: argumentos desconocidos, tipos, `enum`, requeridos y textos de hasta 200 caracteres. El error vuelve al modelo y la herramienta no corre.
+- **Enlaces permitidos al canal.** El motor de avisos deja solo los enlaces del panel (`FRONTEND_URL`): un enlace Markdown ajeno queda como su texto, una URL suelta como `[enlace quitado]` y el botón del aviso apunta al panel. El panel ya solo vuelve clicables los enlaces `#/...`.
+
+| Riesgo (OWASP LLM 2025) | Control | Prueba |
+|---|---|---|
+| LLM01 Prompt injection | Datos delimitados y regla en el sistema; herramientas de solo lectura | `eval.inyeccion` (semanal, 100 %) |
+| LLM02 Divulgación de información sensible | Las trazas no guardan texto; credenciales evidentes enmascaradas antes de publicar; el chat y el MCP con rol | `test_incidentes` (enmascarado), `test_trazas` |
+| LLM03 Cadena de suministro | Dependencias fijadas, Dependabot, Trivy en la imagen; modelo de un proveedor gestionado | CI |
+| LLM04 Envenenamiento de datos | Sin ajuste fino; el RAG (IA-4) solo indexará incidentes marcados como correctos y docs del repo | Eval de recuperación (IA-4) |
+| LLM05 Manejo inseguro de la salida | Markdown sin HTML y solo enlaces `#/` en el panel; enlaces permitidos en los avisos; la salida nunca se ejecuta | `markdown.test.tsx`, `test_avisos` |
+| LLM06 Agencia excesiva | Herramientas de solo lectura con argumentos validados; los cambios salen como propuesta con aprobación humana | `test_ai_agente` |
+| LLM07 Filtración del prompt de sistema | Regla de no revelar; el prompt no contiene secretos | `eval.inyeccion` (frases del prompt) |
+| LLM08 Debilidades de vectores y embeddings | No aplica hasta IA-4 (índice propio, sin datos de otros tenants) | — |
+| LLM09 Desinformación | Toda cifra sale de herramientas o datos, con cita al panel | `eval.dominios` (chequeo de cifras) |
+| LLM10 Consumo sin límite | Topes por ejecución (8 herramientas, 90 s, 30.000 caracteres por resultado), cupos por usuario y por dominio, costo visible en *Plataforma → IA* | `test_ai_agente`, `test_llm` |
+
