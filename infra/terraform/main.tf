@@ -229,7 +229,7 @@ module "api" {
 # Panel (Static Web App gratuita)
 # ---------------------------------------------------------------------------
 module "web" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/static-web-app?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/static-web-app?ref=v0.4.0"
 
   name                = "stapp-${local.base}"
   resource_group_name = module.rg.name
