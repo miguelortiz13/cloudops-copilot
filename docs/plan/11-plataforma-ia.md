@@ -112,6 +112,9 @@ Los clientes nunca hablan con el modelo directamente: pasan por el motor, que us
 | IA-2 · Suite de prompt injection (7 casos, 7/7 con el modelo real) en la corrida semanal | Hecho |
 | IA-2 · Contenido no confiable delimitado, argumentos validados con su esquema, enlaces permitidos en los avisos | Hecho |
 | IA-2 · Mapeo al OWASP Top 10 para aplicaciones LLM ([ai-agents](../modules/ai-agents.md#seguridad-de-agentes-owasp-top-10-para-aplicaciones-llm)) | Hecho |
+| IA-3 · Servidor MCP (Streamable HTTP en `/mcp`) con las herramientas del registro, más `incidentes` e `incidente` | Hecho |
+| IA-3 · Tokens MCP de Lector emitidos y revocados en *Plataforma → IA*, con auditoría, trazas y cupo por token | Hecho |
+| IA-3 · Recursos MCP (ficha, incidente, post-mortem) y MCP como cliente (GitHub) | Pendiente: el detalle del incidente ya sale como herramienta |
 
 ## Costo y límites
 

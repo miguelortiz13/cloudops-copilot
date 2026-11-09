@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearApiCache } from '../../lib/useApi';
 import { renderWithApp } from '../../test/render';
 
-const api = vi.hoisted(() => ({ get: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn() }));
 vi.mock('../../lib/api', () => api);
 
 const { AiPage } = await import('./AiPage');
@@ -39,6 +39,39 @@ describe('Plataforma → IA', () => {
       ? { days: 7, priced: false, total: { ...bloque, calls: 0 }, by_domain: {}, by_use: {}, tools: [] } : { total: 0, items: [] }));
     renderWithApp(<IaWrapper />);
     expect(await screen.findByText(/El costo no se estima hasta configurar el precio/)).toBeInTheDocument();
+  });
+});
+
+describe('Plataforma → IA · Acceso MCP', () => {
+  beforeEach(() => clearApiCache());
+
+  it('el administrador emite un token, lo ve una sola vez con el comando de Claude Code y lo revoca', async () => {
+    const vigente = { id: 'ab12', nombre: 'claude-code', creado_por: 'ana@x', creado: '2026-11-09T00:00:00Z', vence: '2099-01-01T00:00:00Z', ultimo_uso: null, revocado: null };
+    let tokens: unknown[] = [];
+    api.get.mockImplementation(async (path: string) => {
+      if (path.startsWith('/api/ia/resumen')) return { days: 7, priced: false, total: { ...bloque, calls: 0 }, by_domain: {}, by_use: {}, tools: [], mcp: { calls: 3, errors: 1 } };
+      if (path.startsWith('/api/ia/mcp/tokens')) return { items: tokens };
+      return { total: 0, items: [], runs: [] };
+    });
+    api.post.mockImplementation(async () => { tokens = [vigente]; return { ...vigente, token: 'cop_mcp_secreto' }; });
+    api.del.mockResolvedValue({ revoked: 'ab12' });
+    const { user } = renderWithApp(<IaWrapper />);
+    expect(await screen.findByText(/3 llamada\(s\), 1 con error/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Nombre'), 'claude-code');
+    await user.click(screen.getByRole('button', { name: 'Emitir token' }));
+    expect(api.post).toHaveBeenCalledWith('/api/ia/mcp/tokens', { nombre: 'claude-code', dias: 30 });
+    expect(await screen.findByText(/--header "Authorization: Bearer cop_mcp_secreto"/)).toBeInTheDocument();
+    expect(await screen.findByText('Nunca')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Revocar' }));
+    expect(api.del).toHaveBeenCalledWith('/api/ia/mcp/tokens/ab12');
+  });
+
+  it('un operador no emite tokens', async () => {
+    api.get.mockImplementation(async (path: string) => (path.startsWith('/api/ia/resumen')
+      ? { days: 7, priced: false, total: { ...bloque, calls: 0 }, by_domain: {}, by_use: {}, tools: [] } : { total: 0, items: [], runs: [] }));
+    renderWithApp(<IaWrapper />, { role: 'operador' });
+    expect(await screen.findByText('Los tokens los emite un administrador.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Emitir token' })).not.toBeInTheDocument();
   });
 });
 

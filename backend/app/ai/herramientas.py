@@ -186,6 +186,27 @@ def para_asistente(credenciales) -> List[Herramienta]:
                 "nota": "Un despliegue es una revisión nueva de un Deployment (su ReplicaSet). Compara su hora con el "
                         "inicio de la alerta: un cambio minutos antes es el primer sospechoso."}
 
+    def incidentes(estado: Optional[str] = None, severidad: Optional[str] = None, cluster: Optional[str] = None,
+                   dias: int = 30, limite: int = MUESTRA) -> Dict[str, Any]:
+        from app.routers import incidents  # shortcut: reusa la ruta del panel; mover a un servicio si crece
+
+        r = incidents.listar(estado=estado, severidad=severidad, cluster=cluster, dias=max(1, min(int(dias), 365)), agrupados=False)
+        if not r["configured"]:
+            return {"error": "Sin base de datos no hay incidentes."}
+        return {**_acotar(r["items"], limite), "enlace": "#/operacion/incidentes"}
+
+    def incidente(id: int) -> Dict[str, Any]:
+        from fastapi import HTTPException
+
+        from app.routers import incidents
+
+        try:
+            d = incidents.detalle(int(id))
+        except HTTPException as exc:
+            return {"error": exc.detail}
+        return {**{k: v for k, v in d.items() if k != "alert_list"}, "alertas": d["alert_list"][:10],
+                "events": d["events"][-40:], "enlace": f"#/operacion/incidentes/{d['id']}"}
+
     texto = {"type": "string"}
     return [
         Herramienta("buscar_recursos",
@@ -236,4 +257,17 @@ def para_asistente(credenciales) -> List[Herramienta]:
                     {"type": "object", "properties": {"nombre": texto, "namespace": texto,
                                                       "objeto": {**texto, "description": "Parte del nombre del pod, deployment o servicio"}},
                      "required": ["nombre"]}, estado_cluster),
+        Herramienta("incidentes",
+                    "Incidentes de los últimos N días (por defecto 30), los más recientes primero, con su severidad, "
+                    "estado, clúster, responsable y si el diagnóstico está listo. estado: vivos (sin resolver ni cerrar), "
+                    "abierto, reconocido, en_curso, resuelto o cerrado.",
+                    {"type": "object", "properties": {
+                        "estado": {"type": "string", "enum": ["vivos", "abierto", "reconocido", "en_curso", "resuelto", "cerrado"]},
+                        "severidad": {"type": "string", "enum": ["critica", "alta", "media"]}, "cluster": texto,
+                        "dias": {"type": "integer"}, "limite": {"type": "integer"}}},
+                    incidentes),
+        Herramienta("incidente",
+                    "Detalle de un incidente por su número: alertas, diagnóstico del agente, post-mortem, incidentes de su "
+                    "tormenta y línea de tiempo (quién hizo qué y cuándo).",
+                    {"type": "object", "properties": {"id": {"type": "integer"}}, "required": ["id"]}, incidente),
     ]

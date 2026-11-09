@@ -154,7 +154,7 @@ def test_recursos_nuevos_y_hallazgos(datos):
 
 def test_herramientas_del_asistente_declaran_esquemas_validos():
     hs = herramientas.para_asistente(None)
-    assert len({h.nombre for h in hs}) == len(hs) == 8
+    assert len({h.nombre for h in hs}) == len(hs) == 10
     for h in hs:
         assert h.parametros["type"] == "object" and h.descripcion
 

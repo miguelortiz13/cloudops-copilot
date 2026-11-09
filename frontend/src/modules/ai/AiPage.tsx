@@ -3,10 +3,11 @@ import { get } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 import { dateTime, money, number, percent } from '../../lib/format';
 import { EvalsSection } from './EvalsSection';
+import { McpSection } from './McpSection';
 import { Card, Drawer, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, StatTile } from '../../components/ui';
 
 interface Bloque { calls: number; errors: number; input_tokens: number; output_tokens: number; cost_usd: number; p50_ms: number | null; p95_ms: number | null }
-interface Resumen { days: number; total: Bloque; by_domain: Record<string, Bloque>; by_use: Record<string, Bloque>; tools: { name: string; calls: number; errors: number }[]; priced: boolean }
+interface Resumen { days: number; total: Bloque; by_domain: Record<string, Bloque>; by_use: Record<string, Bloque>; tools: { name: string; calls: number; errors: number }[]; priced: boolean; mcp?: { calls: number; errors: number } }
 interface Span { name: string; duration_ms: number; attributes: Record<string, unknown> }
 interface Traza { trace_id: string; name: string; start: string; duration_ms: number; attributes: Record<string, unknown>; spans: Span[] | number }
 
@@ -69,6 +70,7 @@ export function AiPage() {
           <StatTile label="Latencia p95" value={ms(d.total.p95_ms)} meta={`p50 ${ms(d.total.p50_ms)}`} />
         </div>
         <EvalsSection />
+        <McpSection llamadas={d.mcp} />
         {d.total.calls === 0 ? <Card><Empty title="Sin llamadas al modelo en este periodo">Las trazas empiezan con esta versión: aparecen con la próxima pregunta, diagnóstico o explicación.</Empty></Card> : (
           <>
             <Section title="Por dominio"><Card flush><Tabla filas={d.by_domain} etiqueta={(k) => DOMINIO[k] ?? k} priced={d.priced} /></Card></Section>

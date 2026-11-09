@@ -49,6 +49,8 @@ PUBLIC_PATHS = {
     "/api/alerts/alertmanager",
     # La corrida semanal de evals (GitHub Actions): mismo token de ingesta (app/dominios/plataforma/api.py).
     "/api/ia/evals/ingesta",
+    # Servidor MCP: se autentica con su propio token de Lector (app/dominios/plataforma/mcp.py).
+    "/mcp",
     "/docs",
     "/openapi.json",
     "/redoc",
