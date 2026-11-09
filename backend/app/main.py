@@ -24,6 +24,7 @@ from app.routers import (
 )
 from app.dominios.activos import api as activos
 from app.dominios.plataforma import api as plataforma_ia
+from app.dominios.plataforma import mcp as plataforma_mcp
 from app.dominios.costos import api as costos_dominio
 from app.dominios.riesgo import api as riesgo
 from app.services.auth import auth_middleware, startup_banner
@@ -67,5 +68,5 @@ app.add_middleware(
 )
 
 for modulo in (k8s, finops, secops, inventory, iac, sync, teams, recommendations, chat, admin, history, compliance, me,
-               incidents, settings, activos, riesgo, costos_dominio, plataforma_ia, legacy):
+               incidents, settings, activos, riesgo, costos_dominio, plataforma_ia, plataforma_mcp, legacy):
     app.include_router(modulo.router)

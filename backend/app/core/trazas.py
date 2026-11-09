@@ -97,7 +97,10 @@ def _percentil(valores: List[int], p: float) -> Optional[int]:
 
 
 def resumen(trazas: List[Dict[str, Any]], precio_entrada: float, precio_salida: float) -> Dict[str, Any]:
-    """Por dominio y por uso: llamadas, errores, tokens, costo estimado, latencia p50/p95 y herramientas más usadas."""
+    """
+    Por dominio y por uso: llamadas al modelo, errores, tokens, costo estimado, latencia p50/p95 y herramientas más
+    usadas. Las llamadas de clientes MCP (sin modelo de por medio) van aparte, en `mcp`; sus herramientas sí cuentan.
+    """
     def costo(t: Dict[str, Any]) -> float:
         a = t["attributes"]
         return (a["gen_ai.usage.input_tokens"] * precio_entrada + a["gen_ai.usage.output_tokens"] * precio_salida) / 1_000_000
@@ -111,15 +114,18 @@ def resumen(trazas: List[Dict[str, Any]], precio_entrada: float, precio_salida: 
 
     por: Dict[str, Dict[str, List[Dict[str, Any]]]] = {"domain": {}, "use": {}}
     herramientas: Dict[str, Dict[str, int]] = {}
-    for t in trazas:
+    modelo = [t for t in trazas if t["attributes"]["gen_ai.operation.name"] != "execute_tool"]
+    for t in modelo:
         por["domain"].setdefault(t["attributes"]["cloudops.domain"], []).append(t)
         por["use"].setdefault(t["attributes"]["cloudops.use"], []).append(t)
+    for t in trazas:
         for s in t["spans"]:
             if s["attributes"]["gen_ai.operation.name"] == "execute_tool":
                 h = herramientas.setdefault(s["attributes"]["gen_ai.tool.name"], {"calls": 0, "errors": 0})
                 h["calls"] += 1
                 h["errors"] += "error.type" in s["attributes"]
-    return {"total": bloque(trazas), "by_domain": {k: bloque(v) for k, v in sorted(por["domain"].items())},
+    mcp = [t for t in trazas if t["attributes"]["gen_ai.operation.name"] == "execute_tool"]
+    return {"total": bloque(modelo), "mcp": {k: v for k, v in bloque(mcp).items() if k in ("calls", "errors", "p50_ms", "p95_ms")}, "by_domain": {k: bloque(v) for k, v in sorted(por["domain"].items())},
             "by_use": {k: bloque(v) for k, v in sorted(por["use"].items())},
             "tools": sorted(({"name": k, **v} for k, v in herramientas.items()), key=lambda h: -h["calls"]),
-            "priced": bool(precio_entrada or precio_salida), "median_ms": statistics.median([t["duration_ms"] for t in trazas]) if trazas else None}
+            "priced": bool(precio_entrada or precio_salida), "median_ms": statistics.median([t["duration_ms"] for t in modelo]) if modelo else None}

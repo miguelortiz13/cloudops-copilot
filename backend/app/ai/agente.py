@@ -36,7 +36,7 @@ class Herramienta:
         return {"nombre": self.nombre, "descripcion": self.descripcion, "parametros": self.parametros}
 
 
-def _ejecutar(h: Optional[Herramienta], argumentos: Dict[str, Any]) -> Dict[str, Any]:
+def ejecutar(h: Optional[Herramienta], argumentos: Dict[str, Any]) -> Dict[str, Any]:
     if h is None:
         return {"error": "Herramienta desconocida."}
     argumentos, error = guardas.validar(h.parametros, argumentos)
@@ -82,7 +82,7 @@ def responder(sistema: str, pregunta: str, herramientas: List[Herramienta], uso:
             resultados = []
             for llamada in paso.llamadas:
                 t0 = time.monotonic()
-                dato = _ejecutar(por_nombre.get(llamada.nombre), llamada.argumentos)
+                dato = ejecutar(por_nombre.get(llamada.nombre), llamada.argumentos)
                 spans.append(trazas.span_herramienta(llamada.nombre, llamada.argumentos, dato, int((time.monotonic() - t0) * 1000)))
                 traza.append({"nombre": llamada.nombre, "argumentos": llamada.argumentos,
                               **({"error": dato["error"]} if "error" in dato else {})})

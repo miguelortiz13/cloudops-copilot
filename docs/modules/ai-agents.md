@@ -112,6 +112,21 @@ El workflow [`evals.yml`](../../.github/workflows/evals.yml) las corre los lunes
 
 Medición del 9-nov-2026 (`gemini-3.5-flash`): `eval.dominios` 5/5 en dos corridas, sin cifras inventadas.
 
+## Servidor MCP
+
+[`app/dominios/plataforma/mcp.py`](../../backend/app/dominios/plataforma/mcp.py) expone por [MCP](https://modelcontextprotocol.io) las mismas herramientas de solo lectura del chat (inventario, recursos nuevos, hallazgos, costos, cumplimiento, clústeres, estado de un clúster, cambios recientes, incidentes y el detalle de un incidente con su diagnóstico y post-mortem). No hay una segunda definición: es el registro de `app/ai/herramientas.py`.
+
+- **Transporte:** *Streamable HTTP* en `POST /mcp`, sin sesión; cada mensaje JSON-RPC se responde con JSON (`initialize`, `ping`, `tools/list`, `tools/call`). `GET /mcp` responde 405: el servidor no abre flujos SSE. Se rechaza un `Origin` que no esté en `ALLOWED_ORIGINS`.
+- **Autenticación:** un administrador emite un **token MCP** en *Plataforma → IA → Acceso MCP*, con nombre y vencimiento (7, 30 o 90 días). Se muestra una sola vez; se guarda su hash en `DATA_DIR/mcp/tokens.json` y se puede revocar. El token tiene siempre rol **Lector**.
+- **Mismas guardas que el chat:** argumentos validados con el esquema, resultado acotado a 30.000 caracteres y marcado como `datos_no_confiables`, y un cupo de 300 llamadas por hora por token.
+- **Auditoría y trazas:** cada llamada queda en la auditoría (`mcp.herramienta`, con el token y quién lo emitió) y deja una traza `mcp.<herramienta>` en el dominio Plataforma. *Plataforma → IA* cuenta las llamadas MCP aparte de las del modelo.
+
+Conectar Claude Code (el panel muestra el comando con el token al emitirlo):
+
+```bash
+claude mcp add --transport http cloudops https://<api>/mcp --header "Authorization: Bearer <token>"
+```
+
 ## Seguridad de agentes (OWASP Top 10 para aplicaciones LLM)
 
 Guardas en [`app/ai/guardas.py`](../../backend/app/ai/guardas.py), aplicadas en un solo lugar para todo uso de la IA (el motor con herramientas y `llm.generar`):
@@ -127,9 +142,9 @@ Guardas en [`app/ai/guardas.py`](../../backend/app/ai/guardas.py), aplicadas en 
 | LLM03 Cadena de suministro | Dependencias fijadas, Dependabot, Trivy en la imagen; modelo de un proveedor gestionado | CI |
 | LLM04 Envenenamiento de datos | Sin ajuste fino; el RAG (IA-4) solo indexará incidentes marcados como correctos y docs del repo | Eval de recuperación (IA-4) |
 | LLM05 Manejo inseguro de la salida | Markdown sin HTML y solo enlaces `#/` en el panel; enlaces permitidos en los avisos; la salida nunca se ejecuta | `markdown.test.tsx`, `test_avisos` |
-| LLM06 Agencia excesiva | Herramientas de solo lectura con argumentos validados; los cambios salen como propuesta con aprobación humana | `test_ai_agente` |
+| LLM06 Agencia excesiva | Herramientas de solo lectura con argumentos validados; los cambios salen como propuesta con aprobación humana; MCP solo con rol Lector | `test_ai_agente`, `test_mcp` |
 | LLM07 Filtración del prompt de sistema | Regla de no revelar; el prompt no contiene secretos | `eval.inyeccion` (frases del prompt) |
 | LLM08 Debilidades de vectores y embeddings | No aplica hasta IA-4 (índice propio, sin datos de otros tenants) | — |
 | LLM09 Desinformación | Toda cifra sale de herramientas o datos, con cita al panel | `eval.dominios` (chequeo de cifras) |
-| LLM10 Consumo sin límite | Topes por ejecución (8 herramientas, 90 s, 30.000 caracteres por resultado), cupos por usuario y por dominio, costo visible en *Plataforma → IA* | `test_ai_agente`, `test_llm` |
+| LLM10 Consumo sin límite | Topes por ejecución (8 herramientas, 90 s, 30.000 caracteres por resultado), cupos por usuario y por dominio, 300 llamadas MCP por hora por token, costo visible en *Plataforma → IA* | `test_ai_agente`, `test_llm`, `test_mcp` |
 
