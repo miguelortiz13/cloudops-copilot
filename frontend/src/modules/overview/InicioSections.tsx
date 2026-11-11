@@ -15,7 +15,8 @@ interface Cambios {
 }
 
 const TONO = ['dot-accent', 'dot-warning', 'dot-serious', 'dot-critical'];
-const TIPO: Record<string, string> = { incidente: 'Incidente', hallazgo: 'Hallazgo', costo: 'Costo', excepcion: 'Excepción', silencio: 'Silencio' };
+const TIPO: Record<string, string> = { incidente: 'Incidente', hallazgo: 'Hallazgo', costo: 'Costo', excepcion: 'Excepción', silencio: 'Silencio',
+  marcar: 'Diagnóstico', ruido: 'Ruido', accion: 'Acción' };
 const CLAVE = 'cloudops.ultimaVisita';
 const pl = (n: number, uno: string, varios: string) => `${number(n)} ${n === 1 ? uno : varios}`;
 

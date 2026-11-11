@@ -731,7 +731,10 @@ export interface IncidentDetail extends IncidentSummary {
   postmortem: string | null;
   children: IncidentSummary[];
   events: IncidentEvent[];
+  actions: IncidentAction[];
 }
+
+export interface IncidentAction { id: number; text: string; owner: string | null; created_by: string; created_at: string; done_at: string | null }
 
 export interface IncidentStats {
   configured: boolean; days: number; total: number; open: number; diagnosed: number; marked: number; correct: number;
