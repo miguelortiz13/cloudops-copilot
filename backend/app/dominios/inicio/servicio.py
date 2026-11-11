@@ -28,6 +28,11 @@ CICLO = timedelta(days=14)
 MAX_SUELTOS = 3  # más diagnósticos sin marcar que esto van en un solo pendiente
 
 
+def _dueno(tags: Optional[Dict[str, Any]]) -> Optional[str]:
+    """El valor de la tag Owner del recurso (sin importar mayúsculas en el nombre de la tag)."""
+    return next((str(v) for k, v in (tags or {}).items() if k.lower() == "owner"), None)
+
+
 def _yo(valor: Optional[str], actor: str) -> bool:
     return bool(valor) and valor.strip().lower() == actor.strip().lower()
 
@@ -50,10 +55,10 @@ def pendientes(actor: str, ahora: Optional[datetime] = None) -> List[Dict[str, A
                 agregar("incidente", f"#{i.id} {i.title}", f"Severidad {i.severity} y sin responsable", URGENCIA[i.severity],
                         f"#/operacion/incidentes/{i.id}", i.opened_at, detalle)
 
-        filas = s.execute(select(Finding, Rule.title, Resource.name, Rule.remediation).join(Rule, Rule.id == Finding.rule_id)
+        filas = s.execute(select(Finding, Rule.title, Resource.name, Rule.remediation, Resource.tags).join(Rule, Rule.id == Finding.rule_id)
                           .outerjoin(Resource, Resource.uid == Finding.resource_uid)
                           .where(Finding.status != "resuelto"))
-        for f, regla, recurso, remediacion in filas:
+        for f, regla, recurso, remediacion, tags in filas:
             titulo = f"{regla} · {recurso or f.resource_uid.rsplit('/', 1)[-1]}"
             if f.status == "aceptado" and f.accepted_until and f.accepted_until - hoy <= PRONTO:
                 vence = (f.accepted_until - hoy).days
@@ -64,6 +69,9 @@ def pendientes(actor: str, ahora: Optional[datetime] = None) -> List[Dict[str, A
                 agregar("hallazgo", titulo, f"Asignado a ti · vencido el {f.due_date.isoformat()}" if atrasado else
                         f"Asignado a ti{f' · vence el {f.due_date.isoformat()}' if f.due_date else ''}",
                         min(3, URGENCIA.get(f.severity, 1) + atrasado), "#/riesgo/hallazgos", detalle=remediacion)
+            elif f.status == "abierto" and not f.owner and _yo(_dueno(tags), actor):
+                agregar("hallazgo", titulo, "Sin responsable; el recurso tiene tu correo en la tag Owner",
+                        URGENCIA.get(f.severity, 1), "#/riesgo/hallazgos", detalle=remediacion)
 
         for e in s.scalars(select(CostEvent).where(CostEvent.status.in_(("abierto", "reconocido")))):
             if _yo(e.assignee, actor) or not e.assignee:

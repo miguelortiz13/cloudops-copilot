@@ -78,6 +78,8 @@ function rutas(role: Role): Record<string, Handler> {
         schema: { presupuesto_azure_usd: ['float', 0, 1000000], presupuesto_aws_usd: ['float', 0, 1000000] } },
       ia: { values: { max_consultas_hora: 30, max_consultas_dia: 150 }, defaults: {}, origin: 'variable',
         schema: { max_consultas_hora: ['int', 0, 10000], max_consultas_dia: ['int', 0, 100000] } },
+      asignacion: { values: { reglas_asignacion: ['namespace:boutique=ana@contoso.example', 'cluster:lab=ops@contoso.example'] }, defaults: {}, origin: 'ajuste',
+        schema: { reglas_asignacion: ['nombres', 50, false] } },
     } }),
     'GET /api/settings-history': () => ({ items: [] }),
     'GET /api/checks': () => ({ items: [] }),

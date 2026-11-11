@@ -128,6 +128,12 @@ def ingresar_alertmanager(payload: Dict[str, Any], cluster: Optional[str],
         s.add(nuevo)
         s.flush()
         evento(s, nuevo.id, "alertmanager", "abierto", f"{len(disparadas)} alerta(s): {nuevo.title}", ahora)
+        # Asignación por reglas (Plataforma → Ajustes → Asignación): por clúster, namespace o alerta.
+        regla = ajustes.responsable_por_reglas(cluster, [a["labels"].get("namespace") for a in disparadas if a["labels"].get("namespace")],
+                                               [a["name"] for a in disparadas])
+        if regla:
+            nuevo.assignee = _texto(regla[0], 200)
+            evento(s, nuevo.id, "reglas", "asignado", f"Responsable {regla[0]} por la regla {regla[1]}", ahora)
         return _agrupar(s, nuevo, ahora)
 
 

@@ -18,6 +18,7 @@ from app.db import engine as db
 from app.db.models import Finding, FindingEvent, Incident, IncidentEvent
 
 HUMANAS = ("estado", "asignado", "nota", "accion")
+SISTEMA = ("alertmanager", "agente", "reglas")  # actores que no son personas: no cuentan como reconocer
 GRAVES = ("critica", "alta")
 
 
@@ -67,7 +68,8 @@ def tablero(n: int = 8, ahora: Optional[datetime] = None) -> Dict[str, Any]:
         humanas: Dict[int, datetime] = {}
         if incidentes:
             for e in s.scalars(select(IncidentEvent).where(IncidentEvent.incident_id.in_([i.id for i in incidentes]),
-                                                           IncidentEvent.kind.in_(HUMANAS)).order_by(IncidentEvent.at)):
+                                                           IncidentEvent.kind.in_(HUMANAS), IncidentEvent.actor.not_in(SISTEMA))
+                                       .order_by(IncidentEvent.at)):
                 humanas.setdefault(e.incident_id, _utc(e.at))
         eventos = list(s.execute(select(FindingEvent.kind, FindingEvent.at).join(Finding, Finding.id == FindingEvent.finding_id)
                                  .where(FindingEvent.at >= desde, Finding.severity.in_(GRAVES))))

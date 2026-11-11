@@ -65,7 +65,7 @@ def test_historial_y_deshacer():
 
 def test_api_de_ajustes(cliente):
     todo = cliente.get("/api/settings").json()["sections"]
-    assert set(todo) == {"incidentes", "gobierno", "costos", "ia", "avisos", "riesgo", "chequeos"} and todo["gobierno"]["origin"] == "variable"
+    assert set(todo) == {"incidentes", "gobierno", "costos", "ia", "avisos", "riesgo", "chequeos", "asignacion"} and todo["gobierno"]["origin"] == "variable"
     assert todo["costos"]["schema"]["presupuesto_aws_usd"] == ["float", 0, 1_000_000]
     assert cliente.put("/api/settings/costos", json={"presupuesto_azure_usd": -3}).status_code == 400
     assert cliente.put("/api/settings/nada", json={}).status_code == 404

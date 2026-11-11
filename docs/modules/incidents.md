@@ -78,6 +78,10 @@ Fase 7.1 del [plan 12](../plan/12-cerrar-el-ciclo-y-medir.md): cada incidente de
 
 Para lo que no tiene Alertmanager: en *Plataforma → Ajustes → Chequeos HTTP* un administrador pone hasta 20 URLs `https`. El job `k8s-watch` las revisa cada 10 minutos ([`collectors/chequeos.py`](../../backend/app/collectors/chequeos.py)); una que falla **dos veces seguidas** (sin respuesta o con 5xx) se publica en `/api/alerts/alertmanager` con el formato de Alertmanager (`HttpCheckFailed`, severidad crítica) y el mismo token, así que entra como cualquier incidente: diagnóstico, tormentas, avisos. Cuando vuelve a responder, se publica resuelta. El estado vive en `DATA_DIR/chequeos.json` y el panel muestra la última respuesta de cada URL (`GET /api/checks`). No se revisan direcciones privadas, locales ni de metadatos aunque estén en la lista. El job necesita `API_URL` y `ALERTS_INGEST_TOKEN` (Terraform, `kubernetes.tf`).
 
+## Asignación por reglas
+
+En *Plataforma → Ajustes → Asignación*, reglas `campo:valor=responsable` en orden (campo: `cluster`, `namespace` o `alerta`; por ejemplo `namespace:boutique=ana@contoso.com`). Un incidente nuevo de Alertmanager o de los chequeos sin responsable toma el de la primera regla que coincide; queda en la línea de tiempo con el actor `reglas`, que no cuenta como reconocido en el tablero de valor. Un hallazgo abierto sin responsable de un recurso cuya tag `Owner` es mi correo aparece en mis pendientes.
+
 ## SLOs y presupuesto de error
 
 Fase 7.3 del [plan 12](../plan/12-cerrar-el-ciclo-y-medir.md), sobre los chequeos HTTP ([`app/collectors/slo.py`](../../backend/app/collectors/slo.py)):
