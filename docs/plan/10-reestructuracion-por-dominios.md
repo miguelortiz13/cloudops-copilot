@@ -131,7 +131,10 @@ flowchart TB
     G5{{Puerta: evaluación de 90 % o más por dominio}}
     F6[Fase 6 · Limpieza<br/>sin alias ni rutas heredadas, documentación y runbooks por dominio]
     G6{{Puerta: 30 días sin llamadas a rutas obsoletas; 6 dominios completos}}
+    F7[Fase 7 · Cerrar el ciclo y medir el valor<br/>marcas, ruido a silencio, acciones del post-mortem, tablero de valor, SLOs]
+    G7{{Puerta: el valor se mide con datos de producción}}
     F1 --> G1 --> F2 --> G2 --> F3 --> G3 --> F4 --> G4 --> F5 --> G5 --> F6 --> G6
+    G5 --> F7 --> G7
 ```
 
 La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, las herramientas y funciones de cada dominio; la 5, la consola común, *Mis pendientes* priorizado y los reportes narrados.
@@ -187,6 +190,10 @@ La IA entra en cada fase: la 2 le da ajustes y cupo por dominio; la 3 y la 4, la
 | *Mis pendientes* priorizado por la IA: *Por dónde empiezo* propone 1 a 3 acciones con el enlace de cada pendiente y agrupa los de la misma causa (`POST /api/inicio/pendientes/priorizar`, se recuerda 30 min; caso en `eval.dominios`) | Hecho |
 | Reporte mensual por bloques (costos, seguridad, inventario, incidentes nuevo, plataforma) y narrado por la IA, a pedido y en el envío del día 4 ([reportes](../modules/notifications-reports.md#reporte-ejecutivo-mensual)) | Hecho |
 | Puerta: evals de 90 % o más por dominio. Corrida del 9-nov: asistente 9/9, incidentes 6/6, dominios 7/7 sin cifras inventadas, inyección 7/7, recuperación 18/18 | Hecho |
+
+### Fase 7 · Cerrar el ciclo y medir el valor (en curso)
+
+Plan propio: [12. Fase 7](12-cerrar-el-ciclo-y-medir.md). Corre en paralelo con la fase 6 (limpieza).
 
 ## Riesgos y compatibilidad
 
