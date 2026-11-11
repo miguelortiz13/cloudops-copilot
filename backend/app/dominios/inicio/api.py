@@ -38,6 +38,16 @@ def priorizar(usuario: Usuario = requiere("lector")):
         raise HTTPException(status_code=502, detail=f"El modelo no respondió: {str(exc)[:200]}")
 
 
+@router.get("/api/inicio/valor")
+def valor(semanas: int = Query(default=8, ge=2, le=26), usuario: Usuario = requiere("lector")):
+    """Tablero de valor (fase 7.2): indicadores de operación por semana, ahorro realizado y evals."""
+    from app.dominios.inicio import valor as tablero
+
+    if not db.is_configured():
+        return {"configured": False}
+    return {"configured": True, **tablero.tablero(semanas)}
+
+
 @router.get("/api/inicio/cambios")
 def cambios(desde: Optional[datetime] = Query(default=None, description="Última visita; por defecto, hace 24 horas"),
             usuario: Usuario = requiere("lector")):

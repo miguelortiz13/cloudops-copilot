@@ -16,7 +16,7 @@ from sqlalchemy import func, select, true
 
 from app.collectors.notify import limites_de_presupuesto
 from app.core import config
-from app.db.models import Account, CollectorRun, CostDaily, Finding, FindingEvent, Incident, Resource, Rule
+from app.db.models import Account, CollectorRun, CostDaily, Finding, FindingEvent, Incident, IncidentEvent, Resource, Rule
 from app.reports.pdf import GRIS, Pdf
 
 MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
@@ -83,6 +83,12 @@ def datos(session, mes: date) -> Dict:
                                                               Incident.parent_id.is_(None))))
     minutos = sorted(int((i.resolved_at - i.opened_at).total_seconds() // 60) for i in incidentes if i.resolved_at)
     marcados = [i for i in incidentes if i.feedback]
+    from app.dominios.inicio.valor import HUMANAS, _utc  # tiempo hasta reconocer, igual que el tablero de valor
+
+    primera_accion = dict(session.execute(select(IncidentEvent.incident_id, func.min(IncidentEvent.at)).where(
+        IncidentEvent.incident_id.in_([i.id for i in incidentes] or [-1]), IncidentEvent.kind.in_(HUMANAS))
+        .group_by(IncidentEvent.incident_id)).all())
+    reconocer = sorted(int((_utc(primera_accion[i.id]) - _utc(i.opened_at)).total_seconds() // 60) for i in incidentes if i.id in primera_accion)
 
     return {
         "mes": mes, "fin": fin,
@@ -102,6 +108,7 @@ def datos(session, mes: date) -> Dict:
         "incidentes": {
             "total": len(incidentes), "por_severidad": {s: sum(1 for i in incidentes if i.severity == s) for s in ("critica", "alta", "media")},
             "resueltos": len(minutos), "mediana_min": minutos[len(minutos) // 2] if minutos else None,
+            "mediana_min_para_reconocer": reconocer[len(reconocer) // 2] if reconocer else None,
             "ruido": sum(1 for i in incidentes if i.closed_reason in ("falso_positivo", "ruido")),
             "diagnosticos_marcados": len(marcados), "diagnosticos_correctos": sum(1 for i in marcados if i.feedback == "correcto"),
             "principales": [f"#{i.id} {i.title} ({i.severity})" for i in sorted(
@@ -260,6 +267,8 @@ def _incidentes(p, d, seccion):
     i = d["incidentes"]
     s = i["por_severidad"]
     mediana = f" · mediana para resolver: {i['mediana_min']} min" if i["mediana_min"] is not None else ""
+    if i.get("mediana_min_para_reconocer") is not None:
+        mediana += f" · para reconocer: {i['mediana_min_para_reconocer']} min"
     p.fila([(0, f"Incidentes del mes: {i['total']}"), (200, f"Crítica {s['critica']} · Alta {s['alta']} · Media {s['media']}")],
            negrita=True)
     p.fila([(0, f"Resueltos {i['resueltos']}{mediana} · cerrados como ruido {i['ruido']}")])
