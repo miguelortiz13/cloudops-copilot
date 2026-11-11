@@ -7,6 +7,7 @@ import { useApp } from '../../state/hooks';
 import { BarList, DailyCostChart } from '../../components/charts';
 import { Card, Delta, Empty, Loading, Meter, PageHeader, SeverityBadge, StatTile } from '../../components/ui';
 import { MisPendientes, QueCambio } from './InicioSections';
+import { ValorSection } from './ValorSection';
 
 function Go({ to, label }: { to: string; label: string }) {
   return <a className="btn btn-ghost btn-sm" href={`#/${to}`}>{label} <ArrowRight size={13} /></a>;
@@ -42,6 +43,8 @@ export function OverviewPage() {
         <MisPendientes />
         <QueCambio />
       </div>
+
+      <div style={{ marginBottom: 24 }}><ValorSection /></div>
 
       <div className="grid kpi-grid">
         <StatTile

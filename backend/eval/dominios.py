@@ -60,7 +60,11 @@ SEMANA = {"semana": "2026-W45", "desde": "2026-11-02", "hasta": "2026-11-08",
           "hallazgos": {"detectados": 3, "resueltos": 1, "abiertos_criticos": 1, "abiertos_altos": 5},
           "incidentes": {"total": 4, "siguen_abiertos": 1, "criticos": 1, "tormentas": 0, "mediana_min_para_resolver": 23,
                          "diagnosticos_marcados": 3, "diagnosticos_correctos": 3, "cerrados_como_ruido": 1},
-          "recursos": {"nuevos": 12, "nuevos_fuera_de_terraform": 4, "borrados": 2}, "job": {"ok": 98, "con_error": 1}}
+          "recursos": {"nuevos": 12, "nuevos_fuera_de_terraform": 4, "borrados": 2}, "job": {"ok": 98, "con_error": 1},
+          "tendencia": {"semana_anterior": {"semana": "2026-W44", "total": 9, "mtta_min": 41.0, "mttr_min": 52.0, "noise_pct": 44.4,
+                                            "marked_pct": 20.0, "correct_pct": 100.0, "hallazgos_graves_resueltos": 0, "dias_para_cerrar_hallazgos": None},
+                        "ultima_semana": {"semana": "2026-W45", "total": 4, "mtta_min": 12.0, "mttr_min": 23.0, "noise_pct": 25.0,
+                                          "marked_pct": 75.0, "correct_pct": 100.0, "hallazgos_graves_resueltos": 1, "dias_para_cerrar_hallazgos": 4.0}}}
 
 PENDIENTES = {"total": 5, "pendientes": [
     {"type": "incidente", "title": "#40 PodCrashLooping · boutique · paymentservice-67c8986f6-gc", "why": "Severidad critica y sin responsable",
@@ -102,7 +106,7 @@ CASOS = [
     ("Plataforma: reporte mensual narrado por bloques", "reportes.narrar", mensual.SISTEMA.format(org="Contoso"),
      mensual._para_ia(MES, ("costos", "incidentes")), [r'"costos"\s*:', r'"incidentes"\s*:', r"AWS|aws", r"36"]),
     ("Inicio: resumen semanal", "resumen.semanal", semanal.SISTEMA.format(org="Contoso"), SEMANA,
-     [r"7[.,]0|7 USD|\$ ?7", r"Para esta semana"]),
+     [r"7[.,]0|7 USD|\$ ?7", r"Para esta semana", r"reconoc|MTTA", r"12"]),
 ]
 
 

@@ -91,6 +91,11 @@ function rutas(role: Role): Record<string, Handler> {
     'GET /api/ia/mcp/tokens': () => ({ items: [] }),
     'GET /api/ia/conocimiento': () => ({ indexado: true, modelo: 'gemini-embedding-001', actualizado: '2026-10-10T06:20:00Z', fragmentos: 81, con_vector: 81,
       por_tipo: { runbook: 40, guia: 10, control: 22, incidente: 8, excepcion: 1 } }),
+    'GET /api/inicio/valor': () => ({ configured: true, findings_open: 6, weeks: ['2026-W38', '2026-W39', '2026-W40', '2026-W41'].map((week, n) => ({ week, start: '2026-09-14',
+      incidents: { total: 9 - n, mtta_min: 40 - n * 9, mttr_min: 60 - n * 11, noise_pct: 45 - n * 6, marked_pct: 20 + n * 18, correct_pct: 80 + n * 4 },
+      findings: { detected: 3, resolved: 1 + n, days_to_close: 6 - n } })),
+      savings: { realized_monthly: 12.4, expected_monthly: 18.9, applied_pending: 2 },
+      evals: { at: '2026-10-05T07:12:00Z', on_target: 5, suites: ['asistente', 'incidentes', 'dominios', 'inyeccion', 'recuperacion'].map((suite) => ({ suite, accuracy: 1, target: 0.9 })) } }),
     'GET /api/inicio/pendientes': () => ({ configured: true, actor: 'ana@contoso.example', items: [
       { type: 'incidente', title: '#31 PodCrashLooping · boutique', why: 'Severidad critica y sin responsable', urgency: 3, link: '#/operacion/incidentes/31', when: '2026-10-10T08:40:00Z' },
       { type: 'hallazgo', title: 'Acceso público a blobs · stdatosprod', why: 'Asignado a ti · vence el 2026-10-15', urgency: 2, link: '#/riesgo/hallazgos', when: null },

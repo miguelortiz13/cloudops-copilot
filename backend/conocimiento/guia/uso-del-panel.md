@@ -4,7 +4,7 @@ El panel se organiza en seis dominios: Inicio, Activos, Costos, Riesgo, Operaci�
 
 ## Ver lo que me toca
 
-*Inicio → Resumen* muestra **Mis pendientes** (lo asignado a mí, lo crítico sin responsable y lo que vence pronto, ordenado por urgencia) y **Qué cambió** desde mi última visita.
+*Inicio → Resumen* muestra **Mis pendientes** (lo asignado a mí, lo crítico sin responsable y lo que vence pronto, ordenado por urgencia; **Por dónde empiezo** pide a la IA las 1 a 3 primeras acciones), **Qué cambió** desde mi última visita y **Valor de la operación**: tiempo hasta reconocer y hasta resolver, % de ruido, % de diagnósticos correctos y marcados, hallazgos graves resueltos, ahorro realizado y evals de la IA, de la última semana cerrada contra la anterior.
 
 ## Gestionar un incidente
 
