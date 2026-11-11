@@ -341,3 +341,33 @@ def reportar(incidente_id: int) -> None:
                         clave=f"incidente:{incidente_id}:{'resuelto' if resuelto else 'abierto'}:{momento}", color=color)
     except RuntimeError as exc:
         print(f"[incidentes] No se pudo publicar el incidente {incidente_id}: {exc}")
+
+
+def acciones_del_postmortem(texto: str) -> List[str]:
+    """Las viñetas de la sección **Acciones** del post-mortem (hasta 10), sin el Markdown."""
+    import re
+
+    lineas, dentro, salida = (texto or "").splitlines(), False, []
+    for linea in lineas:
+        limpia = linea.strip()
+        if re.match(r"^(#+\s*|\*\*)?acciones\b", limpia, re.I):
+            dentro = True
+            continue
+        if dentro and (re.match(r"^(#+\s|\*\*[^*]+\*\*:?\s*$)", limpia)):
+            break  # empieza otra sección
+        m = re.match(r"^(?:[-*•]|\d+[.)])\s+(.+)$", limpia) if dentro else None
+        if m:
+            salida.append(re.sub(r"\*\*|__|`", "", m.group(1)).strip()[:500])
+    return salida[:10]
+
+
+def _prueba_acciones() -> None:
+    pm = ("**Resumen**\nCayó el pago.\n\n**Acciones**\n- **Fijar** el tag de la imagen en el pipeline\n"
+          "2. Alerta de `ImagePullBackOff`\n\n**Notas**\n- no es acción")
+    assert acciones_del_postmortem(pm) == ["Fijar el tag de la imagen en el pipeline", "Alerta de ImagePullBackOff"]
+    assert acciones_del_postmortem("## Acciones\n* Una\n## Otra\n* No") == ["Una"]
+    assert acciones_del_postmortem("sin sección") == []
+
+
+_prueba_acciones()
+

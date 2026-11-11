@@ -10,6 +10,10 @@ El panel se organiza en seis dominios: Inicio, Activos, Costos, Riesgo, Operaci�
 
 En *Operación → Incidentes* se abre el incidente y se usan los botones **Reconocer**, **En curso**, **Cerrar…** (con motivo: solucionado, falso positivo, ruido o duplicado) y **Reabrir**. Quien reconoce un incidente sin responsable queda como responsable. **Volver a diagnosticar** pide un diagnóstico nuevo al agente. Después de resolverlo conviene marcar si el diagnóstico fue correcto o incorrecto: esas marcas miden al agente y los incidentes correctos alimentan la base de conocimiento. En un incidente cerrado, la sección *Post-mortem (borrador)* tiene **Redactar** (o **Rehacer**): el agente escribe un borrador sin culpables para revisar antes de compartir.
 
+## Acciones de seguimiento y cierre del ciclo
+
+En un incidente con post-mortem, **Crear desde el post-mortem** convierte las viñetas de *Acciones* en tareas con responsable; también se agregan a mano y se marcan como hechas. Las abiertas, los diagnósticos sin marcar y las alertas cerradas como ruido varias veces (para silenciarlas) aparecen en *Mis pendientes*.
+
 ## Silenciar alertas
 
 **Silenciar similares…** desde un incidente, o *Operación → Silencios → Nuevo silencio*. Un silencio necesita al menos clúster, namespace, alerta u objeto (no se puede silenciar todo) y vence solo (de 1 hora a 30 días). Lo silenciado no abre incidentes, no se diagnostica y no se avisa. El campo *alerta* también calla un tipo de aviso entero, por ejemplo `resumen_semanal` o `atencion_diaria`.

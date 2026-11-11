@@ -25,7 +25,7 @@ from app.core.audit import auditar
 from app.core.authz import Usuario, requiere
 from app.core.deps import AzureDep
 from app.db import engine as db
-from app.db.models import Incident, IncidentEvent
+from app.db.models import Incident, IncidentAction, IncidentEvent
 
 router = APIRouter(tags=["incidentes"])
 MAX_BYTES = 1_000_000
@@ -126,9 +126,11 @@ def detalle(incidente_id: int):
             hijos = [_resumen(h) for h in s.scalars(select(Incident).where(Incident.parent_id == i.id).order_by(Incident.id))]
             eventos = [{"at": _iso(e.at), "actor": e.actor, "kind": e.kind, "text": e.text} for e in s.scalars(
                 select(IncidentEvent).where(IncidentEvent.incident_id == i.id).order_by(IncidentEvent.id))]
+            acciones = [_accion(a) for a in s.scalars(select(IncidentAction).where(IncidentAction.incident_id == i.id)
+                                                       .order_by(IncidentAction.id))]
             return {**_resumen(i), "alert_list": i.alerts, "diagnosis": i.diagnosis, "tools": i.diagnosis_tools,
                     "diagnosed_at": _iso(i.diagnosed_at), "last_alert_at": _iso(i.last_alert_at),
-                    "postmortem": i.postmortem, "children": hijos, "events": eventos}
+                    "postmortem": i.postmortem, "children": hijos, "events": eventos, "actions": acciones}
     except db.DatabaseUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Base no disponible: {exc}")
 
@@ -231,6 +233,72 @@ def postmortem(incidente_id: int, usuario: Usuario = requiere("operador")):
         raise HTTPException(status_code=503, detail="No se pudo redactar: sin modelo o tope de diagnósticos alcanzado.")
     auditar(usuario, "incidente.postmortem", objetivo=str(incidente_id))
     return {"id": incidente_id, "postmortem": texto}
+
+
+# ---------------------------------------------------------------- acciones de seguimiento (fase 7, plan 12)
+
+def _accion(a: IncidentAction) -> Dict[str, Any]:
+    return {"id": a.id, "text": a.text, "owner": a.owner, "created_by": a.created_by, "created_at": _iso(a.created_at),
+            "done_at": _iso(a.done_at)}
+
+
+class NuevaAccion(BaseModel):
+    text: Optional[str] = Field(default=None, max_length=500)
+    owner: Optional[str] = Field(default=None, max_length=200)
+    from_postmortem: bool = False
+
+
+@router.post("/api/incidents/{incidente_id}/actions", status_code=201)
+def crear_acciones(incidente_id: int, body: NuevaAccion, usuario: Usuario = requiere("operador")):
+    """Una acción a mano (`text`) o las de la sección **Acciones** del post-mortem (las que todavía no existen)."""
+    ahora = datetime.now(timezone.utc)
+    with db.session_scope() as s:
+        i = s.get(Incident, incidente_id)
+        if i is None:
+            raise HTTPException(status_code=404, detail="No existe ese incidente.")
+        if body.from_postmortem:
+            existentes = set(s.scalars(select(IncidentAction.text).where(IncidentAction.incident_id == incidente_id)))
+            textos = [t for t in incidentes.acciones_del_postmortem(i.postmortem or "") if t not in existentes]
+            if not i.postmortem:
+                raise HTTPException(status_code=409, detail="El incidente no tiene post-mortem.")
+        else:
+            textos = [(body.text or "").strip()]
+            if not textos[0]:
+                raise HTTPException(status_code=400, detail="Falta el texto de la acción.")
+        dueno = (body.owner or "").strip() or i.assignee
+        nuevas = [IncidentAction(incident_id=incidente_id, text=t, owner=dueno, created_by=usuario.actor, created_at=ahora)
+                  for t in textos]
+        s.add_all(nuevas)
+        if nuevas:
+            incidentes.evento(s, incidente_id, usuario.actor, "accion",
+                              f"{len(nuevas)} acción(es) de seguimiento" + (" desde el post-mortem" if body.from_postmortem else "")
+                              + (f", responsable {dueno}" if dueno else ""))
+        s.flush()
+        salida = [_accion(a) for a in nuevas]
+    auditar(usuario, "incidente.acciones", objetivo=str(incidente_id), detalle={"creadas": len(salida)})
+    return {"items": salida}
+
+
+class CambioAccion(BaseModel):
+    done: Optional[bool] = None
+    owner: Optional[str] = Field(default=None, max_length=200)
+
+
+@router.post("/api/incidents/{incidente_id}/actions/{accion_id}")
+def cambiar_accion(incidente_id: int, accion_id: int, body: CambioAccion, usuario: Usuario = requiere("operador")):
+    """Marca una acción como hecha (o la reabre) y cambia su responsable."""
+    with db.session_scope() as s:
+        a = s.get(IncidentAction, accion_id)
+        if a is None or a.incident_id != incidente_id:
+            raise HTTPException(status_code=404, detail="No existe esa acción en el incidente.")
+        if body.done is not None:
+            a.done_at = datetime.now(timezone.utc) if body.done else None
+            incidentes.evento(s, incidente_id, usuario.actor, "accion", f"{'Hecha' if body.done else 'Reabierta'}: {a.text[:200]}")
+        if body.owner is not None:
+            a.owner = body.owner.strip() or None
+        salida = _accion(a)
+    auditar(usuario, "incidente.accion", objetivo=f"{incidente_id}/{accion_id}", detalle={"done": body.done, "owner": body.owner})
+    return salida
 
 
 class Opinion(BaseModel):

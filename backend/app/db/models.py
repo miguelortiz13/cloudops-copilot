@@ -320,3 +320,20 @@ class IncidentEvent(Base):
     actor: Mapped[str] = mapped_column(Unicode(200))  # una persona, "alertmanager" o "agente"
     kind: Mapped[str] = mapped_column(String(32))  # abierto | alerta | diagnostico | estado | asignado | nota | resuelto | tormenta | postmortem
     text: Mapped[str] = mapped_column(UnicodeText)
+
+
+class IncidentAction(Base):
+    """
+    Acción de seguimiento de un incidente (fase 7, plan 12): sale de las viñetas de **Acciones** del post-mortem o
+    se agrega a mano. Las abiertas aparecen en *Mis pendientes* de su responsable.
+    """
+
+    __tablename__ = "incident_actions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id"), index=True)
+    text: Mapped[str] = mapped_column(Unicode(500))
+    owner: Mapped[Optional[str]] = mapped_column(Unicode(200))
+    created_by: Mapped[str] = mapped_column(Unicode(320))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    done_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

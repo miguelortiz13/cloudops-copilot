@@ -19,10 +19,13 @@ from app.ai.incidentes import ABIERTOS
 from app.ai import guardas
 from app.core import ajustes, config
 from app.db import engine as db
-from app.db.models import ControlException, CostEvent, Finding, Incident, Resource, Rule
+from app.db.models import ControlException, CostEvent, Finding, Incident, IncidentAction, Resource, Rule
 
 URGENCIA = {"critica": 3, "alta": 2, "media": 1}
 PRONTO = timedelta(days=14)
+# Fase 7 (plan 12): lo que cierra el ciclo del incidente mira las últimas dos semanas.
+CICLO = timedelta(days=14)
+MAX_SUELTOS = 3  # más diagnósticos sin marcar que esto van en un solo pendiente
 
 
 def _yo(valor: Optional[str], actor: str) -> bool:
@@ -72,6 +75,8 @@ def pendientes(actor: str, ahora: Optional[datetime] = None) -> List[Dict[str, A
                 agregar("excepcion", f"Excepción {x.framework} {x.control}", f"Vence en {(x.until - hoy).days} día(s): renovar o corregir",
                         1, "#/riesgo/cumplimiento")
 
+        _cerrar_el_ciclo(s, actor, ahora, agregar)
+
     for sil in ajustes.silencios(ahora):
         hasta = datetime.fromisoformat(sil["hasta"])
         if _yo(sil.get("creado_por"), actor) and hasta - ahora <= timedelta(hours=24):
@@ -116,6 +121,45 @@ def priorizar(actor: str, items: List[Dict[str, Any]], cobrar=lambda: None) -> D
         _CACHE.clear()
     _CACHE[clave] = {"t": time.monotonic(), "r": salida}
     return {**salida, "cached": False}
+
+
+def _alerta_de(i: Incident) -> str:
+    return str((i.alerts or [{}])[0].get("name") or i.title.split(" · ")[0])
+
+
+def _cerrar_el_ciclo(s, actor: str, ahora: datetime, agregar) -> None:
+    """Fase 7.1: diagnósticos sin marcar, alertas ruidosas sin silencio y acciones del post-mortem abiertas."""
+    desde = ahora - CICLO
+    terminados = list(s.scalars(select(Incident).where(
+        Incident.status.in_(("resuelto", "cerrado")), Incident.parent_id.is_(None), Incident.resolved_at >= desde)
+        .order_by(Incident.resolved_at.desc())))
+
+    sin_marcar = [i for i in terminados if i.diagnosis_status == "listo" and not i.feedback
+                  and i.closed_reason not in ("ruido", "falso_positivo", "duplicado") and (not i.assignee or _yo(i.assignee, actor))]
+    porque = "¿Acertó el diagnóstico? Márcalo: los correctos alimentan la base de conocimiento del agente"
+    if len(sin_marcar) <= MAX_SUELTOS:
+        for i in sin_marcar:
+            agregar("marcar", f"#{i.id} {i.title}", porque, 1, f"#/operacion/incidentes/{i.id}", i.resolved_at)
+    else:
+        i = sin_marcar[0]
+        agregar("marcar", f"{len(sin_marcar)} incidentes resueltos sin marcar el diagnóstico", f"{porque}. Empieza por el #{i.id}",
+                1, f"#/operacion/incidentes/{i.id}", i.resolved_at)
+
+    vigentes = ajustes.silencios(ahora)
+    ruido: Dict[tuple, List[Incident]] = {}
+    for i in terminados:
+        if i.closed_reason in ("ruido", "falso_positivo"):
+            ruido.setdefault((i.cluster, _alerta_de(i)), []).append(i)
+    for (cluster, alerta), lista in ruido.items():
+        if len(lista) >= 2 and not ajustes.silenciado(vigentes, cluster, None, alerta, []):
+            agregar("ruido", f"{alerta} en {cluster or 'sin clúster'}",
+                    f"Cerrada como ruido {len(lista)} veces en 14 días: silénciala (Silenciar similares…) o ajusta la regla",
+                    1, f"#/operacion/incidentes/{lista[0].id}", lista[0].resolved_at)
+
+    for a, i in s.execute(select(IncidentAction, Incident).join(Incident, Incident.id == IncidentAction.incident_id)
+                          .where(IncidentAction.done_at.is_(None))):
+        if _yo(a.owner, actor) or (not a.owner and (not i.assignee or _yo(i.assignee, actor))):
+            agregar("accion", a.text, f"Acción de seguimiento del incidente #{i.id}", 1, f"#/operacion/incidentes/{i.id}", a.created_at)
 
 
 def cambios(desde: datetime) -> Dict[str, Any]:

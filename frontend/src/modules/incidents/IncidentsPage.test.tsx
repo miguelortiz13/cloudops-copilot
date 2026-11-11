@@ -18,7 +18,7 @@ const resumen: IncidentSummary = {
 };
 const detalle: IncidentDetail = {
   ...resumen, diagnosis: '**Causa probable** (confianza alta): se reinició la máquina.', tools: [], diagnosed_at: '2026-11-05T04:08:00Z',
-  last_alert_at: '2026-11-05T04:07:00Z', postmortem: null,
+  last_alert_at: '2026-11-05T04:07:00Z', postmortem: null, actions: [],
   children: [{ ...resumen, id: 8, parent_id: 7, title: 'PodCrashLooping · boutique · svc1-1' }],
   events: [{ at: '2026-11-05T04:07:00Z', actor: 'alertmanager', kind: 'abierto', text: '1 alerta(s)' }],
   alert_list: [{ name: 'PodCrashLooping', status: 'firing', severity: 'alta', labels: { namespace: 'boutique', pod: 'svc0-1' },

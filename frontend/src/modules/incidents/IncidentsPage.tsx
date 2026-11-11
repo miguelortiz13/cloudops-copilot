@@ -6,6 +6,7 @@ import { Markdown } from '../../lib/markdown';
 import type { CloseReason, IncidentDetail, IncidentStats, IncidentStatus, IncidentSummary, Severity } from '../../lib/types';
 import { useApp } from '../../state/hooks';
 import { Card, Empty, ErrorState, Loading, Notice, PageHeader, Section, Segmented, SeverityBadge, StatTile } from '../../components/ui';
+import { AccionesSection } from './AccionesSection';
 import { SilenceForm } from './SilencesView';
 
 const DIAGNOSTICO: Record<IncidentSummary['diagnosis_status'], string> = {
@@ -303,6 +304,8 @@ function Detalle({ id, onCambio, onIncidente }: { id: number; onCambio: () => vo
           <Card>{data.postmortem ? <div className="msg-body"><Markdown text={data.postmortem} /></div> : <Empty>Todavía sin borrador.</Empty>}</Card>
         </Section>
       )}
+
+      <AccionesSection actions={data.actions ?? []} postmortem={data.postmortem} operador={operador} accion={accion} />
 
       <Section title="Alertas" description={`${data.alert_list.length} alerta(s) de ${data.source}; última: ${dateTime(data.last_alert_at)}`}>
         <Card flush>

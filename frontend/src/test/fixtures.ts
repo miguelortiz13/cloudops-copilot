@@ -556,6 +556,7 @@ export const incidents: { configured: boolean; items: IncidentSummary[] } = {
 
 export const incidentDetail: IncidentDetail = {
   ...incidente1,
+  actions: [],
   alert_list: [
     { name: 'KubePodCrashLooping', status: 'firing', severity: 'alta', labels: { namespace: 'boutique', pod: 'cartservice-7d9f-x1' },
       summary: 'Pod is crash looping.', description: '', starts_at: '2026-10-10T14:40:00Z' },

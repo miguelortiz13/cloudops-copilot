@@ -66,6 +66,14 @@ Los cambia un administrador en *Plataforma → Ajustes* y se aplican a la siguie
 
 Los ajustes y los silencios viven en `DATA_DIR/ajustes.json` (el File Share que comparten el API y los jobs), no en la base: el job `k8s-watch` corre cada 10 minutos y abrir la base serverless la mantendría siempre despierta.
 
+## Cerrar el ciclo
+
+Fase 7.1 del [plan 12](../plan/12-cerrar-el-ciclo-y-medir.md): cada incidente deja aprendizaje en vez de cerrarse solo.
+
+- **Marcar el diagnóstico.** Un incidente resuelto en los últimos 14 días con diagnóstico y sin marca aparece en *Mis pendientes* de su responsable, o de todos si no tiene. Si son más de 3, sale un solo pendiente con el total. Los cerrados como ruido, falso positivo o duplicado no lo piden. Los correctos entran a la [base de conocimiento](ai-agents.md#base-de-conocimiento-rag).
+- **Alertas ruidosas.** Una alerta (nombre y clúster) cerrada como ruido o falso positivo dos o más veces en 14 días, sin un silencio vigente que la cubra, aparece como pendiente con el enlace al último incidente, donde está *Silenciar similares…*.
+- **Acciones de seguimiento.** En el incidente, *Crear desde el post-mortem* convierte las viñetas de **Acciones** en tareas (tabla `incident_actions`), con el responsable del incidente; también se agregan a mano. Las abiertas aparecen en *Mis pendientes* de su responsable. Crearlas y marcarlas queda en la línea de tiempo y en la auditoría.
+
 ## Chequeos HTTP
 
 Para lo que no tiene Alertmanager: en *Plataforma → Ajustes → Chequeos HTTP* un administrador pone hasta 20 URLs `https`. El job `k8s-watch` las revisa cada 10 minutos ([`collectors/chequeos.py`](../../backend/app/collectors/chequeos.py)); una que falla **dos veces seguidas** (sin respuesta o con 5xx) se publica en `/api/alerts/alertmanager` con el formato de Alertmanager (`HttpCheckFailed`, severidad crítica) y el mismo token, así que entra como cualquier incidente: diagnóstico, tormentas, avisos. Cuando vuelve a responder, se publica resuelta. El estado vive en `DATA_DIR/chequeos.json` y el panel muestra la última respuesta de cada URL (`GET /api/checks`). No se revisan direcciones privadas, locales ni de metadatos aunque estén en la lista. El job necesita `API_URL` y `ALERTS_INGEST_TOKEN` (Terraform, `kubernetes.tf`).
@@ -129,6 +137,8 @@ La guía paso a paso, con el laboratorio de Online Boutique, está en [labs/inci
 | `POST` | `/api/incidents/{id}/notes` | **Operador.** Nota en la línea de tiempo |
 | `POST` | `/api/incidents/{id}/rediagnose` | **Operador.** Diagnosticar de nuevo (202) |
 | `POST` | `/api/incidents/{id}/postmortem` | **Operador.** Redactar o rehacer el post-mortem |
+| `POST` | `/api/incidents/{id}/actions` | **Operador.** Acción de seguimiento (`text`, `owner`) o las de la sección **Acciones** del post-mortem (`from_postmortem: true`; no repite las que ya existen) |
+| `POST` | `/api/incidents/{id}/actions/{acción}` | **Operador.** Marcar hecha o reabrir (`done`) y cambiar el responsable (`owner`) |
 | `GET`, `POST` | `/api/silences` | Silencios vigentes; crear es de **Operador** |
 | `DELETE` | `/api/silences/{id}` | **Operador.** Quitar un silencio |
 | `GET`, `PUT` | `/api/settings/incidents` | Ajustes; cambiarlos es de **Administrador** |

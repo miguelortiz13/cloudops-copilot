@@ -58,6 +58,6 @@ En *Inicio*, con tendencia semanal de las últimas 8 semanas:
 
 | Entrega | Estado |
 |---|---|
-| 7.1 Cerrar el ciclo del incidente | En curso |
+| 7.1 Cerrar el ciclo del incidente: marcas, alertas ruidosas y acciones del post-mortem en *Mis pendientes* ([incidentes](../modules/incidents.md#cerrar-el-ciclo)) | Hecho |
 | 7.2 Tablero de valor | Pendiente |
 | 7.3 SLOs con presupuesto de error | Pendiente |
