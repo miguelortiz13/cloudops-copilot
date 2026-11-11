@@ -78,6 +78,15 @@ Fase 7.1 del [plan 12](../plan/12-cerrar-el-ciclo-y-medir.md): cada incidente de
 
 Para lo que no tiene Alertmanager: en *Plataforma → Ajustes → Chequeos HTTP* un administrador pone hasta 20 URLs `https`. El job `k8s-watch` las revisa cada 10 minutos ([`collectors/chequeos.py`](../../backend/app/collectors/chequeos.py)); una que falla **dos veces seguidas** (sin respuesta o con 5xx) se publica en `/api/alerts/alertmanager` con el formato de Alertmanager (`HttpCheckFailed`, severidad crítica) y el mismo token, así que entra como cualquier incidente: diagnóstico, tormentas, avisos. Cuando vuelve a responder, se publica resuelta. El estado vive en `DATA_DIR/chequeos.json` y el panel muestra la última respuesta de cada URL (`GET /api/checks`). No se revisan direcciones privadas, locales ni de metadatos aunque estén en la lista. El job necesita `API_URL` y `ALERTS_INGEST_TOKEN` (Terraform, `kubernetes.tf`).
 
+## SLOs y presupuesto de error
+
+Fase 7.3 del [plan 12](../plan/12-cerrar-el-ciclo-y-medir.md), sobre los chequeos HTTP ([`app/collectors/slo.py`](../../backend/app/collectors/slo.py)):
+
+- Cada chequeo deja su resultado en `DATA_DIR/chequeos/AAAA-MM.jsonl`; el SLI de una URL es la proporción de chequeos correctos en la ventana.
+- **Objetivo y ventana** en *Plataforma → Ajustes → Chequeos HTTP* (por defecto 99,5 % en 28 días), para cada URL. El presupuesto de error es `1 - objetivo`.
+- **Quema** (*burn rate*) = tasa de error en una ventana / presupuesto. Con 14,4× en la última hora **y** 6× en las últimas 6 horas (al menos 3 horas de muestras), k8s-watch publica una alerta `SLOBurnRate`, que entra como incidente con diagnóstico y avisos; se resuelve cuando la quema de la última hora baja de 1. No se abre mientras el chequeo de esa URL ya tiene su incidente de caída: el SLO cubre las fallas intermitentes que nunca son dos seguidas.
+- *Operación → SLOs* muestra disponibilidad, presupuesto restante y quema en 1 h y 6 h (`GET /api/operacion/slos`); el tablero de valor de *Inicio* cuenta los SLOs en objetivo.
+
 ## Cómo se agrupa
 
 - Un **grupo de Alertmanager** (`groupKey`, según el `group_by` de su ruta) es un incidente. Alertmanager reenvía cada `repeat_interval` y suma alertas al mismo grupo: eso actualiza el incidente, no abre otro ni repite el diagnóstico.

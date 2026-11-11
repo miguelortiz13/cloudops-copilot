@@ -50,6 +50,8 @@ ESQUEMA: Dict[str, Tuple] = {
        for d in ("inicio", "activos", "costos", "riesgo", "operacion", "plataforma")},
     "reglas_desactivadas": ("nombres", 100, True),
     "urls": ("urls", 20),
+    # SLO de los chequeos (fase 7.3, plan 12): objetivo de disponibilidad y su ventana.
+    "objetivo_pct": ("float", 90, 99.99), "ventana_dias": ("int", 1, 90),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
 ESQUEMA_CLUSTER = {**ESQUEMA, "avisar": ("bool",)}
@@ -82,7 +84,7 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     # Riesgo: reglas del catálogo que no se evalúan (sus hallazgos se cierran con una nota y no cuentan en los controles).
     "riesgo": {"reglas_desactivadas": []},
     # Operación: URLs que k8s-watch revisa cada 10 minutos; dos fallas seguidas abren un incidente.
-    "chequeos": {"urls": []},
+    "chequeos": {"urls": [], "objetivo_pct": 99.5, "ventana_dias": 28},
 }
 # Las que vienen de variables de entorno: el panel muestra "variable" como origen hasta que se guarden.
 DESDE_ENTORNO = {"gobierno", "costos", "ia"}

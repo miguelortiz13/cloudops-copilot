@@ -14,6 +14,10 @@ En *Operación → Incidentes* se abre el incidente y se usan los botones **Reco
 
 En un incidente con post-mortem, **Crear desde el post-mortem** convierte las viñetas de *Acciones* en tareas con responsable; también se agregan a mano y se marcan como hechas. Las abiertas, los diagnósticos sin marcar y las alertas cerradas como ruido varias veces (para silenciarlas) aparecen en *Mis pendientes*.
 
+## SLOs
+
+*Operación → SLOs* muestra, para cada URL de los chequeos HTTP, su disponibilidad contra el objetivo (por defecto 99,5 % en 28 días), el presupuesto de error que queda y su quema. Si se gasta muy rápido (14,4× en 1 hora y 6× en 6 horas) se abre un incidente `SLOBurnRate`. El objetivo y la ventana se cambian en *Plataforma → Ajustes → Chequeos HTTP*.
+
 ## Silenciar alertas
 
 **Silenciar similares…** desde un incidente, o *Operación → Silencios → Nuevo silencio*. Un silencio necesita al menos clúster, namespace, alerta u objeto (no se puede silenciar todo) y vence solo (de 1 hora a 30 días). Lo silenciado no abre incidentes, no se diagnostica y no se avisa. El campo *alerta* también calla un tipo de aviso entero, por ejemplo `resumen_semanal` o `atencion_diaria`.
