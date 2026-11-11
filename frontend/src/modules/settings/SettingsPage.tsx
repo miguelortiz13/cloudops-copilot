@@ -48,6 +48,12 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     ],
   },
   {
+    id: 'asignacion', titulo: 'Asignación', descripcion: 'Responsable automático de cada incidente nuevo, por clúster, namespace o alerta. Gana la primera regla que coincide; queda en la línea de tiempo y no cuenta como reconocido. Los hallazgos sin responsable de un recurso con tu correo en la tag Owner aparecen en tus pendientes.',
+    campos: [
+      { k: 'reglas_asignacion', label: 'Reglas', hint: 'campo:valor=responsable separadas por comas, en orden. Campo: cluster, namespace o alerta. Ej.: namespace:boutique=ana@contoso.com, cluster:local-k8s-lab=ops@contoso.com' },
+    ],
+  },
+  {
     id: 'avisos', titulo: 'Avisos', descripcion: 'El motor de avisos común. En modo registro envía todo como antes y anota lo que habría silenciado o descartado; en modo activo aplica los silencios y descarta duplicados.',
     campos: [
       { k: 'modo', label: 'Modo', hint: 'Revisa Operación → Avisos una semana en modo registro antes de activarlo.' },

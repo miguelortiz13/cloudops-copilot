@@ -30,6 +30,10 @@ En *Riesgo → Hallazgos* un hallazgo se **asume** (**Asumir**: responsable y fe
 
 *Costos → Alertas de costo*: **Reconocer**, **Resolver**, **Descartar** o **Reabrir**, con responsable y nota; **Explicar con IA** pide el porqué del gasto. *Costos → Ahorro* registra una baja aplicada y la verifica sola cuando el recurso desaparece del inventario.
 
+## Asignar responsables automáticamente
+
+En *Plataforma → Ajustes → Asignación* se escriben reglas `campo:valor=responsable` (campo: cluster, namespace o alerta), por ejemplo `namespace:boutique=ana@contoso.com`. Cada incidente nuevo sin responsable toma el de la primera regla que coincide. Los hallazgos de recursos con tu correo en la tag `Owner` aparecen en tus pendientes.
+
 ## Ajustes
 
 *Plataforma → Ajustes* tiene una sección por dominio (incidentes, gobierno, costos, IA, avisos, riesgo, chequeos) y ajustes por clúster. Cada cambio queda en el historial con quién lo hizo y se puede deshacer. Ahí se configuran los presupuestos, las tags obligatorias, qué severidades se diagnostican y avisan, el precio del modelo, los chequeos HTTP y el modo del motor de avisos.

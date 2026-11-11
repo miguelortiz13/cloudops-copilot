@@ -52,6 +52,8 @@ ESQUEMA: Dict[str, Tuple] = {
     "urls": ("urls", 20),
     # SLO de los chequeos (fase 7.3, plan 12): objetivo de disponibilidad y su ventana.
     "objetivo_pct": ("float", 90, 99.99), "ventana_dias": ("int", 1, 90),
+    # Asignación por reglas (fase 7, plan 12): `campo:valor=responsable`, en orden; gana la primera que coincide.
+    "reglas_asignacion": ("nombres", 50, False),
 }
 # En un clúster, `avisar` es sí o no (en incidentes es la lista de severidades que se avisan).
 ESQUEMA_CLUSTER = {**ESQUEMA, "avisar": ("bool",)}
@@ -85,10 +87,22 @@ SECCIONES: Dict[str, Dict[str, Any]] = {
     "riesgo": {"reglas_desactivadas": []},
     # Operación: URLs que k8s-watch revisa cada 10 minutos; dos fallas seguidas abren un incidente.
     "chequeos": {"urls": [], "objetivo_pct": 99.5, "ventana_dias": 28},
+    "asignacion": {"reglas_asignacion": []},
 }
 # Las que vienen de variables de entorno: el panel muestra "variable" como origen hasta que se guarden.
 DESDE_ENTORNO = {"gobierno", "costos", "ia"}
 _NOMBRE = re.compile(r"^[^<>%&\\?/\x00-\x1f]{1,64}$")
+REGLA_ASIGNACION = re.compile(r"^(cluster|namespace|alerta):([^=:]+)=(\S+)$")
+
+
+def responsable_por_reglas(cluster: Optional[str], namespaces: List[str], alertas: List[str]) -> Optional[Tuple[str, str]]:
+    """(responsable, regla) de la primera regla de asignación que coincide, o None."""
+    valores = {"cluster": {cluster} if cluster else set(), "namespace": set(namespaces), "alerta": set(alertas)}
+    for regla in seccion("asignacion")["reglas_asignacion"]:
+        m = REGLA_ASIGNACION.match(regla)
+        if m and m.group(2) in valores[m.group(1)]:
+            return m.group(3), regla
+    return None
 _lock = threading.Lock()
 
 
@@ -148,6 +162,10 @@ def _valor(k: str, v: Any, esquema: Dict[str, Tuple]) -> Any:
         desconocidas = [n for n in limpios if n not in POR_ID]
         if desconocidas:
             raise ValueError(f"Reglas desconocidas: {', '.join(desconocidas)}.")
+    if k == "reglas_asignacion":
+        malas = [n for n in limpios if not REGLA_ASIGNACION.match(n)]
+        if malas:
+            raise ValueError(f"Reglas con formato campo:valor=responsable (campo: cluster, namespace o alerta): {', '.join(malas[:3])}.")
     if k == "tags_obligatorias" and not limpios:
         raise ValueError("tags_obligatorias necesita al menos una tag.")
     return sorted(limpios) if ordenar else limpios

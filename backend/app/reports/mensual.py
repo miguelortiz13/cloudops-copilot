@@ -83,10 +83,11 @@ def datos(session, mes: date) -> Dict:
                                                               Incident.parent_id.is_(None))))
     minutos = sorted(int((i.resolved_at - i.opened_at).total_seconds() // 60) for i in incidentes if i.resolved_at)
     marcados = [i for i in incidentes if i.feedback]
-    from app.dominios.inicio.valor import HUMANAS, _utc  # tiempo hasta reconocer, igual que el tablero de valor
+    from app.dominios.inicio.valor import HUMANAS, SISTEMA, _utc  # tiempo hasta reconocer, igual que el tablero de valor
 
     primera_accion = dict(session.execute(select(IncidentEvent.incident_id, func.min(IncidentEvent.at)).where(
-        IncidentEvent.incident_id.in_([i.id for i in incidentes] or [-1]), IncidentEvent.kind.in_(HUMANAS))
+        IncidentEvent.incident_id.in_([i.id for i in incidentes] or [-1]), IncidentEvent.kind.in_(HUMANAS),
+        IncidentEvent.actor.not_in(SISTEMA))
         .group_by(IncidentEvent.incident_id)).all())
     reconocer = sorted(int((_utc(primera_accion[i.id]) - _utc(i.opened_at)).total_seconds() // 60) for i in incidentes if i.id in primera_accion)
 
