@@ -10,6 +10,7 @@ interface Valor {
   configured: boolean; weeks: Semana[]; findings_open: number;
   savings: { realized_monthly: number; expected_monthly: number; applied_pending: number };
   evals: { at: string; suites: { suite: string; accuracy: number | null; target: number }[]; on_target: number } | null;
+  slos?: { total: number; met: number; objective_pct: number; min_budget_remaining_pct: number | null };
 }
 
 type Polaridad = 'up-good' | 'up-bad';
@@ -58,6 +59,8 @@ export function ValorSection() {
             meta={`esperado ${money(data.savings.expected_monthly, 'USD', 2)} · ${number(data.savings.applied_pending)} por verificar`} />
           <StatTile label="Evals de la IA" value={data.evals ? `${data.evals.on_target}/${data.evals.suites.length}` : '—'} unit="en objetivo"
             meta={data.evals ? `corrida del ${dateTime(data.evals.at)}` : 'sin corridas'} />
+          <StatTile label="SLOs en objetivo" value={data.slos?.total ? `${data.slos.met}/${data.slos.total}` : '—'}
+            meta={data.slos?.total ? `objetivo ${number(data.slos.objective_pct, 1)} % · presupuesto mínimo restante ${number(data.slos.min_budget_remaining_pct, 0)} %` : 'sin servicios con chequeo'} />
         </div>
       )}
     </Section>

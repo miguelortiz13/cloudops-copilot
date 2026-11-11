@@ -95,7 +95,11 @@ function rutas(role: Role): Record<string, Handler> {
       incidents: { total: 9 - n, mtta_min: 40 - n * 9, mttr_min: 60 - n * 11, noise_pct: 45 - n * 6, marked_pct: 20 + n * 18, correct_pct: 80 + n * 4 },
       findings: { detected: 3, resolved: 1 + n, days_to_close: 6 - n } })),
       savings: { realized_monthly: 12.4, expected_monthly: 18.9, applied_pending: 2 },
+      slos: { total: 2, met: 1, objective_pct: 99.5, min_budget_remaining_pct: -53.8 },
       evals: { at: '2026-10-05T07:12:00Z', on_target: 5, suites: ['asistente', 'incidentes', 'dominios', 'inyeccion', 'recuperacion'].map((suite) => ({ suite, accuracy: 1, target: 0.9 })) } }),
+    'GET /api/operacion/slos': () => ({ objective_pct: 99.5, window_days: 28, items: [
+      { url: 'https://tienda.contoso.example/salud', samples: 4032, failures: 9, availability_pct: 99.777, budget_consumed_pct: 44.6, budget_remaining_pct: 55.4, burn_1h: 0, burn_6h: 0.6, burning: false, met: true },
+      { url: 'https://api.contoso.example/health', samples: 4032, failures: 31, availability_pct: 99.231, budget_consumed_pct: 153.8, budget_remaining_pct: -53.8, burn_1h: 33.3, burn_6h: 8.3, burning: true, met: false }] }),
     'GET /api/inicio/pendientes': () => ({ configured: true, actor: 'ana@contoso.example', items: [
       { type: 'incidente', title: '#31 PodCrashLooping · boutique', why: 'Severidad critica y sin responsable', urgency: 3, link: '#/operacion/incidentes/31', when: '2026-10-10T08:40:00Z' },
       { type: 'hallazgo', title: 'Acceso público a blobs · stdatosprod', why: 'Asignado a ti · vence el 2026-10-15', urgency: 2, link: '#/riesgo/hallazgos', when: null },

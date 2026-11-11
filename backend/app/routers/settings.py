@@ -80,3 +80,11 @@ def chequeos():
 
     estado = modulo.leer_estado()
     return {"items": [{"url": u, **estado.get(u, {"ok": None})} for u in ajustes.seccion("chequeos")["urls"]]}
+
+
+@router.get("/api/operacion/slos")
+def slos():
+    """SLO de cada URL de los chequeos (fase 7.3): disponibilidad en la ventana, presupuesto de error y su quema."""
+    from app.collectors import slo
+
+    return slo.estado()

@@ -89,7 +89,13 @@ def tablero(n: int = 8, ahora: Optional[datetime] = None) -> Dict[str, Any]:
 
     from app.dominios.costos import ahorro
 
-    return {"weeks": salida, "findings_open": abiertos, "savings": ahorro.realizado(90, ahora)["totals"], "evals": _ultimos_evals()}
+    from app.collectors import slo
+
+    slos = slo.estado(ahora)
+    con_datos = [x for x in slos["items"] if x["met"] is not None]
+    return {"weeks": salida, "findings_open": abiertos, "savings": ahorro.realizado(90, ahora)["totals"], "evals": _ultimos_evals(),
+            "slos": {"total": len(con_datos), "met": sum(1 for x in con_datos if x["met"]), "objective_pct": slos["objective_pct"],
+                     "min_budget_remaining_pct": min((x["budget_remaining_pct"] for x in con_datos), default=None)}}
 
 
 def _ultimos_evals() -> Optional[Dict[str, Any]]:

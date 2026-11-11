@@ -62,4 +62,4 @@ En *Inicio*, con tendencia semanal de las últimas 8 semanas:
 |---|---|
 | 7.1 Cerrar el ciclo del incidente: marcas, alertas ruidosas y acciones del post-mortem en *Mis pendientes* ([incidentes](../modules/incidents.md#cerrar-el-ciclo)) | Hecho |
 | 7.2 Tablero de valor en *Inicio* (`GET /api/inicio/valor`): última semana cerrada contra la anterior y tendencia; el resumen semanal y el reporte mensual citan la tendencia y el tiempo hasta reconocer | Hecho |
-| 7.3 SLOs con presupuesto de error | Pendiente |
+| 7.3 SLOs con presupuesto de error sobre los chequeos HTTP, alerta de quema en dos ventanas y *Operación → SLOs* ([incidentes](../modules/incidents.md#slos-y-presupuesto-de-error)) | Hecho |

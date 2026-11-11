@@ -43,6 +43,8 @@ const SECCIONES: { id: string; titulo: string; descripcion: string; campos: { k:
     id: 'chequeos', titulo: 'Chequeos HTTP', descripcion: 'URLs que se revisan cada 10 minutos. Dos fallas seguidas (sin respuesta o 5xx) abren un incidente con diagnóstico; al responder se resuelve.',
     campos: [
       { k: 'urls', label: 'URLs', hint: 'Solo https, separadas por comas (hasta 20). No se revisan direcciones privadas ni locales.' },
+      { k: 'objetivo_pct', label: 'Objetivo de disponibilidad (SLO, %)', hint: 'Cada URL tiene este SLO; el presupuesto de error es lo que falta para 100 %. Se ve en Operación → SLOs.' },
+      { k: 'ventana_dias', label: 'Ventana del SLO (días)', hint: 'Sobre cuántos días se mide la disponibilidad. Habitual: 28.' },
     ],
   },
   {

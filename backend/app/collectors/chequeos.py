@@ -81,8 +81,22 @@ def _alerta(url: str, resultado: Dict[str, Any], estado: str, ahora: datetime) -
             "commonLabels": {"alertname": "HttpCheckFailed", "service": host}}
 
 
+def _publicar(api: str, token: str, cuerpo: Dict[str, Any], url: str) -> bool:
+    if not (api and token):
+        return False
+    try:
+        requests.post(f"{api}/api/alerts/alertmanager", json=cuerpo, headers={"Authorization": f"Bearer {token}"},
+                      timeout=30).raise_for_status()
+        return True
+    except requests.RequestException as exc:
+        print(f"[chequeos] No se pudo publicar {url}: {type(exc).__name__}")
+        return False
+
+
 def ejecutar(ahora: Optional[datetime] = None, revisar_url=revisar) -> List[Dict[str, Any]]:
-    """Revisa las URLs y publica las que abren o cierran. Devuelve el resultado de cada una."""
+    """Revisa las URLs y publica las que abren o cierran, y la quema de su SLO. Devuelve el resultado de cada una."""
+    from app.collectors import slo
+
     ahora = ahora or datetime.now(timezone.utc)
     urls = ajustes.seccion("chequeos")["urls"]
     api, token = os.getenv("API_URL", "").rstrip("/"), os.getenv("ALERTS_INGEST_TOKEN", "")
@@ -98,14 +112,21 @@ def ejecutar(ahora: Optional[datetime] = None, revisar_url=revisar) -> List[Dict
             publicar, abierta = "firing", True
         elif r["ok"] and abierta:
             publicar, abierta = "resolved", False
-        if publicar and api and token:
-            try:
-                requests.post(f"{api}/api/alerts/alertmanager", json=_alerta(url, r, publicar, ahora),
-                              headers={"Authorization": f"Bearer {token}"}, timeout=30).raise_for_status()
-            except requests.RequestException as exc:
-                # Sin publicar, el estado no avanza: la próxima corrida lo intenta de nuevo.
-                print(f"[chequeos] No se pudo publicar {url}: {type(exc).__name__}")
-                abierta = antes.get("abierta", False)
-        nuevo[url] = {**r, "fallas": fallas, "abierta": abierta, "at": ahora.isoformat(timespec="seconds")}
+        # Sin publicar, el estado no avanza: la próxima corrida lo intenta de nuevo.
+        if publicar and not _publicar(api, token, _alerta(url, r, publicar, ahora), url):
+            abierta = antes.get("abierta", False)
+        slo.anotar(url, r, ahora)
+        nuevo[url] = {**r, "fallas": fallas, "abierta": abierta, "slo_abierta": antes.get("slo_abierta", False),
+                      "at": ahora.isoformat(timespec="seconds")}
+
+    # SLO: la quema del presupuesto de error abre (y cierra) su propio incidente.
+    e = slo.estado(ahora, urls)
+    for s in e["items"]:
+        url, abierta = s["url"], nuevo[s["url"]]["slo_abierta"]
+        caida = nuevo[url]["abierta"]  # ya tiene el incidente de "no responde": el SLO no lo duplica
+        publicar = ("firing" if s["burning"] and not abierta and not caida
+                    else "resolved" if abierta and (s["burn_1h"] or 0) < 1 else None)
+        if publicar and _publicar(api, token, slo.alerta(url, s, e["objective_pct"], e["window_days"], publicar, ahora), url):
+            nuevo[url]["slo_abierta"] = publicar == "firing"
     _guardar(nuevo)
     return [{"url": u, **v} for u, v in nuevo.items()]

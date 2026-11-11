@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Role } from '../lib/types';
 import {
-  Activity, BellOff, BellRing, Boxes, GitCompareArrows, Layers, Megaphone, CircleDollarSign, ClipboardCheck, Container, FileCode2, FileSpreadsheet, History, LayoutGrid,
+  Activity, BellOff, Gauge, BellRing, Boxes, GitCompareArrows, Layers, Megaphone, CircleDollarSign, ClipboardCheck, Container, FileCode2, FileSpreadsheet, History, LayoutGrid,
   Plug, PiggyBank, Sparkles, Radar, ScrollText, Settings2, ShieldCheck, Siren, Tags,
 } from 'lucide-react';
 
@@ -49,6 +49,7 @@ export const NAV: { group: string; id: string; items: { id: string; label: strin
       { id: 'operacion/incidentes', label: 'Incidentes', icon: <Siren size={16} /> },
       { id: 'operacion/silencios', label: 'Silencios', icon: <BellOff size={16} /> },
       { id: 'operacion/avisos', label: 'Avisos', icon: <Megaphone size={16} /> },
+      { id: 'operacion/slos', label: 'SLOs', icon: <Gauge size={16} /> },
     ],
   },
   {
