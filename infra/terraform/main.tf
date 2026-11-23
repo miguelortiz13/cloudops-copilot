@@ -127,7 +127,7 @@ resource "azurerm_role_assignment" "tfstate_reader" {
 # Almacenamiento persistente (cache de costos, historico de KPIs, Excel)
 # ---------------------------------------------------------------------------
 module "storage" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/storage-account?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/storage-account?ref=v0.4.0"
 
   name                = local.storage_name
   resource_group_name = module.rg.name
