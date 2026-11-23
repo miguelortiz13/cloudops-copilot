@@ -23,7 +23,7 @@ locals {
 }
 
 module "sql" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/mssql-serverless-free?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/mssql-serverless-free?ref=v0.4.0"
 
   server_name         = local.sql_server_name
   database_name       = "sqldb-${local.base}"
