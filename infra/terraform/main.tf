@@ -147,7 +147,7 @@ module "storage" {
 # Sin Log Analytics: los logs se consultan en vivo con
 # `az containerapp logs show`. Conectar un workspace es opcional y tiene costo.
 module "cae" {
-  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app-environment?ref=v0.3.0"
+  source = "git::https://github.com/miguelortiz13/terraform-modules-iac.git//modules/azure/container-app-environment?ref=v0.4.0"
 
   name                = "cae-${local.base}"
   resource_group_name = module.rg.name
